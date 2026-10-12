@@ -80,7 +80,11 @@ function syncUi(){
 function updateStatus(result){
  if(overlay)return;
  const face=$('face-marker-status');
- face.textContent=result.supported?'3D eye rig ready · 2×2 markers':'Vanilla face · '+result.reason;
+ const hairLimited=result.supported&&
+  (result.occlusion?.left?.top?.[0]||result.occlusion?.right?.top?.[1]);
+ face.textContent=result.supported
+  ?hairLimited?'3D blink ready · hair-safe gaze (restricted)':'3D eyes ready · 2×2 pixels'
+  :'Vanilla face · '+result.reason;
  face.dataset.supported=String(!!result.supported);
  $('model-status').textContent=describeModel(state.modelMode,result.modelType);
 }

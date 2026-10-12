@@ -1,6 +1,7 @@
-export const ACTIONS = Object.freeze(['idle','walk','run','wave','sit','jump','think','celebrate']);
-export const PRIORITY = Object.freeze({idle:0,walk:1,run:1,sit:2,think:2,wave:3,jump:3,celebrate:3});
-export const DURATION = Object.freeze({wave:2.4,jump:0.95,think:3.2,celebrate:1.7});
+import {EXTRA_ANIMATIONS,applyExtraAnimation} from './animation-handlers.js';
+export const ACTIONS = Object.freeze(['idle','walk','run','wave','sit','jump','think','celebrate',...Object.keys(EXTRA_ANIMATIONS)]);
+export const PRIORITY = Object.freeze({idle:0,walk:1,run:1,sit:2,think:2,wave:3,jump:3,celebrate:3,...Object.fromEntries(Object.entries(EXTRA_ANIMATIONS).map(([id,spec])=>[id,spec.priority]))});
+export const DURATION = Object.freeze({wave:2.4,jump:0.95,think:3.2,celebrate:1.7,...Object.fromEntries(Object.entries(EXTRA_ANIMATIONS).map(([id,spec])=>[id,spec.duration]))});
 export const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 export const smooth = t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export const mix=(a,b,t)=>a+(b-a)*t;
@@ -36,6 +37,7 @@ export class BehaviorController {
     if(a==='jump'){const phase=clamp(e/DURATION.jump,0,1);p.rootY= Math.sin(Math.PI*phase)*4.4;p.legRX=-.32;p.legLX=.24;p.armRX=-.4;p.armLX=-.4;}
     if(a==='think'){p.headZ=.13;p.headY=.2;p.armRX=-.93;p.armRZ=-.18;}
     if(a==='celebrate'){p.armLX=-1.9;p.armRX=-1.9;p.rootY=Math.abs(Math.sin(e*9))*2;p.legRX=.2;p.legLX=-.2;}
+    applyExtraAnimation(a,p,e);
     p.headY+=this.gaze[0]*.27;p.headX+=this.gaze[1]*-.15;
     const fade=smooth(this.blendTime/.17);
     // Neutral-pose interpolation is used for smooth entries; locomotion is continuous.

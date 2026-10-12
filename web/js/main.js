@@ -33,7 +33,7 @@ const sessionId=Math.random().toString(36).slice(2);
 let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootReady=false;
 let rafId=0,idleTimer=0,frameSamples=new Float32Array(120),sampleCount=0,sampleCursor=0,contextLosses=0;
 let renderer=null,lastTime=0,renderT=0,renderCount=0,lastReport=performance.now();
-let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0;
+let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,lastPointerEvent=-Infinity;
 const canvas=$(overlay?'overlay-canvas':'avatar-canvas');
 const toast=message=>{const node=$('toast');node.textContent=message;node.hidden=false;clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>node.hidden=true,4100);};
 const save=()=>{try{
@@ -64,8 +64,7 @@ function clearFailure(){
 function wake(){
  if(document.hidden||contextLost||!renderer||!bootReady)return;
  clearTimeout(idleTimer);idleTimer=0;
- if(rafId)cancelAnimationFrame(rafId);
- rafId=requestAnimationFrame(frame);
+ if(!rafId)rafId=requestAnimationFrame(frame);
 }
 
 function syncUi(){
@@ -80,11 +79,7 @@ function syncUi(){
 function updateStatus(result){
  if(overlay)return;
  const face=$('face-marker-status');
- const hairLimited=result.supported&&
-  (result.occlusion?.left?.top?.[0]||result.occlusion?.right?.top?.[1]);
- face.textContent=result.supported
-  ?hairLimited?'3D blink ready · hair-safe gaze (restricted)':'3D eyes ready · 2×2 pixels'
-  :'Vanilla face · '+result.reason;
+ face.textContent=result.supported?'2D gaze + blink · native UV eyes':'Vanilla face · '+result.reason;
  face.dataset.supported=String(!!result.supported);
  $('model-status').textContent=describeModel(state.modelMode,result.modelType);
 }
@@ -208,7 +203,7 @@ function bindWorkspaceNavigation(){
   switch(button.dataset.quick){
    case 'wave':controller.request('wave');setActiveAction('wave');wake();break;
    case 'studio':showPage('studio');break;
-   case 'reset-view':angle=0;cursor=[0,0];tracking=false;wake();break;
+   case 'reset-view':angle=0;cursor[0]=0;cursor[1]=0;tracking=false;wake();break;
    case 'reset-scale':state.scale=100;save();syncUi();wake();break;
   }
  });
@@ -241,17 +236,31 @@ function connectWorkshop(){
 }
 function setActiveAction(action){if(overlay)return;for(const node of document.querySelectorAll('[data-action]'))node.classList.toggle('active',node.dataset.action===action);}
 function attachPointer(element){
- element.addEventListener('pointermove',e=>{
-  const b=element.getBoundingClientRect();
-  cursor=[(e.clientX-b.left-b.width/2)/(b.width*.48),(b.height/2-(e.clientY-b.top))/(b.height*.45)].map(v=>Math.max(-1,Math.min(1,v)));
-  tracking=true;
-  if(dragging)angle=Math.max(-2,Math.min(2,rotStart+(e.clientX-(element.dragAnchor??e.clientX))*.012));
- });
- element.addEventListener('pointerleave',()=>{tracking=false;cursor=[0,0];});
+ // Window-local only: Workspace panels also drive the eyes; never hook the
+ // global Windows cursor. Origin is the projected upper-head area on canvas.
+ const reset=()=>{
+  tracking=false;cursor[0]=0;cursor[1]=0;lastPointerEvent=-Infinity;
+  dragging=false;controller.setGaze(0,0);wake();
+ };
+ document.addEventListener('pointermove',event=>{
+  const b=canvas.getBoundingClientRect();
+  const headX=b.left+b.width*.5,headY=b.top+b.height*.27;
+  cursor[0]=Math.max(-1,Math.min(1,(event.clientX-headX)/Math.max(180,b.width*.40)));
+  cursor[1]=Math.max(-1,Math.min(1,(headY-event.clientY)/Math.max(150,b.height*.38)));
+  tracking=true;lastPointerEvent=performance.now();
+  if(dragging)angle=Math.max(-2,Math.min(2,rotStart+(event.clientX-(element.dragAnchor??event.clientX))*.012));
+  wake();
+ },{passive:true});
+ document.addEventListener('pointerleave',reset);
+ window.addEventListener('blur',reset);
  if(!overlay){
-  element.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;rotStart=angle;element.dragAnchor=e.clientX;element.setPointerCapture?.(e.pointerId);});
-  element.addEventListener('pointerup',()=>dragging=false);
-  element.addEventListener('pointercancel',()=>dragging=false);
+  element.addEventListener('pointerdown',event=>{
+   if(event.button!==0)return;
+   dragging=true;rotStart=angle;element.dragAnchor=event.clientX;
+   element.setPointerCapture?.(event.pointerId);wake();
+  });
+  element.addEventListener('pointerup',()=>{dragging=false;wake();});
+  element.addEventListener('pointercancel',()=>{dragging=false;wake();});
  }
 }
 function connectOverlay(){
@@ -265,17 +274,17 @@ function connectOverlay(){
 function frame(time){
  rafId=0;
  if(!bootReady||!renderer||document.hidden||contextLost){lastTime=0;return;}
- let active=controller.action!=='idle'||dragging||tracking||controller.blinkElapsed>=0;
+ controller.setGaze(state.follow&&tracking?cursor[0]:0,state.follow&&tracking?cursor[1]:0);
+ let active=controller.action!=='idle'||dragging||controller.gazeMoving()||controller.blinkElapsed>=0||(tracking&&time-lastPointerEvent<300);
  if(!framePacer.ready(time,active)){rafId=requestAnimationFrame(frame);return;}
  const dt=lastTime?Math.min((time-lastTime)/1000,.05):0;
  lastTime=time;
  try{
   controller.update(dt);
-  active=active||controller.blink>0;
-  controller.setGaze(state.follow&&tracking?cursor[0]:0,state.follow&&tracking?cursor[1]:0);
+  active=active||controller.blink>0||controller.gazeMoving();
   const blink=controller.blink;
   const started=performance.now();
-  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],blink});
+  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink});
   const cost=performance.now()-started;
   frameSamples[sampleCursor]=cost;
   sampleCursor=(sampleCursor+1)%frameSamples.length;

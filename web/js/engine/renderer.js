@@ -1,5 +1,5 @@
 import {SkinViewer} from 'skinview3d';
-import {Group,Mesh,PlaneGeometry,MeshBasicMaterial} from 'three';
+import {Group,Mesh,PlaneGeometry,MeshStandardMaterial} from 'three';
 import {detectFaceProfile} from '../avatar/face.js';
 import {deriveFaceRig,pupilOffset,eyelidPose} from '../avatar/face-rig-layout.js';
 import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
@@ -41,8 +41,10 @@ class FaceRig3D{
   const backgroundGeometry=new PlaneGeometry(2,1);
   const pixelGeometry=new PlaneGeometry(1.002,1.002);
   const lidGeometry=new PlaneGeometry(2,2);
-  const material=color=>new MeshBasicMaterial({
-   color:rgbHex(color),depthTest:true,depthWrite:true,toneMapped:false
+  // skinview3d's canonical head is MeshStandardMaterial. Match its lighting
+  // model so replacement background pixels do not form bright/dark rectangles.
+  const material=color=>new MeshStandardMaterial({
+   color:rgbHex(color),roughness:1,metalness:0,depthTest:true,depthWrite:true
   });
   const irisMaterial=material(layout.colors.iris);
   const pupilMaterial=material(layout.colors.pupil);

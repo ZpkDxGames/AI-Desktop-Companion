@@ -42,14 +42,28 @@ try {
         return canvas && canvas.width>2 && canvas.height>2 && canvas.getAttribute('data-render-ready')==='true';
       },null,{timeout:10000});
       await page.waitForTimeout(900);
+      const surface=page.locator(mode==='overlay'?'#overlay-canvas':'#avatar-canvas');
+      const before=await surface.screenshot();
+      await page.locator(mode==='overlay'?'#overlay-wave':'[data-action="wave"]').click();
+      await page.waitForTimeout(450);
+      const after=await surface.screenshot();
+      if(before.equals(after))throw new Error('Canvas pixels did not change during Wave animation');
+      const stage=await page.locator('#runtime-stage').innerText();
+      if(stage!=='RUNNING')throw new Error('Renderer did not enter RUNNING: '+stage);
       if(mode==='workshop') {
         const status=await page.locator('#graphics-status').innerText();
         if(!status.includes('skinview3d'))throw new Error('Unexpected renderer status: '+status);
-        await page.getByRole('button',{name:'Wave'}).click();
         await page.waitForFunction(()=>document.querySelector('#animation-status')?.textContent?.toLowerCase()==='wave');
+        const png=await readFile(resolve('web/assets/sample-skin.png'));
+        await page.locator('#skin-upload').setInputFiles({name:'recovery-test-skin.png',mimeType:'image/png',buffer:png});
+        await page.waitForFunction(()=>document.querySelector('#current-skin-label')?.textContent==='RECOVERY-TEST-SKIN.PNG');
+        await page.reload({waitUntil:'load'});
+        await page.waitForFunction(()=>document.querySelector('#current-skin-label')?.textContent==='RECOVERY-TEST-SKIN.PNG'&&document.querySelector('#avatar-canvas')?.dataset.renderReady==='true');
       }
       if(errors.length)throw new Error('Browser errors: '+errors.join('; '));
-      console.log('PASS '+mode+' production startup; canvas ready; no 4xx or page errors');
+      await page.screenshot({path:'smoke-artifacts/'+mode+'.png'});
+      console.log('PASS '+mode+' production startup, non-static 3D wave and clean resources'+(mode==='workshop'?', skin import and reload':''));
+
     } catch(error) {
       failed=true;
       const status=await page.locator('#graphics-status').textContent().catch(()=>null);

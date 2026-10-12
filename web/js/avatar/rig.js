@@ -1,17 +1,18 @@
 /** Java Edition 64x64 skin layout; body is 8x12x4, head is 8x8x8. */
 export function rigParts(slim=false){
  const arm=slim?3:4;
+ const armOffset=slim?.5:1; // Horizontal offset from vanilla shoulder hinge.
  return [
  {id:'body',uv:[16,16,8,12,4],size:[8,12,4],pivot:[0,24,0],center:[0,-6,0],layer:false},
  {id:'head',uv:[0,0,8,8,8],size:[8,8,8],pivot:[0,24,0],center:[0,4,0],layer:false},
- {id:'rightArm',uv:[40,16,arm,12,4],size:[arm,12,4],pivot:[-(4+arm/2),24,0],center:[0,-6,0],layer:false},
- {id:'leftArm',uv:[32,48,arm,12,4],size:[arm,12,4],pivot:[4+arm/2,24,0],center:[0,-6,0],layer:false},
+ {id:'rightArm',uv:[40,16,arm,12,4],size:[arm,12,4],pivot:[-5,22,0],center:[-armOffset,-4,0],layer:false},
+ {id:'leftArm',uv:[32,48,arm,12,4],size:[arm,12,4],pivot:[5,22,0],center:[armOffset,-4,0],layer:false},
  {id:'rightLeg',uv:[0,16,4,12,4],size:[4,12,4],pivot:[-2,12,0],center:[0,-6,0],layer:false},
  {id:'leftLeg',uv:[16,48,4,12,4],size:[4,12,4],pivot:[2,12,0],center:[0,-6,0],layer:false},
  {id:'bodyOuter',uv:[16,32,8,12,4],size:[8.5,12.5,4.5],pivot:[0,24,0],center:[0,-6,0],layer:true,part:'body'},
  {id:'headOuter',uv:[32,0,8,8,8],size:[9,9,9],pivot:[0,24,0],center:[0,4,0],layer:true,part:'head'},
- {id:'rightArmOuter',uv:[40,32,arm,12,4],size:[arm+.5,12.5,4.5],pivot:[-(4+arm/2),24,0],center:[0,-6,0],layer:true,part:'rightArm'},
- {id:'leftArmOuter',uv:[48,48,arm,12,4],size:[arm+.5,12.5,4.5],pivot:[4+arm/2,24,0],center:[0,-6,0],layer:true,part:'leftArm'},
+ {id:'rightArmOuter',uv:[40,32,arm,12,4],size:[arm+.5,12.5,4.5],pivot:[-5,22,0],center:[-armOffset,-4,0],layer:true,part:'rightArm'},
+ {id:'leftArmOuter',uv:[48,48,arm,12,4],size:[arm+.5,12.5,4.5],pivot:[5,22,0],center:[armOffset,-4,0],layer:true,part:'leftArm'},
  {id:'rightLegOuter',uv:[0,32,4,12,4],size:[4.5,12.5,4.5],pivot:[-2,12,0],center:[0,-6,0],layer:true,part:'rightLeg'},
  {id:'leftLegOuter',uv:[0,48,4,12,4],size:[4.5,12.5,4.5],pivot:[2,12,0],center:[0,-6,0],layer:true,part:'leftLeg'},
  ];

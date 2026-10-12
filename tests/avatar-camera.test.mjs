@@ -5,8 +5,8 @@ import { CAMERA, avatarRootMatrix, avatarViewProjection } from '../web/js/engine
 import { BehaviorController, ACTIONS } from '../web/js/avatar/animation.js';
 import { EXTRA_ANIMATIONS,applyExtraAnimation } from '../web/js/avatar/animation-handlers.js';
 const point=(m,v)=>[0,1,2,3].map(r=>m[r]*v[0]+m[4+r]*v[1]+m[8+r]*v[2]+m[12+r]*v[3]);
-test('both arm rigs have vanilla 24px shoulder pivot',()=>{
- for(const slim of [false,true])for(const part of rigParts(slim).filter(p=>p.id.toLowerCase().includes('arm')))assert.equal(part.pivot[1],24);
+test('both arm rigs rotate around the vanilla 22px shoulder hinge',()=>{
+ for(const slim of [false,true])for(const part of rigParts(slim).filter(p=>p.id.toLowerCase().includes('arm')))assert.equal(part.pivot[1],22);
 });
 test('default camera is near-frontal, centers player and shows its entire body',()=>{
  assert.ok(Math.abs(CAMERA.eye[0]/CAMERA.eye[2])<.2);

@@ -81,3 +81,17 @@ test('head-attached facial micro-plane also winds outward for back-face culling'
  const data=facePlaneTriangles();
  for(const offset of [0,24])assert.ok(dot(triNormal(data,offset),[0,0,1])>EPS);
 });
+
+test('rotation hinges use vanilla shoulder pivots without changing resting arm geometry',()=>{
+ for(const slim of [false,true]){
+  const parts=new Map(rigParts(slim).map(p=>[p.id,p]));
+  for(const side of ['right','left']){
+   const sign=side==='right'?-1:1;
+   const inner=parts.get(side+'Arm'),outer=parts.get(side+'ArmOuter');
+   assert.deepEqual(inner.pivot,[sign*5,22,0]);
+   assert.deepEqual(inner.center,[sign*(slim?.5:1),-4,0]);
+   assert.deepEqual(outer.pivot,inner.pivot);
+   assert.deepEqual(outer.center,inner.center);
+  }
+ }
+});

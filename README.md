@@ -1,10 +1,10 @@
 # ZpkDxGames Desktop Companion
 
-**Phase 0 + v0.1 animation foundation — source preview / Windows integration alpha.**
+**Phase 0 + v0.1 skin-native face prototype — Windows integration alpha (v0.1.0-alpha.4 development).**
 
 **v0.1.0-alpha.2 renderer hotfix:** Fixes a malformed Z-axis rotation matrix that made the avatar invisible in both windows despite WebGL2 reporting ready. See [the regression report](docs/RENDER_FIX_ALPHA_2.md). The Windows executable still requires real-machine visual certification.
 
-A 3D Minecraft-style desktop avatar powered by a small custom WebGL2 engine. It renders a pixel-perfect Java Edition skin, supports Classic and Slim arms, animates six articulated body parts, preserves original skin face pixels while the skin-native Just Expressions adapter is developed, and optionally runs as a small always-on-top **Windows 11 Tauri 2** companion with tray controls.
+A 3D Minecraft-style desktop avatar powered by a small custom WebGL2 engine. It renders a pixel-perfect Java Edition skin, supports Classic and Slim arms, animates six articulated body parts, renders an independently animated and optional skin-native face layer for one validated symmetric eye-swatch layout, without modifying the original skin texture, and optionally runs as a small always-on-top **Windows 11 Tauri 2** companion with tray controls.
 
 This is **not yet an AI agent**. It does not inspect the screen, observe applications, execute actions, or run Ollama. Those are explicitly reserved for later opt-in milestones.
 
@@ -20,7 +20,7 @@ Open <http://127.0.0.1:4173/> in Chrome/Edge. Node's built-in HTTP server serves
 
 The preview starts with an **illustrative sample skin**, **not the user's original ZpkDxGames skin**. Use **Import PNG** to load the real 64×64 Java Edition PNG. Imported skins are processed locally and stored in local browser storage. They are not uploaded. Skin sizes other than 64×64 are rejected.
 
-Select Classic/Steve or Slim/Alex arms, test Idle/Walk/Run/Wave/Sit/Jump/Think/Celebrate/Nod/Shrug/Stretch/Bow, drag to rotate, and adjust scale. The manual eye editor has been retired on the development branch. The imported face is preserved unmodified until a marker-driven Just Expressions adapter has been verified against the original 64x64 skin.
+Select Classic/Steve or Slim/Alex arms, test Idle/Walk/Run/Wave/Sit/Jump/Think/Celebrate/Nod/Shrug/Stretch/Bow, drag to rotate, and adjust scale. The manual eye editor has been retired. If a supported extra-pixel eye swatch is recognized, the character automatically enables head-attached blinking and discreet eye movement. Unrecognized skins retain vanilla facial pixels.
 
 ## Build the Windows desktop app
 
@@ -60,7 +60,8 @@ The transparent, frameless avatar overlay starts in **interactive mode**. It can
 | Steve/Classic and Alex/Slim arms, outer layers | Implemented |
 | Idle, walk, run, wave, sit, jump, think, celebrate | Implemented as procedural animations |
 | Head tracking | Implemented; subtle head motion only |
-| Just Expressions-compatible face/eyelids | Planned; skin-marker verification required |
+| Skin-native symmetric 2x2 eye swatch, automatic gaze and eyelids | Implemented in development alpha.4; Windows visual certification pending |
+| Full Just Expressions/EMF face-format parity | Not implemented |
 | Frame-rate adaptation (active 60, idle ~18) | Implemented; not hardware-benchmarked |
 | Tauri overlay, native drag, tray menu, global click-through | Native implementation written, **Windows verification pending** |
 | Genuine cross-window collision physics / window sitting | Planned v0.2; preview `Sit` is a pose |
@@ -72,7 +73,8 @@ The transparent, frameless avatar overlay starts in **interactive mode**. It can
 ## Engineering principles
 
 - All vanilla movement is driven from one deterministic `BehaviorController`.
-- Imported skin pixels remain unmodified. The obsolete manual eye painter was removed; a marker-driven face renderer is being designed.
+- Imported skin pixels remain unmodified. The obsolete manual eye painter was removed; the bounded symmetric 2x2 swatch adapter now uses a separate head-linked face plane.
+- User-provided ZpkDxGames PNG is not committed to the public repository. CI tests use synthetic color fixtures.
 - No remote script, CDN, telemetry, or API call.
 - The native Rust shell exposes three tightly scoped commands: toggle whole-window click-through, drag the avatar window, open the workshop.
 - Uploaded PNG texture size is capped at 2 MB, with magic-number and 64×64 validation.
@@ -94,7 +96,7 @@ web/
   index.html, css/app.css
   js/engine/renderer.js, mat4.js    # minimal WebGL2 / 3D pipeline
   js/avatar/rig.js, animation.js    # vanilla cuboids, state machine
-  js/avatar/skin.js                 # original PNG validation (facial adapter pending)
+  js/avatar/skin.js, face.js        # source PNG validation and skin-native facial adapter
   js/main.js                        # independent workshop / overlay UI
   assets/sample-skin.png            # illustrative local sample
 src-tauri/
@@ -108,7 +110,7 @@ docs/ANIMATION_SPEC.md
 
 No claim is made that the provided profile picture can be converted accurately into the original 64×64 skin texture.
 
-For the source-level geometry and handler work, see the draft development [pull request](https://github.com/ZpkDxGames/AI-Desktop-Companion/pull/1) and [Just Expressions adapter contract](docs/JUST_EXPRESSIONS_ADAPTER.md). This draft **does not** claim pack-identical eye rendering. Share the original skin PNG for this stage.\n\n## GitHub repository
+For the source-level geometry and handler work, see the draft development [pull request](https://github.com/ZpkDxGames/AI-Desktop-Companion/pull/1) and [Just Expressions adapter contract](docs/JUST_EXPRESSIONS_ADAPTER.md). This draft **does not** claim full Just Expressions parity. The original skin PNG has been verified locally but deliberately excluded from this public repository.\n\n## GitHub repository
 
 Development repository: <https://github.com/ZpkDxGames/AI-Desktop-Companion>.
 

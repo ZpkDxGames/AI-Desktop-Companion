@@ -4,7 +4,7 @@ import {eyeCenter,pupilOffset,eyelidPose,deriveFaceRig} from '../web/js/avatar/f
 
 test('2x2 face cells map into the canonical 8x8 head front plane',()=>{
  assert.deepEqual(eyeCenter([1,4]),{x:-2,y:3,z:4.018});
- assert.deepEqual(eyeCenter([5,4]),{x:2,y:3,z:4.015});
+ assert.deepEqual(eyeCenter([5,4]),{x:2,y:3,z:4.018});
 });
 test('pupil travel is bounded inside the 2x2 eye and keeps inward neutral gaze',()=>{
  assert.ok(pupilOffset('left',0)>0);

@@ -1,119 +1,109 @@
 # ZpkDxGames Desktop Companion
 
-**Phase 0 + v0.1 skin-native face prototype — Windows integration alpha (v0.1.0-alpha.4 development).**
+**Alpha.6 avatar viewer rebuild — Windows development preview.**
 
-**v0.1.0-alpha.2 renderer hotfix:** Fixes a malformed Z-axis rotation matrix that made the avatar invisible in both windows despite WebGL2 reporting ready. See [the regression report](docs/RENDER_FIX_ALPHA_2.md). The Windows executable still requires real-machine visual certification.
+A local-first Windows 11 desktop companion using the user's Minecraft skin as a fully 3D character. Alpha.6 replaces the earlier custom WebGL player mesh with the established MIT-licensed **skinview3d 3.4.2 / Three.js** player model so Java 64×64 UVs, outer layers and Classic/Slim geometry have one canonical rendering path.
 
-A 3D Minecraft-style desktop avatar powered by a small custom WebGL2 engine. It renders a pixel-perfect Java Edition skin, supports Classic and Slim arms, animates six articulated body parts, renders an independently animated and optional skin-native face layer for one validated symmetric eye-swatch layout, without modifying the original skin texture, and optionally runs as a small always-on-top **Windows 11 Tauri 2** companion with tray controls.
+This is **not yet an AI agent**. Screen observation, Ollama, tool execution and proactive desktop actions remain disabled until the avatar/overlay foundation is visually certified.
 
-This is **not yet an AI agent**. It does not inspect the screen, observe applications, execute actions, or run Ollama. Those are explicitly reserved for later opt-in milestones.
+## Alpha.6 renderer
 
-## Try the animation workshop (no install / no internet required)
+- Canonical Minecraft Java skin model via skinview3d.
+- Automatic Classic/Slim detection with manual override.
+- Perspective camera, FXAA, nearest-neighbor textures and tuned local lighting.
+- Existing local animation state machine drives skinview3d joints.
+- Supported ZpkDxGames/Fresh-Moves-style symmetric eye markers create **separate 3D sclera, iris, pupil and eyelid planes** attached to the head.
+- Facial micro-geometry sits above the base head and behind the normal hat/hair outer layer, so opaque hair naturally occludes it.
+- Unsupported eye layouts preserve the original vanilla face.
+- Workshop uses a polished studio background; desktop overlay remains transparent.
 
-From the project directory with Node 20+:
+See [Alpha.6 Viewer Rebuild](docs/ALPHA6_VIEWER_REBUILD.md).
 
-```powershell
-npm run dev
-```
+## Run the web studio
 
-Open <http://127.0.0.1:4173/> in Chrome/Edge. Node's built-in HTTP server serves the bundled HTML/CSS/JS; **no npm install is needed for the web preview.**
-
-The preview starts with an **illustrative sample skin**, **not the user's original ZpkDxGames skin**. Use **Import PNG** to load the real 64×64 Java Edition PNG. Imported skins are processed locally and stored in local browser storage. They are not uploaded. Skin sizes other than 64×64 are rejected.
-
-Select Classic/Steve or Slim/Alex arms, test Idle/Walk/Run/Wave/Sit/Jump/Think/Celebrate/Nod/Shrug/Stretch/Bow, drag to rotate, and adjust scale. The manual eye editor has been retired. If a supported extra-pixel eye swatch is recognized, the character automatically enables head-attached blinking and discreet eye movement. Unrecognized skins retain vanilla facial pixels.
-
-## Build the Windows desktop app
-
-Prerequisites on Windows 11:
-- Microsoft C++ Build Tools with the **Desktop development with C++** workload
-- Rust stable MSVC toolchain (`rustup`)
-- WebView2 (typically present on Windows 11)
-- Node.js 20+ and npm
-
-From the repository directory:
+Prerequisites: Node.js 20+.
 
 ```powershell
 npm install
+npm run dev
+```
+
+Open <http://127.0.0.1:4173/>. Imported skins stay on-device in local storage.
+
+## Build the Windows desktop app
+
+Prerequisites:
+- Microsoft C++ Build Tools — Desktop development with C++
+- Rust stable MSVC toolchain
+- WebView2
+- Node.js 20+ / npm
+
+```powershell
+npm install
+npm run check
 npm run tauri:dev
 ```
 
-For an NSIS installer:
+Build NSIS:
 
 ```powershell
 npm run tauri:build
 ```
 
-The installer normally appears under `src-tauri/target/release/bundle/nsis/` after a successful Windows build. We have **not built or tested an EXE here**; Rust and the Windows compiler are unavailable in this environment. The Rust/Tauri configuration needs Windows certification before considering this a working packaged release.
-
-### Windows controls
-
-The transparent, frameless avatar overlay starts in **interactive mode**. It can be dragged by its upper bar. The three bottom controls are Wave, Rest, and Setup (opens the larger workshop window). Its system tray menu offers **Open animation workshop**, **Toggle avatar click-through**, **Wave**, and **Quit**.
-
-**Important:** Enabling click-through makes the **entire avatar window** ignore mouse input. Use the tray menu to disable it again. **Per-pixel/avatar-shaped hit testing is not implemented yet**. The alpha background does not automatically make the app click-through; this is an explicit remaining Windows usability gate.
-
-## Feature status
+## Current feature status
 
 | Capability | Status |
 |---|---|
-| GPU 3D renderer with classic vanilla proportions | Implemented (browser-level code) |
-| 64×64 skin PNG import and validation | Implemented |
-| Steve/Classic and Alex/Slim arms, outer layers | Implemented |
-| Idle, walk, run, wave, sit, jump, think, celebrate | Implemented as procedural animations |
-| Head tracking | Implemented; subtle head motion only |
-| Skin-native symmetric 2x2 eye swatch, automatic gaze and eyelids | Implemented in development alpha.4; Windows visual certification pending |
-| Full Just Expressions/EMF face-format parity | Not implemented |
-| Frame-rate adaptation (active 60, idle ~18) | Implemented; not hardware-benchmarked |
-| Tauri overlay, native drag, tray menu, global click-through | Native implementation written, **Windows verification pending** |
-| Genuine cross-window collision physics / window sitting | Planned v0.2; preview `Sit` is a pose |
-| Automatic window monitoring | Not implemented |
-| AI/chat/Ollama | Not implemented (planned v0.3) |
-| Screen viewing/vision | Not implemented (planned v0.4) |
-| Agent actions | Not implemented (planned v0.5) |
+| Canonical Java 64×64 skin / outer layers | Alpha.6 implemented through skinview3d |
+| Classic/Slim auto-detection | Implemented |
+| Manual Classic/Slim override | Implemented |
+| Idle/walk/run/wave/sit/jump/think/celebrate | Implemented |
+| Nod/shrug/stretch/bow | Implemented |
+| 3D skin-native eye/pupil/eyelid rig | Experimental; supported marker layout only |
+| Cursor head/pupil tracking | Implemented |
+| Transparent always-on-top Tauri overlay | Implemented; Windows visual certification required |
+| Whole-window click-through | Implemented; tray recovery required |
+| Per-pixel avatar hit testing | Planned |
+| Desktop/window physics | Planned |
+| Local AI / Ollama | Not implemented |
+| Screen viewing / agent actions | Not implemented |
 
-## Engineering principles
+## Engineering boundaries
 
-- All vanilla movement is driven from one deterministic `BehaviorController`.
-- Imported skin pixels remain unmodified. The obsolete manual eye painter was removed; the bounded symmetric 2x2 swatch adapter now uses a separate head-linked face plane.
-- User-provided ZpkDxGames PNG is not committed to the public repository. CI tests use synthetic color fixtures.
-- No remote script, CDN, telemetry, or API call.
-- The native Rust shell exposes three tightly scoped commands: toggle whole-window click-through, drag the avatar window, open the workshop.
-- Uploaded PNG texture size is capped at 2 MB, with magic-number and 64×64 validation.
-- No OS process enumeration, accessibility grants, screenshot permissions, shell commands, or arbitrary file-system access.
-- Per-user preview settings live in `localStorage` under `zpkdx-avatar-v0.1`. It can be cleared through browser storage controls.
+- `skinview3d` and `three` are bundled locally by Vite. No CDN/runtime network script is used.
+- The original user's skin is **not committed** to this public repository.
+- AI, screen capture, process enumeration, shell and accessibility permissions remain absent.
+- `BehaviorController` remains deterministic and local.
+- Alpha.5 custom mesh/UV drafts are superseded; the old homegrown `rig.js`, `mat4.js`, `camera.js` and associated tests have been removed from Alpha.6.
+- Facial marker detection never edits the original PNG.
 
-## Tests
+## Validation
 
 ```powershell
 npm run check
 ```
 
-Tests use Node's built-in runner without dependencies. The current suite covers skin validation, UV geometry, Classic/Slim rigs, correct camera framing, animation priorities/timeouts, bounded supplementary pose handlers, gaze clamping, and matrix transformations. See `docs/RELEASE_GATES.md` for missing Windows/runtime acceptance tests.
+This runs Node unit tests and a production Vite bundle. GitHub Actions also compiles Windows NSIS preview installers on pull requests. A successful build is **not** a visual certification; the real skin must be checked in Windows WebView2 from front, quarter, sides and rear before Alpha.6 can merge.
 
 ## Repository map
 
 ```text
 web/
-  index.html, css/app.css
-  js/engine/renderer.js, mat4.js    # minimal WebGL2 / 3D pipeline
-  js/avatar/rig.js, animation.js    # vanilla cuboids, state machine
-  js/avatar/skin.js, face.js        # source PNG validation and skin-native facial adapter
-  js/main.js                        # independent workshop / overlay UI
-  assets/sample-skin.png            # illustrative local sample
+  index.html
+  css/app.css
+  js/main.js
+  js/engine/renderer.js          # skinview3d / Three.js adapter + 3D face rig
+  js/avatar/animation.js
+  js/avatar/animation-handlers.js
+  js/avatar/face.js              # marker detection only
+  js/avatar/face-rig-layout.js   # pure 3D eye geometry math
+  js/avatar/model-policy.js      # auto/manual Classic/Slim policy
+  js/avatar/skin.js              # local PNG validation
 src-tauri/
-  src/lib.rs                        # native tray/overlay commands
-  tauri.conf.json, capabilities/    # desktop app configuration
-assets/reference/ZpkDxGames-pfp.png # provided visual reference (not skin)
-docs/PROJECT_CHARTER.md             # primary long-term product specification
-docs/ANIMATION_SPEC.md
-/docs/RELEASE_GATES.md
+  src/lib.rs
+  tauri.conf.json
+docs/
+  ALPHA6_VIEWER_REBUILD.md
 ```
 
-No claim is made that the provided profile picture can be converted accurately into the original 64×64 skin texture.
-
-For the source-level geometry and handler work, see the draft development [pull request](https://github.com/ZpkDxGames/AI-Desktop-Companion/pull/1) and [Just Expressions adapter contract](docs/JUST_EXPRESSIONS_ADAPTER.md). This draft **does not** claim full Just Expressions parity. The original skin PNG has been verified locally but deliberately excluded from this public repository.\n\n## GitHub repository
-
 Development repository: <https://github.com/ZpkDxGames/AI-Desktop-Companion>.
-
-This repository holds an **alpha source preview**, not a production or certified Windows desktop release. Clone normally with `git clone https://github.com/ZpkDxGames/AI-Desktop-Companion.git`.
-
-A lightweight Windows GitHub Actions workflow (`.github/workflows/check.yml`) runs `npm run check` on pushes and pull requests. Native Tauri certification is not included in this workflow yet.

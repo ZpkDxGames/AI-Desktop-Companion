@@ -5,3 +5,18 @@ html.overlay,body.mode-overlay{background:transparent!important;overflow:hidden;
 @media(prefers-reduced-motion:reduce){.action,.switch span,.switch span:before{transition:none}}
 
 #face-marker-status,#model-status{max-width:220px;overflow-wrap:anywhere;text-align:right}#face-marker-status[data-supported="true"]{color:#9bd4c4}
+
+/* Recovery UI: always visible when a packaged texture or WebGL context fails. */
+.runtime-alert[hidden]{display:none!important}
+.runtime-alert{position:fixed;z-index:50;top:92px;left:50%;transform:translateX(-50%);width:min(530px,calc(100vw - 28px));padding:18px;border:1px solid #b2856b;border-radius:12px;background:#241f1d;color:#f0e8df;box-shadow:0 18px 60px #000a}
+.runtime-alert strong{display:block;font-size:14px;line-height:1.4}
+.runtime-alert p{font-size:12px;color:#d5bbac;line-height:1.5;overflow-wrap:anywhere}
+.recovery-actions{display:flex;gap:8px;flex-wrap:wrap}
+.recovery-actions button{border:1px solid #8b796e;border-radius:8px;background:#37302e;color:#f7efeb;padding:9px 12px}
+.recovery-actions button:hover{background:#4a3e37}
+#frame-percentiles{display:block;max-width:200px;color:#b0c5bf;text-align:right;overflow-wrap:anywhere;line-height:1.5;font-size:10px}
+.mode-overlay .runtime-alert{top:50%;width:calc(100vw - 16px);padding:10px;transform:translate(-50%,-50%);background:#241f1df0}
+.mode-overlay .runtime-alert strong{font-size:11px}
+.mode-overlay .runtime-alert p{font-size:10px}
+.mode-overlay .recovery-actions button{padding:7px;font-size:10px}
+@media(max-height:700px){.runtime-alert{top:12px}}

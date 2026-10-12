@@ -28,6 +28,8 @@ export function cuboidTriangles(part){
  {rect:[u+td+tw+td,v+td,tw,th],norm:[0,0,-1],p:[[x,y,-z],[-x,y,-z],[-x,-y,-z],[x,-y,-z]]}
  ];
  const out=[];
- for(const f of faces){const [a,b,c,e]=f.rect;const uv=[[a,b],[a+c,b],[a+c,b+e],[a,b+e]];for(const i of [0,1,2,0,2,3])out.push(...f.p[i],uv[i][0]/64,uv[i][1]/64,...f.norm);}
+ for(const f of faces){const [a,b,c,e]=f.rect;const uv=[[a,b],[a+c,b],[a+c,b+e],[a,b+e]];// Quad points run from top-left to top-right to bottom-right to bottom-left.
+ // Reverse triangle order for outward CCW faces consistent with normals.
+ for(const i of [0,2,1,0,3,2])out.push(...f.p[i],uv[i][0]/64,uv[i][1]/64,...f.norm);}
  return new Float32Array(out);
 }

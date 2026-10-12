@@ -29,7 +29,10 @@ export class AvatarRenderer {
   gl.bindBuffer(gl.ARRAY_BUFFER,this.faceBuffer);gl.bufferData(gl.ARRAY_BUFFER,facePlaneTriangles(),gl.STATIC_DRAW);
   this.faceCanvas=document.createElement('canvas');this.faceCanvas.width=64;this.faceCanvas.height=64;
   this.faceContext=this.faceCanvas.getContext('2d');this.faceProfile={supported:false,reason:'no-skin'};
-  this.lastFaceState='';this.facesEnabled=true;this.slim=false;this.meshes=[];this.skin=null;this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
+  this.lastFaceState='';this.facesEnabled=true;this.slim=false;this.meshes=[];this.skin=null;this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
+  // Outward CCW faces make rear-layer culling safe, including the facial plane.
+  gl.frontFace(gl.CCW);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);
+  gl.useProgram(this.program);
  }
  createRig(slim){
   const gl=this.gl;for(const m of this.meshes)gl.deleteBuffer(m.vbo);this.slim=slim;

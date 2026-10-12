@@ -78,6 +78,7 @@ export function facePlaneTriangles(depth=4.56){
   const p=[[-4,4,depth],[4,4,depth],[4,-4,depth],[-4,-4,depth]];
   const u=[[8/64,8/64],[16/64,8/64],[16/64,16/64],[8/64,16/64]];
   const result=[];
-  for(const i of [0,1,2,0,2,3])result.push(...p[i],...u[i],0,0,1);
+  // Match outward CCW winding of the vanilla head (+Z).
+  for(const i of [0,2,1,0,3,2])result.push(...p[i],...u[i],0,0,1);
   return new Float32Array(result);
 }

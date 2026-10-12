@@ -12,7 +12,7 @@
   <div id="workshop" class="workshop">
     <header class="topbar">
       <div class="brand"><div class="brand-mark">Z<span>.</span></div><div><strong>ZpkDxGames</strong><small>DESKTOP COMPANION / AVATAR STUDIO</small></div></div>
-      <div class="header-status"><span class="live-pip"></span>LOCAL RENDERER <span class="header-sep"></span><span>ALPHA.6</span></div>
+      <div class="header-status"><span class="live-pip"></span>LOCAL RENDERER <span class="header-sep"></span><span>RECOVERY / ALPHA.6</span><span id="runtime-stage" aria-live="polite">BOOT</span></div>
     </header>
     <div class="workspace">
       <section class="preview-section" aria-label="3D avatar preview">
@@ -41,14 +41,16 @@
           <div class="setting-slider"><label for="avatar-scale">Avatar scale <output id="scale-value">100%</output></label><input id="avatar-scale" type="range" min="75" max="140" value="100" step="5" /></div>
         </div>
         <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>3D / EXPERIMENTAL</span></div>
-          <div class="setting-line"><div><strong>3D expressive eyes</strong><small>Head-attached sclera, pupil and eyelid geometry.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" checked /><span></span></label></div>
+          <div class="setting-line"><div><strong>3D expressive eyes</strong><small>Head-attached sclera, pupil and eyelid geometry.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" /><span></span></label></div>
           <div class="metric-row"><span>Skin eye format</span><strong id="face-marker-status">Checking skin...</strong></div>
           <div class="setting-line"><div><strong>Follow cursor</strong><small>Subtle head and pupil tracking.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
           <div class="setting-line"><button id="blink-now" class="quiet-button">Test blink</button></div>
           <div class="preview-warning">Supported markers use separate 3D facial geometry behind the normal hat/hair layer. Unsupported skins keep their original vanilla face unchanged.</div>
         </div>
         <div class="settings-group"><div class="group-heading"><h3>Runtime</h3><span>PREVIEW</span></div>
-          <div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
+          <div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div>
+          <div class="metric-row"><span>Measured frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
+          <div class="setting-line"><button id="diagnostics-copy" class="quiet-button" type="button">Copy diagnostic report</button></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
           <div class="preview-warning">Alpha.6 rebuilds the avatar viewer only. Screen access, app observation and computer-control permissions remain disabled.</div>
         </div>
         <div class="settings-footer">ALPHA.6 VIEWER REBUILD <span>·</span> OFFLINE-FIRST</div>
@@ -61,6 +63,11 @@
     <div class="overlay-controls"><button id="overlay-wave" title="Wave">Wave</button><button id="overlay-idle" title="Idle">Rest</button><button id="overlay-settings" title="Open workshop">Setup</button></div>
     <div class="overlay-footnote">Drag top bar to move</div>
   </div>
+  <section id="runtime-alert" class="runtime-alert" role="alert" aria-live="assertive" hidden>
+    <strong>Companion graphics could not start</strong>
+    <p id="runtime-error">Unknown error</p>
+    <div class="recovery-actions"><button id="runtime-retry" type="button">Retry renderer</button><button id="runtime-copy" type="button">Copy diagnostics</button></div>
+  </section>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <script type="module" src="./js/main.js"></script>
 </body>

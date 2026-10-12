@@ -1,7 +1,7 @@
 import {SkinViewer} from 'skinview3d';
 import {Group,Mesh,PlaneGeometry,MeshStandardMaterial} from 'three';
 import {detectFaceProfile} from '../avatar/face.js';
-import {deriveFaceRig,pupilOffset,eyelidPose} from '../avatar/face-rig-layout.js';
+import {deriveFaceRig,pupilOffset,eyelidPose,eyeActivity} from '../avatar/face-rig-layout.js';
 import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
 
 const rgbHex=rgba=>((rgba?.[0]||0)<<16)|((rgba?.[1]||0)<<8)|(rgba?.[2]||0);
@@ -17,6 +17,8 @@ class FaceRig3D{
   this.eyes={};
   this.resources=[];
   this.lidState={};
+  this.layout={supported:false};
+  this.active=false;
  }
  clear(){
   this.root.clear();
@@ -27,19 +29,23 @@ class FaceRig3D{
   this.resources=[];
   this.eyes={};
   this.supported=false;
+  this.layout={supported:false};
+  this.active=false;
+  this.root.visible=false;
  }
  setEnabled(enabled){
   this.enabled=!!enabled;
-  this.root.visible=this.enabled&&this.supported;
+  this.root.visible=this.enabled&&this.supported&&this.active;
  }
  configure(profile){
   this.clear();
   const layout=deriveFaceRig(profile);
   if(!layout.supported){this.root.visible=false;return layout;}
+  this.layout=layout;
   // These six to ten tiny static quads replace ONLY recognized eye cells.
   // White sclera must not cover the original dark hair in their upper row.
   const backgroundGeometry=new PlaneGeometry(2,1);
-  const pixelGeometry=new PlaneGeometry(1.002,1.002);
+  const pixelGeometry=new PlaneGeometry(1,1);
   // skinview3d's canonical head is MeshStandardMaterial. Match its lighting
   // model so replacement background pixels do not form bright/dark rectangles.
   const material=color=>new MeshStandardMaterial({
@@ -64,30 +70,36 @@ class FaceRig3D{
    const iris=new Mesh(pixelGeometry,irisMaterial);
    const pupil=new Mesh(pixelGeometry,pupilMaterial);
    const neutral=pupilOffset(side,0);
-   iris.position.set(neutral,.5,.006);
-   pupil.position.set(neutral,-.5,.006);
+   iris.position.set(neutral,.5,.04);
+   pupil.position.set(neutral,-.5,.04);
    // Upper blink covers only the active iris pixel, never the original dark
    // hair in the neighboring cell. Full blink additionally closes lower row.
    const topLid=new Mesh(pixelGeometry,lidMaterial);
-   topLid.position.set(neutral,.5,.012);
+   topLid.position.set(neutral,.5,.08);
    topLid.visible=false;
    const bottomLid=new Mesh(backgroundGeometry,lidMaterial);
-   bottomLid.position.set(0,-.5,.012);
+   bottomLid.position.set(0,-.5,.08);
    bottomLid.visible=false;
    group.add(top,bottom,iris,pupil,topLid,bottomLid);
    this.root.add(group);
-   this.eyes[side]={group,iris,pupil,topLid,bottomLid};
+   this.eyes[side]={group,iris,pupil,topLid,bottomLid,occlusion:layout[side].occlusion};
   }
   this.supported=true;
-  this.root.visible=this.enabled;
+  // Never cover the original face with duplicate eye pixels at rest.
+  // Only eye motion or eyelid closure should activate the micro geometry.
+  this.active=false;
+  this.root.visible=false;
   return layout;
  }
  update(gazeX,blink){
   if(!this.supported)return;
+  this.active=eyeActivity(gazeX,blink,this.layout);
+  this.root.visible=this.enabled&&this.active;
+  if(!this.root.visible)return;
   const lid=eyelidPose(blink,this.lidState);
   for(const side of ['left','right']){
    const eye=this.eyes[side];
-   const x=pupilOffset(side,gazeX);
+   const x=pupilOffset(side,gazeX,eye);
    eye.iris.position.x=x;
    eye.pupil.position.x=x;
    eye.iris.visible=lid.irisVisible;

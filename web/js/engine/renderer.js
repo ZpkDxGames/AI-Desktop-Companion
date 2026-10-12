@@ -91,7 +91,7 @@ export class AvatarRenderer{
   this.modelMode='auto';
   this.detectedModel='default';
   this.skin=null;
-  this.facesEnabled=true;
+  this.facesEnabled=false;
   this.baseYaw=overlay?.08:.18;
   this.baseZoom=overlay?.64:.73;
   this.lastScale=0;
@@ -121,17 +121,17 @@ export class AvatarRenderer{
   ctx.drawImage(image,0,0,64,64);
   return ctx.getImageData(0,0,64,64).data;
  }
- setSkin(image,{model=this.modelMode}={}){
+ async setSkin(image,{model=this.modelMode}={}){
   this.skin=image;
   this.modelMode=normalizeModelMode(model);
-  this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
+  await this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
   this.detectedModel=this.viewer.playerObject.skin.modelType;
   this.faceProfile=detectFaceProfile(this.imagePixels(image));
   this.faceRig.configure(this.faceProfile);
   this.faceRig.setEnabled(this.facesEnabled);
   return {...this.faceProfile,modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};
  }
- setModelMode(mode){
+ async setModelMode(mode){
   this.modelMode=normalizeModelMode(mode);
   if(this.skin)return this.setSkin(this.skin,{model:this.modelMode});
   return {supported:false,reason:'no-skin',modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};

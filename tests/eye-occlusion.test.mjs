@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {detectFaceProfile} from '../web/js/avatar/face.js';
-import {deriveFaceRig,pupilOffset,eyeActivity,eyeCenter} from '../web/js/avatar/face-rig-layout.js';
+import {createFaceComposition,composeEyePixel} from '../web/js/avatar/face-composition.js';
 
 const paint=(bytes,x,y,c)=>bytes.set(c,(y*64+x)*4);
 const c=(r,g,b,a=255)=>[r,g,b,a];
@@ -24,7 +24,8 @@ function fixture(){
  for(const x of [41,42,45,46])paint(bytes,x,13,c(0,0,0,0));
  return bytes;
 }
-test('face profile tracks opaque second-layer hair for each upper/lower eye column',()=>{
+
+test('outer hair transparency mask is recognized for top and lower eye rows',()=>{
  const f=detectFaceProfile(fixture());
  assert.equal(f.supported,true);
  assert.deepEqual(f.occlusion.left.top,[true,false]);
@@ -32,36 +33,27 @@ test('face profile tracks opaque second-layer hair for each upper/lower eye colu
  assert.deepEqual(f.occlusion.left.bottom,[false,false]);
  assert.deepEqual(f.occlusion.right.bottom,[false,false]);
 });
-test('occlusion-aware gaze never detaches upper iris from lower pupil beneath hair',()=>{
- const rig=deriveFaceRig(detectFaceProfile(fixture()));
- assert.equal(rig.supported,true);
- const left=pupilOffset('left',0,rig.left);
- const right=pupilOffset('right',0,rig.right);
- assert.equal(left,.5);assert.equal(right,-.5);
- for(const gaze of [-1,-.8,0,.8,1]){
-  assert.equal(pupilOffset('left',gaze,rig.left),left);
-  assert.equal(pupilOffset('right',gaze,rig.right),right);
+test('eye composition preserves upper hair while pupils move within exposed column',()=>{
+ const face=createFaceComposition(detectFaceProfile(fixture()));
+ assert.equal(face.supported,true);
+ for(const side of ['left','right']){
+  const outer=side==='left'?.5:1.5;
+  for(const gx of [-1,0,1])for(const gy of [-1,0,1])
+   assert.deepEqual(composeEyePixel(face,side,outer,.5,{gazeX:gx,gazeY:gy}),[44,42,39,255]);
  }
 });
-test('neutral facial overlay is inactive so original face and hair are never repainted',()=>{
- const rig=deriveFaceRig(detectFaceProfile(fixture()));
- assert.equal(eyeActivity(0,0,rig),false);
- assert.equal(eyeActivity(1,0,rig),false);
- assert.equal(eyeActivity(-1,0,rig),false);
- assert.equal(eyeActivity(0,.5,rig),true);
- assert.equal(eyeActivity(0,1,rig),true);
+test('neutral and disabled gaze use source native face without extra overlays',()=>{
+ const face=createFaceComposition(detectFaceProfile(fixture()));
+ assert.deepEqual(composeEyePixel(face,'left',1.5,.5),[59,118,127,255]);
+ assert.deepEqual(composeEyePixel(face,'right',.5,1.5),[32,94,104,255]);
+ assert.deepEqual(composeEyePixel(face,'left',1.5,.5,{enabled:false,gazeX:-1,blink:1}),[59,118,127,255]);
 });
-test('eye layers are far enough in front of inner head to avoid z-fighting yet behind outer hair',()=>{
- for(const eye of [[1,4],[5,4]]){
-  const z=eyeCenter(eye).z;
-  assert.ok(z>=4.12 && z<4.3,`bad eye base depth ${z}`);
-  assert.ok(z+.12<4.5);
- }
+test('eyes reject original iris occluded by nontransparent outer hat',()=>{
+ const f=fixture();paint(f,42,12,c(44,42,39));
+ assert.equal(createFaceComposition(detectFaceProfile(f)).supported,false);
 });
-test('unblocked eye fixture retains sideways movement on both rows',()=>{
- const f=fixture(); paint(f,41,12,c(0,0,0,0));paint(f,46,12,c(0,0,0,0));
- const rig=deriveFaceRig(detectFaceProfile(f));
- assert.equal(pupilOffset('left',-1,rig.left),-.5);
- assert.equal(pupilOffset('right',1,rig.right),.5);
- assert.equal(eyeActivity(-1,0,rig),true);
+test('gaze never alters pixels outside the recognized eye rectangle',()=>{
+ const face=createFaceComposition(detectFaceProfile(fixture()));
+ assert.equal(composeEyePixel(face,'left',-1,.5,{gazeX:1}),null);
+ assert.equal(composeEyePixel(face,'right',1.5,2.5,{gazeY:-1}),null);
 });

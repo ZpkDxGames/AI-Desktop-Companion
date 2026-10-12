@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {detectFaceProfile} from '../web/js/avatar/face.js';
-import {deriveFaceRig,pupilOffset,eyelidPose} from '../web/js/avatar/face-rig-layout.js';
+import {createFaceComposition,composeEyePixel} from '../web/js/avatar/face-composition.js';
 
 const rgba=(r,g,b)=>[r,g,b,255];
 function paint(bytes,x,y,color){bytes.set(color,(y*64+x)*4);}
@@ -17,43 +17,32 @@ function nativeEyeFixture(){
  return bytes;
 }
 
-test('eye base patches retain authentic dark hair ABOVE eyes, not invented white sclera',()=>{
- const face=detectFaceProfile(nativeEyeFixture());
- assert.equal(face.supported,true);
- const rig=deriveFaceRig(face);
- assert.deepEqual(rig.left.background.top,[42,37,33,255]);
- assert.deepEqual(rig.right.background.top,[42,37,33,255]);
- assert.deepEqual(rig.left.background.bottom,[255,255,255,255]);
- assert.deepEqual(rig.right.background.bottom,[255,255,255,255]);
-});
 
-test('neutral pupils exactly reproduce the original skin pixel columns, gaze snaps to whole pixels',()=>{
- assert.equal(pupilOffset('left',0),.5);
- assert.equal(pupilOffset('right',0),-.5);
- for(const direction of [-1,-.7,-.1,0,.1,.7,1]){
-  for(const side of ['left','right'])assert.ok([-.5,.5].includes(pupilOffset(side,direction)));
+test('native dark hair and white background remain original colors under eye motion',()=>{
+ const profile=detectFaceProfile(nativeEyeFixture());
+ const rig=createFaceComposition(profile);
+ assert.equal(rig.supported,true);
+ assert.deepEqual(rig.eyes.left.background.top,[42,37,33,255]);
+ assert.deepEqual(rig.eyes.right.background.top,[42,37,33,255]);
+ for(const side of ['left','right']){
+  const outer=side==='left'?.5:1.5,inner=side==='left'?1.5:.5;
+  assert.deepEqual(composeEyePixel(rig,side,outer,.5,{gazeX:-1,gazeY:1}),[42,37,33,255]);
+  assert.deepEqual(composeEyePixel(rig,side,outer,1.5,{gazeX:1}),[255,255,255,255]);
+  assert.deepEqual(composeEyePixel(rig,side,inner,.5),[59,118,127,255]);
+  assert.deepEqual(composeEyePixel(rig,side,inner,1.5),[32,94,104,255]);
  }
- assert.equal(pupilOffset('left',-1),-.5);
- assert.equal(pupilOffset('right',1),.5);
 });
-
-test('two-pixel eyelids cover 0,1,2 integer rows without fractional blur',()=>{
- assert.equal(eyelidPose(0).rows,0);
- assert.equal(eyelidPose(.45).rows,1);
- assert.equal(eyelidPose(1).rows,2);
- assert.equal(eyelidPose(.45).centerY,.5);
- assert.equal(eyelidPose(1).centerY,0);
- assert.equal(eyelidPose(1).pupilVisible,false);
- assert.equal(eyelidPose(.45).irisVisible,false);
+test('disabled mode preserves original pixel even with active cursor/blink',()=>{
+ const rig=createFaceComposition(detectFaceProfile(nativeEyeFixture()));
+ assert.deepEqual(composeEyePixel(rig,'left',1.5,.5,{enabled:false,gazeX:1,gazeY:1,blink:1}),[59,118,127,255]);
 });
-
-test('facial state can be updated without creating per-frame eyelid objects',()=>{
- const state={};
- assert.strictEqual(eyelidPose(.5,state),state);
- assert.strictEqual(eyelidPose(1,state),state);
- assert.equal(state.rows,2);
+test('blink masks recognized iris then pupil without affecting top outer hair',()=>{
+ const rig=createFaceComposition(detectFaceProfile(nativeEyeFixture()));
+ assert.deepEqual(composeEyePixel(rig,'left',1.5,.5,{blink:.5}),[240,207,185,255]);
+ assert.deepEqual(composeEyePixel(rig,'left',1.5,1.5,{blink:1}),[240,207,185,255]);
+ assert.deepEqual(composeEyePixel(rig,'left',.5,.5,{blink:1}),[42,37,33,255]);
 });
-
-test('unsupported or missing per-eye background cannot replace the original face',()=>{
- assert.equal(deriveFaceRig({supported:true,eyes:{left:[1,4],right:[5,4]},colors:{}}).supported,false);
+test('unsupported background or invalid marker cannot animate the face',()=>{
+ assert.equal(createFaceComposition({supported:false}).supported,false);
+ assert.equal(createFaceComposition({supported:true,eyes:{left:[1,4],right:[5,4]},colors:{}}).supported,false);
 });

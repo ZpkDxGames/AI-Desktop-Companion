@@ -19,7 +19,12 @@ test('cursor gaze updates mutate their existing coordinates rather than allocati
  const original=animator.gaze;
  animator.setGaze(.5,-.5);
  assert.strictEqual(animator.gaze,original);
- assert.deepEqual(animator.gaze,[.5,-.5]);
+ assert.deepEqual(animator.gazeTarget,[.5,-.5]);
+ assert.deepEqual(animator.gaze,[0,0]);
+ animator.update(.05);
+ assert.ok(animator.gaze[0]>.25&&animator.gaze[0]<.5);
+ assert.ok(animator.gaze[1]<-.25&&animator.gaze[1]>-.5);
+ assert.ok(animator.gazeMoving());
 });
 
 test('non-finite input deltas cannot poison the animation state',()=>{

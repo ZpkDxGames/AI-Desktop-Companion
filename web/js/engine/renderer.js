@@ -1,7 +1,6 @@
 import {chain,translation,rotateX,rotateY,rotateZ} from './mat4.js';
 import {avatarViewProjection, avatarRootMatrix} from './camera.js';
 import {rigParts,cuboidTriangles} from '../avatar/rig.js';
-import {applyExpression} from '../avatar/eyes.js';
 
 const vs=`#version 300 es
 precision highp float;
@@ -25,22 +24,20 @@ export class AvatarRenderer {
   if(!this.gl)throw Error('WebGL2 is unavailable. Enable GPU acceleration in your browser/WebView2.');
   const gl=this.gl;this.program=program(gl);this.uModel=gl.getUniformLocation(this.program,'u_model');this.uVp=gl.getUniformLocation(this.program,'u_viewproj');
   this.aPos=gl.getAttribLocation(this.program,'a_position');this.aTex=gl.getAttribLocation(this.program,'a_tex');this.aNormal=gl.getAttribLocation(this.program,'a_normal');
-  this.texture=gl.createTexture();this.slim=false;this.meshes=[];this.skin=null;this.profile=null;this.lastExpression='';this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
+  this.texture=gl.createTexture();this.slim=false;this.meshes=[];this.skin=null;this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
  }
  createRig(slim){
   const gl=this.gl;for(const m of this.meshes)gl.deleteBuffer(m.vbo);this.slim=slim;
   this.meshes=rigParts(slim).map(part=>{const data=cuboidTriangles(part),vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);return {...part,vbo,count:data.length/8};});
  }
- setSkin(image,profile){this.skin=image;this.profile=profile;this.lastExpression='';this.updateTexture(0,0,false);}
- updateTexture(x,y,blink){if(!this.skin)return;const gl=this.gl;const signature=[this.profile?.enabled,x,y,blink].join('/');if(signature===this.lastExpression)return;this.lastExpression=signature;
- const source=this.profile?.enabled?applyExpression(this.skin,this.profile,x,y,blink):this.skin;
+ setSkin(image){this.skin=image;this.updateTexture();}
+ updateTexture(){if(!this.skin)return;const gl=this.gl;
  gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
- gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
+ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,this.skin);
  }
  resize(){const gl=this.gl,rect=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);}
- render(pose,{eyes=[0,0],blink=false,scale=1,rotation=0}={}){
+ render(pose,{scale=1,rotation=0}={}){
   const gl=this.gl;this.resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(!this.skin)return;
-  this.updateTexture(Math.round(eyes[0]),Math.round(eyes[1]),blink);
   gl.useProgram(this.program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.uniform1i(gl.getUniformLocation(this.program,'u_skin'),0);
   const vp=avatarViewProjection(this.canvas.width/this.canvas.height,scale);
   gl.uniformMatrix4fv(this.uVp,false,new Float32Array(vp));

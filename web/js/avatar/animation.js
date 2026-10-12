@@ -6,7 +6,7 @@ export const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 export const smooth = t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export const mix=(a,b,t)=>a+(b-a)*t;
 export class BehaviorController {
-  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';}
+  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};}
   request(action) {
     if(!ACTIONS.includes(action)) return false;
     if(action==='idle' || PRIORITY[action]>=PRIORITY[this.action] || !DURATION[this.action]){
@@ -16,15 +16,20 @@ export class BehaviorController {
     return false;
   }
   update(dt){
-    dt=clamp(dt,0,0.05);this.time+=dt;this.elapsed+=dt;this.blendTime+=dt;
+    dt=Number.isFinite(dt)?clamp(dt,0,0.05):0;this.time+=dt;this.elapsed+=dt;this.blendTime+=dt;
     if(this.time>=this.nextBlink){this.nextBlink=this.time+3.0+(Math.sin(this.time*23)*.5+.5)*2.8;this.blink=1;}
     if(this.blink>0) this.blink=Math.max(0,this.blink-dt/0.14);
     if(DURATION[this.action] && this.elapsed>DURATION[this.action])this.request('idle');
   }
-  setGaze(x,y){this.gaze=[clamp(x,-1,1),clamp(y,-1,1)];}
+  setGaze(x,y){this.gaze[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gaze[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
   pose(){
     const t=this.time,e=this.elapsed,a=this.action;
-    const p={headX:Math.sin(t*.65)*.035,headY:Math.sin(t*.48)*.08,headZ:Math.sin(t*.4)*.015,bodyZ:Math.sin(t*.9)*.009,armRX:Math.sin(t*.9)*.03,armLX:-Math.sin(t*.9)*.03,armRZ:.04,armLZ:-.04,legRX:0,legLX:0,rootY:Math.sin(t*1.4)*.06,rootX:0,rootZ:0};
+    // Reuse the controller-owned pose object; reset every channel before layering actions.
+    const p=this.poseBuffer;
+    p.headX=Math.sin(t*.65)*.035;p.headY=Math.sin(t*.48)*.08;p.headZ=Math.sin(t*.4)*.015;
+    p.bodyZ=Math.sin(t*.9)*.009;p.armRX=Math.sin(t*.9)*.03;p.armLX=-Math.sin(t*.9)*.03;
+    p.armRZ=.04;p.armLZ=-.04;p.legRX=0;p.legLX=0;
+    p.rootY=Math.sin(t*1.4)*.06;p.rootX=0;p.rootZ=0;
     if(a==='walk'||a==='run'){
       const speed=a==='run'?10:6.1,amplitude=a==='run'?.9:.60,sw=Math.sin(t*speed)*amplitude;
       p.armRX=sw;p.armLX=-sw;p.legRX=-sw;p.legLX=sw;p.rootY=Math.abs(Math.sin(t*speed))*0.2;p.bodyZ=Math.sin(t*speed*.5)*.04;

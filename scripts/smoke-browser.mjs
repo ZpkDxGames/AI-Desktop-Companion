@@ -23,6 +23,91 @@ const server = createServer(async(req,res)=>{
 });
 server.listen(0,'127.0.0.1');await once(server,'listening');
 const port=server.address().port;
+
+async function facePixelGate(page,mode,surface){
+ const seed=(await readFile(resolve('web/assets/sample-skin.png'))).toString('base64');
+ const skin=await page.evaluate(async png=>{
+  const image=new Image();image.src='data:image/png;base64,'+png;await image.decode();
+  const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  const data=ctx.getImageData(0,0,64,64);
+  const put=(x,y,color)=>data.data.set(color,(y*64+x)*4);
+  const hair=[44,42,39,255],white=[255,255,255,255],iris=[59,118,127,255],
+    pupil=[32,94,104,255],lid=[240,207,185,255],transparent=[0,0,0,0];
+  for(let x=24;x<28;x++){
+   put(x,2,lid);put(x,3,x===24||x===27?white:iris);
+   put(x,4,x===24||x===27?white:pupil);
+  }
+  put(9,12,hair);put(10,12,iris);put(13,12,iris);put(14,12,hair);
+  put(9,13,white);put(10,13,pupil);put(13,13,pupil);put(14,13,white);
+  put(41,12,hair);put(42,12,transparent);put(45,12,transparent);put(46,12,hair);
+  for(const x of [41,42,45,46])put(x,13,transparent);
+  ctx.putImageData(data,0,0);return canvas.toDataURL('image/png');
+ },seed);
+ if(mode==='workshop'){
+  await page.locator('#skin-upload').setInputFiles({name:'synthetic-eye-test.png',
+    mimeType:'image/png',buffer:Buffer.from(skin.split(',')[1],'base64')});
+  await page.waitForFunction(()=>document.querySelector('#face-marker-status')?.dataset.supported==='true',null,{timeout:10000});
+  await page.evaluate(()=>{const e=document.querySelector('#expressions-enabled');e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
+ }else{
+  await page.evaluate(skin=>localStorage.setItem('zpkdx-avatar-v0.1',JSON.stringify({
+   modelMode:'auto',scale:100,follow:true,expressions:true,skin,skinName:'Synthetic eye fixture'
+  })),skin);
+  await page.reload({waitUntil:'load'});
+  await page.waitForFunction(()=>document.querySelector('#overlay-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+ }
+ // Screenshot differences are measured on actual rendered WebGL canvas pixels,
+ // not controller state or transforms. Head-only motion is rejected separately
+ // by unit-level composed iris+pupil displacement gates.
+ const size=page.viewportSize(),locations={
+  left:{x:16,y:Math.round(size.height*.48)},
+  right:{x:size.width-16,y:Math.round(size.height*.48)},
+  up:{x:Math.round(size.width*.5),y:16},
+  down:{x:Math.round(size.width*.5),y:size.height-16}
+ };
+ const shots={};
+ for(const [direction,point] of Object.entries(locations)){
+  await page.mouse.move(point.x,point.y);
+  await page.waitForTimeout(650);
+  shots[direction]=await surface.screenshot({path:'smoke-artifacts/face-'+mode+'-'+direction+'.png'});
+ }
+ const pixelChanges=async(a,b)=>page.evaluate(async ([one,two])=>{
+  const load=async input=>{
+   const image=new Image();image.src='data:image/png;base64,'+input;await image.decode();
+   const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+   const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);
+   return ctx.getImageData(0,0,canvas.width,canvas.height);
+  };
+  const x=await load(one),y=await load(two);
+  if(x.width!==y.width||x.height!==y.height)throw new Error('Eye screenshot size changed unexpectedly');
+  let changed=0;
+  for(let i=0;i<x.data.length;i+=4){
+   if(Math.abs(x.data[i]-y.data[i])+Math.abs(x.data[i+1]-y.data[i+1])+Math.abs(x.data[i+2]-y.data[i+2])>36)changed++;
+  }
+  return changed;
+ },[a.toString('base64'),b.toString('base64')]);
+ const horizontal=await pixelChanges(shots.left,shots.right);
+ const vertical=await pixelChanges(shots.up,shots.down);
+ if(horizontal<8||vertical<8)
+  throw new Error('Rendered two-axis gaze had insufficient pixel changes: h='+horizontal+', v='+vertical);
+ if(mode==='workshop'){
+  await page.mouse.move(size.width-16,Math.round(size.height*.48));
+  await page.evaluate(()=>{const e=document.querySelector('#expressions-enabled');e.checked=false;e.dispatchEvent(new Event('change',{bubbles:true}));});
+  await page.waitForTimeout(120);
+  const off=await surface.screenshot({path:'smoke-artifacts/face-neutral-off.png'});
+  await page.evaluate(()=>{const e=document.querySelector('#expressions-enabled');e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
+  await page.waitForTimeout(120);
+  const on=await surface.screenshot({path:'smoke-artifacts/face-active-on.png'});
+  const delta=await pixelChanges(off,on);
+  if(delta<3)throw new Error('Enabling eye shader produced no observable image difference');
+  await page.mouse.click(size.width-16,Math.round(size.height*.48));
+  await page.locator('#blink-now').click();
+  await page.waitForTimeout(80);
+  await surface.screenshot({path:'smoke-artifacts/face-blink.png'});
+  console.log('PASS synthetic eye shader pixel gate: horizontal='+horizontal+', vertical='+vertical+', enabledDelta='+delta);
+ }else console.log('PASS overlay synthetic eyes rendered movement: horizontal='+horizontal+', vertical='+vertical);
+}
+
 let browser,failed=false;
 await mkdir('smoke-artifacts',{recursive:true});
 try {
@@ -81,6 +166,8 @@ try {
           if(clipped)throw new Error('Horizontal page overflow at '+viewport.width+'×'+viewport.height);
         }
       }
+      checkpoint='synthetic supported-face shader and rendered gaze pixel gate';
+      await facePixelGate(page,mode,surface);
       if(errors.length)throw new Error('Browser errors: '+errors.join('; '));
       await page.screenshot({path:'smoke-artifacts/'+mode+'.png'});
       console.log('PASS '+mode+' production startup, non-static 3D wave and clean resources'+(mode==='workshop'?', skin import and reload':''));

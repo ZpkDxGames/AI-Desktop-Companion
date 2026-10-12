@@ -1,4 +1,4 @@
-name: Source checks
+name: Source and browser runtime checks
 on:
   push:
   pull_request:
@@ -7,7 +7,7 @@ permissions:
 jobs:
   node-check:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,3 +17,16 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Validate avatar and workshop source
         run: npm run check
+      - name: Install isolated browser smoke dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Install Chromium runtime
+        run: npx playwright install chromium
+      - name: Exercise emitted production bundle (cold storage)
+        run: node scripts/smoke-browser.mjs
+      - name: Preserve browser failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-browser-smoke-${{ github.run_id }}
+          path: smoke-artifacts/*
+          if-no-files-found: ignore

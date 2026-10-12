@@ -6,14 +6,14 @@ import {BehaviorController} from '../web/js/avatar/animation.js';
 test('60 FPS active cap on high-refresh 120 Hz screens',()=>{
  const pacer=new FramePacer();
  let frames=0;
- for(let i=0;i<=240;i++)if(pacer.ready(i*1000/120,true))frames++;
+ for(let i=0;i<=120;i++)if(pacer.ready(i*1000/120,true))frames++;
  assert.ok(frames>=59&&frames<=62,`active 120 Hz gate drew ${frames} frames, expected ~60`);
 });
 
 test('idle redraw cadence is reduced and renderer can reset cleanly after being hidden',()=>{
  const pacer=new FramePacer();
  let frames=0;
- for(let i=0;i<=240;i++)if(pacer.ready(i*1000/120,false))frames++;
+ for(let i=0;i<=120;i++)if(pacer.ready(i*1000/120,false))frames++;
  assert.ok(frames>=19&&frames<=22,`idle gate drew ${frames} frames`);
  pacer.reset();
  assert.equal(pacer.ready(5000,true),true);

@@ -29,7 +29,7 @@ const controller=new BehaviorController();
 const journal=new RuntimeJournal();
 const sessionId=Math.random().toString(36).slice(2);
 let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootReady=false;
-let rafId=0,idleTimer=0,frameSamples=[],contextLosses=0;
+let rafId=0,idleTimer=0,frameSamples=new Float32Array(120),sampleCount=0,sampleCursor=0,contextLosses=0;
 let renderer=null,lastTime=0,renderT=0,renderCount=0,lastReport=performance.now();
 let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,forceBlinkUntil=0;
 const canvas=$(overlay?'overlay-canvas':'avatar-canvas');
@@ -217,16 +217,18 @@ function frame(time){
  if(!bootReady||!renderer||document.hidden||contextLost){lastTime=0;return;}
  const dt=lastTime?Math.min((time-lastTime)/1000,.05):0;
  lastTime=time;
- const active=controller.action!=='idle'||dragging||tracking||performance.now()<forceBlinkUntil;
+ let active=controller.action!=='idle'||dragging||tracking||performance.now()<forceBlinkUntil;
  try{
   controller.update(dt);
+  active=active||controller.blink>0;
   controller.setGaze(state.follow&&tracking?cursor[0]:0,state.follow&&tracking?cursor[1]:0);
   const blink=controller.blink>0?controller.blink:performance.now()<forceBlinkUntil?1:0;
   const started=performance.now();
   renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],blink});
   const cost=performance.now()-started;
-  if(frameSamples.length>=120)frameSamples.shift();
-  frameSamples.push(cost);
+  frameSamples[sampleCursor]=cost;
+  sampleCursor=(sampleCursor+1)%frameSamples.length;
+  sampleCount=Math.min(frameSamples.length,sampleCount+1);
   canvas.dataset.renderReady='true';
   if(journal.stage!=='RUNNING')stage('RUNNING','First graphics frame rendered');
   renderCount++;
@@ -236,8 +238,8 @@ function frame(time){
    renderCount=0;lastReport=time;
    if(!overlay)statusNode('render-fps').textContent=fps+' FPS';
    const node=statusNode('frame-percentiles');
-   if(node&&frameSamples.length){
-    const values=[...frameSamples].sort((a,b)=>a-b);
+   if(node&&sampleCount){
+    const values=Array.from(frameSamples.subarray(0,sampleCount)).sort((a,b)=>a-b);
     const percentile=p=>values[Math.min(values.length-1,Math.ceil(p*values.length)-1)].toFixed(2);
     node.textContent='Render call ms (CPU): p50 '+percentile(.5)+' / p95 '+percentile(.95)+' / p99 '+percentile(.99);
    }

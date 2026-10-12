@@ -6,6 +6,7 @@ const skin=()=>{
  const a=new Uint8ClampedArray(64*64*4);
  const lid=[240,207,185,255],white=[255,255,255,255],iris=[59,118,127,255],dark=[32,94,104,255];
  for(let x=24;x<28;x++){paint(a,x,2,lid);paint(a,x,3,x===24||x===27?white:iris);paint(a,x,4,x===24||x===27?white:dark);}
+ for(const x of [9,14])paint(a,x,12,[44,42,39,255]);
  for(const x of [10,13]){paint(a,x,12,iris);paint(a,x,13,dark);}
  for(const x of [9,14])paint(a,x,13,white);
  return a;

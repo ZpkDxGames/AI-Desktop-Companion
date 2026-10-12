@@ -4,68 +4,156 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
-  <title>ZpkDxGames · Desktop Companion</title>
+  <title>ZpkDxGames — Companion Workspace</title>
   <link rel="icon" type="image/png" href="./assets/sample-skin.png" />
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
   <div id="workshop" class="workshop">
     <header class="topbar">
-      <div class="brand"><div class="brand-mark">Z<span>.</span></div><div><strong>ZpkDxGames</strong><small>DESKTOP COMPANION / AVATAR STUDIO</small></div></div>
-      <div class="header-status"><span class="live-pip"></span>LOCAL RENDERER <span class="header-sep"></span><span>RECOVERY / ALPHA.6</span><span id="runtime-stage" aria-live="polite">BOOT</span></div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">Z<span>.</span></span>
+        <div class="brand-copy"><strong>ZpkDxGames</strong><small>Companion Workspace</small></div>
+      </div>
+      <div class="header-status"><span class="live-pip"></span><span>LOCAL ONLY</span><span class="header-sep"></span><span id="runtime-stage" aria-live="polite">BOOT</span></div>
     </header>
-    <div class="workspace">
-      <section class="preview-section" aria-label="3D avatar preview">
-        <div class="preview-topline"><div><span class="section-eyebrow">01 / CHARACTER</span><h1>Your Minecraft character, properly rendered.</h1><p>Canonical skin geometry, perspective presentation, local animation and a head-attached expression rig.</p></div><span class="mode-chip">THREE · CANONICAL</span></div>
-        <div class="stage" id="stage">
-          <div class="stage-grid"></div><div class="stage-halo"></div><div class="floor-shadow"></div><div class="floor-line"></div>
-          <div class="stage-orientation"><span class="live-pip"></span> PREVIEW ACTIVE <span id="render-fps">— FPS</span></div>
-          <canvas id="avatar-canvas" aria-label="Interactive three-dimensional Minecraft avatar"></canvas>
-          <div class="stage-hint">MOVE CURSOR TO LOOK AROUND <span>·</span> DRAG TO ROTATE</div>
-          <div class="preview-watermark">ZPKDX <span>/</span> A6</div>
-        </div>
-        <div class="animation-tray" role="group" aria-label="Trigger avatar animations">
-          <div class="tray-label">ANIMATIONS</div>
-          <div class="action-row" id="action-row">
-            <button class="action active" data-action="idle">Idle</button><button class="action" data-action="walk">Walk</button><button class="action" data-action="run">Run</button><button class="action" data-action="wave">Wave</button><button class="action" data-action="sit">Sit</button><button class="action" data-action="jump">Jump</button><button class="action" data-action="think">Think</button><button class="action" data-action="celebrate">Celebrate</button><button class="action" data-action="nod">Nod</button><button class="action" data-action="shrug">Shrug</button><button class="action" data-action="stretch">Stretch</button><button class="action" data-action="bow">Bow</button>
+    <div class="application-shell">
+      <nav class="navigation" aria-label="Workspace navigation">
+        <p class="navigation-heading">WORKSPACE</p>
+        <button class="nav-link selected" data-nav="overview" aria-current="page"><span class="nav-symbol" aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
+        <button class="nav-link" data-nav="studio"><span class="nav-symbol" aria-hidden="true">◈</span><span class="nav-label">Avatar Studio</span></button>
+        <button class="nav-link" data-nav="behavior"><span class="nav-symbol" aria-hidden="true">✳</span><span class="nav-label">Behavior</span></button>
+        <button class="nav-link" data-nav="desktop"><span class="nav-symbol" aria-hidden="true">▦</span><span class="nav-label">Desktop World</span></button>
+        <div class="nav-divider"></div>
+        <p class="navigation-heading">ASSISTANT</p>
+        <button class="nav-link" data-nav="conversation"><span class="nav-symbol" aria-hidden="true">☷</span><span class="nav-label">Conversation</span></button>
+        <button class="nav-link" data-nav="models"><span class="nav-symbol" aria-hidden="true">◇</span><span class="nav-label">AI & Models</span></button>
+        <button class="nav-link" data-nav="privacy"><span class="nav-symbol" aria-hidden="true">◉</span><span class="nav-label">Privacy</span></button>
+        <button class="nav-link" data-nav="activity"><span class="nav-symbol" aria-hidden="true">≡</span><span class="nav-label">Activity</span></button>
+        <div class="nav-divider"></div>
+        <p class="navigation-heading">SYSTEM</p>
+        <button class="nav-link" data-nav="diagnostics"><span class="nav-symbol" aria-hidden="true">⌁</span><span class="nav-label">Diagnostics</span></button>
+        <button class="nav-link" data-nav="settings"><span class="nav-symbol" aria-hidden="true">⚙</span><span class="nav-label">Settings</span></button>
+        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>Alpha.6 recovery</small></div>
+      </nav>
+      <main class="workspace" id="workspace">
+        <section class="preview-section" aria-label="Shared live 3D character preview">
+          <div class="preview-topline">
+            <div><span class="section-eyebrow">YOUR CHARACTER</span><h1>ZpkDxGames</h1><p>Authentic Minecraft geometry. Locally rendered, without an AI model.</p></div>
+            <span class="mode-chip">THREE.JS + SKINVIEW3D</span>
           </div>
-        </div>
-        <div class="bottom-stats"><span><i></i> LOCAL ONLY</span><span><i></i> NO AI MODEL LOADED</span><span>SKIN: <b id="current-skin-label">SAMPLE / IMPORT YOUR OWN</b></span></div>
-      </section>
-      <aside class="settings" aria-label="Avatar settings">
-        <div class="settings-heading"><span class="section-eyebrow">02 / CONFIGURATION</span><h2>Avatar settings</h2><p>Changes stay on this device.</p></div>
-        <div class="settings-group"><div class="group-heading"><h3>Appearance</h3><span>SKIN / RIG</span></div>
-          <div class="upload-block"><div class="upload-label"><strong>Character skin</strong><small>Java Edition · 64 × 64 PNG</small></div><label class="upload-button" for="skin-upload">Import PNG <span>↗</span></label><input id="skin-upload" type="file" accept="image/png" hidden /></div>
-          <div class="setting-line"><span>Player model</span><select id="model-type" aria-label="Player model"><option value="auto">Auto detect</option><option value="classic">Classic (4px arms)</option><option value="slim">Slim (3px arms)</option></select></div>
-          <div class="metric-row"><span>Model result</span><strong id="model-status">Detecting…</strong></div>
-          <div class="setting-slider"><label for="avatar-scale">Avatar scale <output id="scale-value">100%</output></label><input id="avatar-scale" type="range" min="75" max="140" value="100" step="5" /></div>
-        </div>
-        <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>3D / EXPERIMENTAL</span></div>
-          <div class="setting-line"><div><strong>3D expressive eyes</strong><small>Head-attached sclera, pupil and eyelid geometry.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" /><span></span></label></div>
-          <div class="metric-row"><span>Skin eye format</span><strong id="face-marker-status">Checking skin...</strong></div>
-          <div class="setting-line"><div><strong>Follow cursor</strong><small>Subtle head and pupil tracking.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
-          <div class="setting-line"><button id="blink-now" class="quiet-button">Test blink</button></div>
-          <div class="preview-warning">Supported markers use separate 3D facial geometry behind the normal hat/hair layer. Unsupported skins keep their original vanilla face unchanged.</div>
-        </div>
-        <div class="settings-group"><div class="group-heading"><h3>Runtime</h3><span>PREVIEW</span></div>
-          <div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div>
-          <div class="metric-row"><span>Measured frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
-          <div class="setting-line"><button id="diagnostics-copy" class="quiet-button" type="button">Copy diagnostic report</button></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
-          <div class="preview-warning">Alpha.6 rebuilds the avatar viewer only. Screen access, app observation and computer-control permissions remain disabled.</div>
-        </div>
-        <div class="settings-footer">ALPHA.6 VIEWER REBUILD <span>·</span> OFFLINE-FIRST</div>
-      </aside>
+          <div class="stage" id="stage">
+            <div class="stage-grid"></div><div class="stage-halo"></div><div class="floor-shadow"></div><div class="floor-line"></div>
+            <div class="stage-orientation"><span class="live-pip"></span><span>LIVE 3D PREVIEW</span><span id="render-fps">— FPS</span></div>
+            <canvas id="avatar-canvas" aria-label="Interactive three-dimensional Minecraft avatar"></canvas>
+            <div class="stage-hint">DRAG TO ROTATE <span>·</span> MOVE CURSOR TO LOOK</div>
+            <div class="preview-watermark">ZPKDX <span>/</span> DESKTOP</div>
+          </div>
+          <div class="bottom-stats"><span><i></i> RENDERER ON DEVICE</span><span><i></i> AI NOT INSTALLED</span><span>SKIN <b id="current-skin-label">SAMPLE SKIN</b></span></div>
+        </section>
+        <aside class="settings" aria-label="Workspace details and controls">
+          <div class="content-heading"><span class="section-eyebrow" id="page-eyebrow">WORKSPACE / HOME</span><h2 id="page-title">Overview</h2><p id="page-subtitle">Character and runtime at a glance.</p></div>
+
+          <section class="app-page" data-page="overview" aria-label="Overview">
+            <div class="overview-hero">
+              <span class="section-eyebrow">DESKTOP PRESENCE</span><h3>Your companion is local.</h3>
+              <p>Preview the Minecraft character, test a gesture, or customize the skin. Desktop awareness and AI remain disabled.</p>
+              <div class="button-row"><button class="button-primary" type="button" data-quick="wave">Wave hello</button><button class="button-secondary" type="button" data-quick="studio">Customize avatar</button></div>
+            </div>
+            <div class="summary-list">
+              <div><span>3D model</span><strong>skinview3d / Three.js</strong></div>
+              <div><span>Face rendering</span><strong>Vanilla by default</strong></div>
+              <div><span>Model inference</span><strong>Not installed</strong></div>
+              <div><span>App observation</span><strong>Not implemented</strong></div>
+            </div>
+            <p class="small-note">The preview and floating character are independent of any local AI service. Use Diagnostics for observed renderer state.</p>
+          </section>
+
+          <section class="app-page" data-page="studio" aria-label="Avatar Studio" hidden>
+            <div class="settings-group">
+              <div class="group-heading"><h3>Original skin</h3><span>64 × 64 PNG</span></div>
+              <div class="upload-block"><div class="upload-label"><strong>Import your character</strong><small>Java Edition skin, never uploaded.</small></div><label class="upload-button" for="skin-upload">Import PNG</label><input id="skin-upload" type="file" accept="image/png" hidden /></div>
+              <div class="setting-line"><label for="model-type">Player model</label><select id="model-type" aria-label="Player model"><option value="auto">Auto detect</option><option value="classic">Classic · 4 px</option><option value="slim">Slim · 3 px</option></select></div>
+              <div class="metric-row"><span>Detected model</span><strong id="model-status">Detecting…</strong></div>
+              <div class="setting-slider"><label for="avatar-scale">Desktop scale <output id="scale-value">100%</output></label><input id="avatar-scale" type="range" min="75" max="140" value="100" step="5" /></div>
+              <div class="button-row compact"><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset scale</button></div>
+            </div>
+            <div class="settings-group">
+              <div class="group-heading"><h3>Facial behavior</h3><span>OPT-IN EXPERIMENT</span></div>
+              <div class="setting-line"><div><strong>Experimental 3D eyes</strong><small>Vanilla artwork is preserved when disabled.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" aria-label="Experimental 3D eyes"/><span></span></label></div>
+              <div class="metric-row"><span>Eye-marker support</span><strong id="face-marker-status">Checking...</strong></div>
+              <div class="setting-line"><div><strong>Follow cursor</strong><small>Subtle head and pupil gaze.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked aria-label="Follow cursor"/><span></span></label></div>
+              <div class="button-row compact"><button id="blink-now" class="button-secondary" type="button">Preview blink</button></div>
+              <p class="small-note">Enable experimental facial geometry only after comparing mask, eyes, hair and hat-layer depth with your original texture.</p>
+            </div>
+          </section>
+
+          <section class="app-page" data-page="behavior" aria-label="Behavior and animations" hidden>
+            <p class="intro-copy">Procedural, non-AI behavior. Choose one animation; gestures can be interrupted by Idle. Walking currently animates in place.</p>
+            <div class="action-row" id="action-row">
+              <div class="action-family"><div class="group-heading"><h3>Idle & movement</h3><span>CORE</span></div><div class="action-grid">
+                <button class="action active" data-action="idle">Idle</button><button class="action" data-action="walk">Walk</button><button class="action" data-action="run">Run</button><button class="action" data-action="jump">Jump</button></div></div>
+              <div class="action-family"><div class="group-heading"><h3>Gestures & reactions</h3><span>LOCAL</span></div><div class="action-grid">
+                <button class="action" data-action="wave">Wave</button><button class="action" data-action="think">Think</button><button class="action" data-action="celebrate">Celebrate</button><button class="action" data-action="nod">Nod</button><button class="action" data-action="shrug">Shrug</button></div></div>
+              <div class="action-family"><div class="group-heading"><h3>Rest & posture</h3><span>LOCAL</span></div><div class="action-grid">
+                <button class="action" data-action="sit">Sit</button><button class="action" data-action="stretch">Stretch</button><button class="action" data-action="bow">Bow</button></div></div>
+            </div>
+            <p class="small-note">Window-edge sitting, collision physics and location-aware locomotion are planned. The current animations are not desktop navigation.</p>
+          </section>
+
+          <section class="app-page" data-page="desktop" aria-label="Desktop World" hidden>
+            <div class="availability"><span class="availability-icon">▦</span><h3>Desktop World</h3><p>Not available in this build. Monitor geometry, window edges, taskbar physics and fullscreen-game quiet mode require a native, permission-scoped implementation.</p></div>
+            <p class="small-note">The current overlay supports native dragging and emergency whole-window click-through via its tray menu. No window observation is active.</p>
+          </section>
+
+          <section class="app-page" data-page="conversation" aria-label="Conversation" hidden>
+            <div class="availability"><span class="availability-icon">☷</span><h3>Conversation is not configured</h3><p>No model, conversation database or background inference runs in this build. These features come after avatar and Workspace certification.</p></div>
+          </section>
+
+          <section class="app-page" data-page="models" aria-label="AI and Models" hidden>
+            <div class="availability"><span class="availability-icon">◇</span><h3>No AI provider installed</h3><p>Local provider detection, on-demand inference and idle GPU unloading are planned but not enabled. Animations never start an AI service.</p></div>
+          </section>
+
+          <section class="app-page" data-page="privacy" aria-label="Privacy and permissions" hidden>
+            <div class="privacy-state"><span class="live-pip"></span><div><strong>Companion only</strong><small>No screenshot capture, microphone, app observation or agent action permission is enabled.</small></div></div>
+            <div class="summary-list"><div><span>Screen capture</span><strong>Not implemented</strong></div><div><span>App monitoring</span><strong>Not implemented</strong></div><div><span>Agent tools</span><strong>Not implemented</strong></div><div><span>Local inference</span><strong>Not installed</strong></div></div>
+          </section>
+
+          <section class="app-page" data-page="activity" aria-label="Activity" hidden>
+            <div class="availability"><span class="availability-icon">≡</span><h3>History not configured</h3><p>The current prototype does not keep an activity timeline, collect application data or record screenshots. Future local history will have explicit retention controls.</p></div>
+          </section>
+
+          <section class="app-page" data-page="diagnostics" aria-label="Diagnostics" hidden>
+            <div class="settings-group first"><div class="group-heading"><h3>Graphics and runtime</h3><span>MEASURED / LOCAL</span></div>
+              <div class="metric-row"><span>Renderer</span><strong id="graphics-status">Initializing…</strong></div>
+              <div class="metric-row"><span>Animation</span><strong id="animation-status">Idle</strong></div>
+              <div class="metric-row"><span>Frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
+              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.0</strong></div>
+              <div class="button-row"><button id="diagnostics-copy" class="button-secondary" type="button">Copy diagnostic report</button><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button></div>
+            </div>
+            <p class="small-note">Frame cost measures a browser CPU render call, not GPU frametime. Real Windows 11/RTX 3050 FPS and memory measurements are still required.</p>
+          </section>
+
+          <section class="app-page" data-page="settings" aria-label="Settings" hidden>
+            <div class="settings-group first"><div class="group-heading"><h3>Application</h3><span>LOCAL-FIRST</span></div>
+              <div class="summary-list"><div><span>Version</span><strong>Alpha.6 recovery</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
+              <div class="button-row"><button class="button-secondary" type="button" data-quick="studio">Open Avatar Studio</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset character scale</button></div>
+            </div>
+            <p class="small-note">Autostart, on-demand models and privacy grants will be presented here only after their native implementations exist.</p>
+          </section>
+        </aside>
+      </main>
     </div>
   </div>
+
   <div id="overlay-view" class="overlay-view" hidden>
-    <div class="overlay-top" data-drag><span class="overlay-dot"></span><span>ZpkDxGames</span><button id="overlay-pass" title="Click-through mode; restore via system tray">⇢</button></div>
+    <div class="overlay-top" data-drag><span class="overlay-dot"></span><span>ZpkDxGames</span><button id="overlay-pass" type="button" title="Click-through mode; restore via system tray">⇢</button></div>
     <canvas id="overlay-canvas" aria-label="3D Minecraft desktop companion"></canvas>
-    <div class="overlay-controls"><button id="overlay-wave" title="Wave">Wave</button><button id="overlay-idle" title="Idle">Rest</button><button id="overlay-settings" title="Open workshop">Setup</button></div>
-    <div class="overlay-footnote">Drag top bar to move</div>
+    <div class="overlay-controls"><button id="overlay-wave" type="button">Wave</button><button id="overlay-idle" type="button">Rest</button><button id="overlay-settings" type="button">Workspace</button></div>
+    <div class="overlay-footnote">Drag the top bar to move</div>
   </div>
   <section id="runtime-alert" class="runtime-alert" role="alert" aria-live="assertive" hidden>
-    <strong>Companion graphics could not start</strong>
-    <p id="runtime-error">Unknown error</p>
+    <strong>Companion graphics could not start</strong><p id="runtime-error">Unknown error</p>
     <div class="recovery-actions"><button id="runtime-retry" type="button">Retry renderer</button><button id="runtime-copy" type="button">Copy diagnostics</button></div>
   </section>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

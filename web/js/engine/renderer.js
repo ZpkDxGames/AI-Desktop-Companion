@@ -16,6 +16,7 @@ class FaceRig3D{
   this.supported=false;
   this.eyes={};
   this.resources=[];
+  this.lidState={};
  }
  clear(){
   this.root.clear();
@@ -35,30 +36,40 @@ class FaceRig3D{
   this.clear();
   const layout=deriveFaceRig(profile);
   if(!layout.supported){this.root.visible=false;return layout;}
-  const scleraGeometry=new PlaneGeometry(2,2);
-  const pixelGeometry=new PlaneGeometry(.92,.92);
-  const lidGeometry=new PlaneGeometry(2.02,2.02);
-  const whiteMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.white),depthTest:true,depthWrite:true});
-  const irisMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.iris),depthTest:true,depthWrite:true});
-  const pupilMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.pupil),depthTest:true,depthWrite:true});
-  const lidMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.lid),depthTest:true,depthWrite:true});
-  this.resources.push(scleraGeometry,pixelGeometry,lidGeometry,whiteMaterial,irisMaterial,pupilMaterial,lidMaterial);
+  // These six to ten tiny static quads replace ONLY recognized eye cells.
+  // White sclera must not cover the original dark hair in their upper row.
+  const backgroundGeometry=new PlaneGeometry(2,1);
+  const pixelGeometry=new PlaneGeometry(1.002,1.002);
+  const lidGeometry=new PlaneGeometry(2,2);
+  const material=color=>new MeshBasicMaterial({
+   color:rgbHex(color),depthTest:true,depthWrite:true,toneMapped:false
+  });
+  const irisMaterial=material(layout.colors.iris);
+  const pupilMaterial=material(layout.colors.pupil);
+  const lidMaterial=material(layout.colors.lid);
+  this.resources.push(backgroundGeometry,pixelGeometry,lidGeometry,irisMaterial,pupilMaterial,lidMaterial);
   for(const side of ['left','right']){
    const group=new Group();
    group.name='eye-'+side;
-   const c=layout[side].center;
-   group.position.set(c.x,c.y,c.z);
-   const sclera=new Mesh(scleraGeometry,whiteMaterial);
-   sclera.position.z=0;
+   const {center,background}=layout[side];
+   group.position.set(center.x,center.y,center.z);
+   const topMaterial=material(background.top);
+   const bottomMaterial=material(background.bottom);
+   this.resources.push(topMaterial,bottomMaterial);
+   const top=new Mesh(backgroundGeometry,topMaterial);
+   top.position.set(0,.5,0);
+   const bottom=new Mesh(backgroundGeometry,bottomMaterial);
+   bottom.position.set(0,-.5,0);
    const iris=new Mesh(pixelGeometry,irisMaterial);
-   iris.position.set(pupilOffset(side,0),.5,.012);
    const pupil=new Mesh(pixelGeometry,pupilMaterial);
-   pupil.position.set(pupilOffset(side,0),-.5,.018);
+   const neutral=pupilOffset(side,0);
+   iris.position.set(neutral,.5,.006);
+   pupil.position.set(neutral,-.5,.006);
    const lid=new Mesh(lidGeometry,lidMaterial);
-   lid.position.set(0,1,.03);
-   lid.scale.y=.001;
+   lid.position.set(0,.5,.012);
+   lid.scale.y=.5;
    lid.visible=false;
-   group.add(sclera,iris,pupil,lid);
+   group.add(top,bottom,iris,pupil,lid);
    this.root.add(group);
    this.eyes[side]={group,iris,pupil,lid};
   }
@@ -68,13 +79,13 @@ class FaceRig3D{
  }
  update(gazeX,blink){
   if(!this.supported)return;
-  const lid=eyelidPose(blink);
+  const lid=eyelidPose(blink,this.lidState);
   for(const side of ['left','right']){
    const eye=this.eyes[side];
    const x=pupilOffset(side,gazeX);
    eye.iris.position.x=x;
    eye.pupil.position.x=x;
-   eye.iris.visible=lid.pupilVisible;
+   eye.iris.visible=lid.irisVisible;
    eye.pupil.visible=lid.pupilVisible;
    eye.lid.visible=lid.visible;
    eye.lid.scale.y=lid.scaleY;

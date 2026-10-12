@@ -40,7 +40,7 @@ try {
       await page.waitForFunction(()=>{
         const canvas=document.querySelector(document.body.classList.contains('mode-overlay')?'#overlay-canvas':'#avatar-canvas');
         return canvas && canvas.width>2 && canvas.height>2 && canvas.getAttribute('data-render-ready')==='true';
-      },{timeout:10000});
+      },null,{timeout:10000});
       await page.waitForTimeout(900);
       if(mode==='workshop') {
         const status=await page.locator('#graphics-status').innerText();
@@ -53,8 +53,12 @@ try {
     } catch(error) {
       failed=true;
       const status=await page.locator('#graphics-status').textContent().catch(()=>null);
+      const probe=await page.evaluate(()=>{
+        const c=document.querySelector(document.body.classList.contains('mode-overlay')?'#overlay-canvas':'#avatar-canvas');
+        return {visibility:document.visibilityState,canvas:c&&{width:c.width,height:c.height,clientWidth:c.clientWidth,clientHeight:c.clientHeight,ready:c.dataset.renderReady},stage:document.querySelector('#runtime-stage')?.textContent,error:document.querySelector('#runtime-error')?.textContent,alertHidden:document.querySelector('#runtime-alert')?.hidden};
+      }).catch(()=>null);
       await page.screenshot({path:'smoke-artifacts/'+mode+'.png'}).catch(()=>{});
-      console.error('FAIL '+mode+': '+error.message+'; status='+status+'; errors='+JSON.stringify(errors));
+      console.error('FAIL '+mode+': '+error.message+'; status='+status+'; errors='+JSON.stringify(errors)+'; probe='+JSON.stringify(probe));
     }
     await context.close();
   }

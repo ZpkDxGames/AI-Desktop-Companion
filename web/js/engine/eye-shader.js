@@ -1,0 +1,50 @@
+// Only the head's inner, base-skin material is patched. The hat/outer layer
+// remains skinview3d-owned and depth-tests normally at the original +4.5 face.
+export const FACE_HEADER = [
+'uniform float faceEnabled;',
+'uniform vec2 faceGaze;',
+'uniform float faceBlink;',
+'uniform vec2 eyeLeftCell;',
+'uniform vec2 eyeRightCell;',
+'uniform vec3 eyeTopLeft;',
+'uniform vec3 eyeBottomLeft;',
+'uniform vec3 eyeTopRight;',
+'uniform vec3 eyeBottomRight;',
+'uniform vec3 eyeWhite;',
+'uniform vec3 eyeIris;',
+'uniform vec3 eyePupil;',
+'uniform vec3 eyeLid;',
+'vec3 composeEyeCell(vec2 pixel,vec2 origin,float neutralX,vec3 topOuter,vec3 bottomOuter){',
+' vec2 q=pixel-origin;',
+' bool outer=neutralX>1.0?q.x<1.0:q.x>=1.0;',
+' vec3 source=outer?(q.y<1.0?topOuter:bottomOuter):(q.y<1.0?eyeIris:eyePupil);',
+' float gx=clamp(faceGaze.x,-1.0,1.0);',
+' float gy=clamp(faceGaze.y,-1.0,1.0);',
+' float blink=clamp(faceBlink,0.0,1.0);',
+' if(abs(gx)<0.001&&abs(gy)<0.001&&blink<0.2)return source;',
+' if(blink>=0.75&&(q.y>=1.0||!outer))return eyeLid;',
+' if(blink>=0.2&&q.y<1.0&&!outer)return eyeLid;',
+' if(outer)return source;',
+' float dx=q.x-neutralX-gx*0.36;',
+' float dy=q.y+gy*0.34;',
+' if(abs(dx)<0.48&&dy>=0.0&&dy<1.0)return eyeIris;',
+' if(abs(dx)<0.48&&dy>=1.0&&dy<2.0)return eyePupil;',
+' return eyeWhite;',
+'}'
+].join('\n');
+
+export const FACE_MAP_FRAGMENT = [
+'#ifdef USE_MAP',
+' vec4 sampledDiffuseColor=texture2D(map,vMapUv);',
+' if(faceEnabled>0.5){',
+'  vec2 pixel=vec2(vMapUv.x*64.0,(1.0-vMapUv.y)*64.0);',
+'  vec2 l=pixel-eyeLeftCell;',
+'  vec2 r=pixel-eyeRightCell;',
+'  if(l.x>=0.0&&l.x<2.0&&l.y>=0.0&&l.y<2.0)',
+'   sampledDiffuseColor.rgb=composeEyeCell(pixel,eyeLeftCell,1.5,eyeTopLeft,eyeBottomLeft);',
+'  else if(r.x>=0.0&&r.x<2.0&&r.y>=0.0&&r.y<2.0)',
+'   sampledDiffuseColor.rgb=composeEyeCell(pixel,eyeRightCell,0.5,eyeTopRight,eyeBottomRight);',
+' }',
+' diffuseColor*=sampledDiffuseColor;',
+'#endif'
+].join('\n');

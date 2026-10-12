@@ -8,9 +8,9 @@ Workflow: [Windows desktop build](../.github/workflows/windows-build.yml).
 
 Triggers: pushes to `main`, pull requests, and manual **Actions → Windows desktop build → Run workflow**. Builds execute on `windows-2022` (x64/MSVC).
 
-The job:
+The job (using committed package-lock.json):
 1. Checks out the repository, installs Node 22 and stable Rust for MSVC.
-2. Runs `npm install --no-audit --no-fund` and `npm run check`.
+2. Runs `npm ci --no-audit --no-fund` and `npm run check`.
 3. Builds the Tauri 2 NSIS installer using `npm run tauri:build -- --bundles nsis`.
 4. Verifies **exactly one installer** was produced.
 5. Uploads a `zpkdx-desktop-companion-windows-alpha-<run number>` artifact containing the installer, `SHA256SUMS.txt`, and `BUILD_INFO.txt`.
@@ -36,7 +36,7 @@ The hashes must match. Because the installer is **unsigned**, Windows SmartScree
 Install Node 20+, Microsoft C++ Build Tools (Desktop development with C++), stable Rust MSVC and WebView2. In a fresh clone:
 
 ```powershell
-npm install
+npm ci
 npm run check
 npm run tauri:dev
 ```
@@ -54,3 +54,9 @@ Expected output folder: `src-tauri/target/release/bundle/nsis/`.
 Successful compilation **does not establish** that the transparent overlay works correctly with multiple monitors, fractional DPI, fullscreen games, click-through recovery, or imported skins. Follow [RELEASE_GATES.md](RELEASE_GATES.md) and test the app on the reference Windows 11 / RTX 3050 8 GB PC before labeling the release stable.
 
 The native source has no Ollama agent, AI permissions, screen capture, or window interaction physics yet. The published artifact is an animation/overlay alpha only.
+
+## Runtime certification is separate from compilation
+
+The `Source and browser runtime checks` workflow also exercises the **emitted Vite production bundle in Windows-hosted Chromium**: both views must initialize, texture requests must succeed, the canvas must be larger than 2×2, and the animated pixels/import flow must pass. See the draft recovery PR and [RELEASE_GATES.md](RELEASE_GATES.md) for exact results.
+
+**This is not a native WebView2 clean-install test.** A passing NSIS compile and browser smoke does not establish that the installed window, transparent overlay, tray, native IPC, click-through or GPU behavior works. Preview artifacts are not stable releases.

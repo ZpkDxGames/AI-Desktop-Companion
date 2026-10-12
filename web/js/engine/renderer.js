@@ -40,7 +40,6 @@ class FaceRig3D{
   // White sclera must not cover the original dark hair in their upper row.
   const backgroundGeometry=new PlaneGeometry(2,1);
   const pixelGeometry=new PlaneGeometry(1.002,1.002);
-  const lidGeometry=new PlaneGeometry(2,2);
   // skinview3d's canonical head is MeshStandardMaterial. Match its lighting
   // model so replacement background pixels do not form bright/dark rectangles.
   const material=color=>new MeshStandardMaterial({
@@ -49,7 +48,7 @@ class FaceRig3D{
   const irisMaterial=material(layout.colors.iris);
   const pupilMaterial=material(layout.colors.pupil);
   const lidMaterial=material(layout.colors.lid);
-  this.resources.push(backgroundGeometry,pixelGeometry,lidGeometry,irisMaterial,pupilMaterial,lidMaterial);
+  this.resources.push(backgroundGeometry,pixelGeometry,irisMaterial,pupilMaterial,lidMaterial);
   for(const side of ['left','right']){
    const group=new Group();
    group.name='eye-'+side;
@@ -67,13 +66,17 @@ class FaceRig3D{
    const neutral=pupilOffset(side,0);
    iris.position.set(neutral,.5,.006);
    pupil.position.set(neutral,-.5,.006);
-   const lid=new Mesh(lidGeometry,lidMaterial);
-   lid.position.set(0,.5,.012);
-   lid.scale.y=.5;
-   lid.visible=false;
-   group.add(top,bottom,iris,pupil,lid);
+   // Upper blink covers only the active iris pixel, never the original dark
+   // hair in the neighboring cell. Full blink additionally closes lower row.
+   const topLid=new Mesh(pixelGeometry,lidMaterial);
+   topLid.position.set(neutral,.5,.012);
+   topLid.visible=false;
+   const bottomLid=new Mesh(backgroundGeometry,lidMaterial);
+   bottomLid.position.set(0,-.5,.012);
+   bottomLid.visible=false;
+   group.add(top,bottom,iris,pupil,topLid,bottomLid);
    this.root.add(group);
-   this.eyes[side]={group,iris,pupil,lid};
+   this.eyes[side]={group,iris,pupil,topLid,bottomLid};
   }
   this.supported=true;
   this.root.visible=this.enabled;
@@ -89,9 +92,9 @@ class FaceRig3D{
    eye.pupil.position.x=x;
    eye.iris.visible=lid.irisVisible;
    eye.pupil.visible=lid.pupilVisible;
-   eye.lid.visible=lid.visible;
-   eye.lid.scale.y=lid.scaleY;
-   eye.lid.position.y=lid.centerY;
+   eye.topLid.position.x=x;
+   eye.topLid.visible=lid.rows>=1;
+   eye.bottomLid.visible=lid.rows>=2;
   }
  }
  dispose(){this.clear();this.head.remove(this.root);}

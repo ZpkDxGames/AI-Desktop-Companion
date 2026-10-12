@@ -165,7 +165,51 @@ async function boot(){
   console.error(error);bootReady=false;showFailure(error);
  }finally{starting=false;}
 }
+const PAGES=Object.freeze({
+ overview:['WORKSPACE / HOME','Overview','Character and runtime at a glance.'],
+ studio:['CHARACTER / STUDIO','Avatar Studio','Skin identity, proportions and expressions.'],
+ behavior:['MOTION / BEHAVIOR','Behavior & Animations','Test local animation poses and transitions.'],
+ desktop:['ENVIRONMENT / DESKTOP','Desktop World','Native desktop geometry and interaction capabilities.'],
+ conversation:['ASSISTANT / CHAT','Conversation','On-demand local conversation configuration.'],
+ models:['ASSISTANT / MODELS','AI & Models','Local provider and resource management.'],
+ privacy:['SECURITY / CONSENT','Privacy','Controls and present permission scope.'],
+ activity:['HISTORY / ACTIVITY','Activity','Local activity and history availability.'],
+ diagnostics:['SYSTEM / DIAGNOSTICS','Diagnostics','Actual runtime and renderer measurements.'],
+ settings:['SYSTEM / PREFERENCES','Settings','Application preferences and build information.']
+});
+function showPage(page){
+ if(overlay||!Object.hasOwn(PAGES,page))return;
+ for(const node of document.querySelectorAll('[data-page]'))node.hidden=node.dataset.page!==page;
+ for(const node of document.querySelectorAll('[data-nav]')){
+  const current=node.dataset.nav===page;
+  node.classList.toggle('selected',current);
+  if(current)node.setAttribute('aria-current','page');else node.removeAttribute('aria-current');
+ }
+ const [eyebrow,title,subtitle]=PAGES[page];
+ $('page-eyebrow').textContent=eyebrow;
+ $('page-title').textContent=title;
+ $('page-subtitle').textContent=subtitle;
+ wake();
+}
+function bindWorkspaceNavigation(){
+ for(const node of document.querySelectorAll('[data-nav]')){
+  node.title=node.textContent.trim();
+  node.addEventListener('click',()=>showPage(node.dataset.nav));
+ }
+ document.querySelector('.workspace')?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-quick]');
+  if(!button)return;
+  switch(button.dataset.quick){
+   case 'wave':controller.request('wave');setActiveAction('wave');wake();break;
+   case 'studio':showPage('studio');break;
+   case 'reset-view':angle=0;cursor=[0,0];tracking=false;wake();break;
+   case 'reset-scale':state.scale=100;save();syncUi();wake();break;
+  }
+ });
+ showPage('overview');
+}
 function connectWorkshop(){
+ bindWorkspaceNavigation();
  $('skin-upload').addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{

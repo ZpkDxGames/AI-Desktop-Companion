@@ -1,6 +1,7 @@
 import {AvatarRenderer} from './engine/renderer.js';
 import sampleSkinUrl from '../assets/sample-skin.png';
 import {RuntimeJournal} from './runtime/diagnostics.js';
+import {FramePacer} from './runtime/frame-pacing.js';
 import {BehaviorController} from './avatar/animation.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
@@ -27,11 +28,12 @@ function stored(){
 const state=stored();
 const controller=new BehaviorController();
 const journal=new RuntimeJournal();
+const framePacer=new FramePacer({activeFps:60,idleFps:20});
 const sessionId=Math.random().toString(36).slice(2);
 let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootReady=false;
 let rafId=0,idleTimer=0,frameSamples=new Float32Array(120),sampleCount=0,sampleCursor=0,contextLosses=0;
 let renderer=null,lastTime=0,renderT=0,renderCount=0,lastReport=performance.now();
-let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,forceBlinkUntil=0;
+let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0;
 const canvas=$(overlay?'overlay-canvas':'avatar-canvas');
 const toast=message=>{const node=$('toast');node.textContent=message;node.hidden=false;clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>node.hidden=true,4100);};
 const save=()=>{try{
@@ -123,7 +125,7 @@ function bindRecovery(){
  const reportButton=statusNode('diagnostics-copy');
  if(reportButton)reportButton.addEventListener('click',copyReport);
  document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){clearTimeout(idleTimer);cancelAnimationFrame(rafId);idleTimer=0;rafId=0;lastTime=0;}
+  if(document.hidden){clearTimeout(idleTimer);cancelAnimationFrame(rafId);idleTimer=0;rafId=0;lastTime=0;framePacer.reset();}
   else wake();
  });
  window.addEventListener('resize',wake,{passive:true});
@@ -142,7 +144,7 @@ function bindRecovery(){
 async function boot(){
  if(starting)return;
  starting=true;bootReady=false;clearTimeout(idleTimer);cancelAnimationFrame(rafId);
- rafId=0;idleTimer=0;lastTime=0;renderT=0;renderCount=0;lastReport=performance.now();
+ rafId=0;idleTimer=0;lastTime=0;framePacer.reset();renderT=0;renderCount=0;lastReport=performance.now();
  try{
   clearFailure();
   stage('BOOT','Starting '+(overlay?'desktop overlay':'Workspace'));
@@ -229,7 +231,7 @@ function connectWorkshop(){
  $('avatar-scale').addEventListener('input',e=>{state.scale=Number(e.target.value);$('scale-value').textContent=state.scale+'%';save();});
  $('follow-pointer').addEventListener('change',e=>{state.follow=e.target.checked;save();});
  $('expressions-enabled').addEventListener('change',e=>{state.expressions=e.target.checked;renderer.setFacesEnabled(state.expressions);save();wake();});
- $('blink-now').addEventListener('click',()=>{forceBlinkUntil=performance.now()+210;wake();});
+ $('blink-now').addEventListener('click',()=>{controller.triggerBlink();wake();});
  $('action-row').addEventListener('click',e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(!action)return;controller.request(action);setActiveAction(action);wake();});
  attachPointer($('stage'));
 }
@@ -259,14 +261,15 @@ function connectOverlay(){
 function frame(time){
  rafId=0;
  if(!bootReady||!renderer||document.hidden||contextLost){lastTime=0;return;}
+ let active=controller.action!=='idle'||dragging||tracking||controller.blinkElapsed>=0;
+ if(!framePacer.ready(time,active)){rafId=requestAnimationFrame(frame);return;}
  const dt=lastTime?Math.min((time-lastTime)/1000,.05):0;
  lastTime=time;
- let active=controller.action!=='idle'||dragging||tracking||performance.now()<forceBlinkUntil;
  try{
   controller.update(dt);
   active=active||controller.blink>0;
   controller.setGaze(state.follow&&tracking?cursor[0]:0,state.follow&&tracking?cursor[1]:0);
-  const blink=controller.blink>0?controller.blink:performance.now()<forceBlinkUntil?1:0;
+  const blink=controller.blink;
   const started=performance.now();
   renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],blink});
   const cost=performance.now()-started;
@@ -292,6 +295,6 @@ function frame(time){
   console.error(error);bootReady=false;showFailure(error);return;
  }
  if(active)rafId=requestAnimationFrame(frame);
- else idleTimer=setTimeout(()=>{idleTimer=0;rafId=requestAnimationFrame(frame);},55);
+ else idleTimer=setTimeout(()=>{idleTimer=0;rafId=requestAnimationFrame(frame);},49);
 }
 boot();

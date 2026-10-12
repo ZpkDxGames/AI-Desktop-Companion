@@ -139,9 +139,12 @@ export class AvatarRenderer{
  createRig(slim){return this.setModelMode(slim?'slim':'classic');}
  setFacesEnabled(enabled){this.facesEnabled=!!enabled;this.faceRig.setEnabled(this.facesEnabled);}
  resize(){
-  const rect=this.canvas.getBoundingClientRect();
-  const width=Math.max(2,Math.floor(rect.width));
-  const height=Math.max(2,Math.floor(rect.height));
+  // skinview3d.setSize writes inline canvas dimensions. Measuring that canvas
+  // would permanently lock a new viewer to its 2x2 bootstrap size. The stable
+  // layout container, never the renderer-owned drawing surface, is the authority.
+  const bounds=this.canvas.parentElement?.getBoundingClientRect();
+  const width=Math.max(2,Math.floor(bounds?.width||0));
+  const height=Math.max(2,Math.floor((bounds?.height||0)-(this.overlay?52:0)));
   if(this.viewer.width!==width||this.viewer.height!==height)this.viewer.setSize(width,height);
  }
  render(pose,{scale=1,rotation=0,gazeX=0,blink=0}={}){

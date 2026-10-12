@@ -29,7 +29,8 @@ export class FramePacer {
   // Advance absolute deadlines rather than measuring an interval from the
   // displayed frame, preventing 120+Hz refresh jitter from accumulating.
   const late=Math.max(0,time-this.nextDeadline);
-  this.nextDeadline+=interval*(1+Math.floor(late/interval));
+  if(late>interval*2)this.nextDeadline=time+interval;
+  else this.nextDeadline+=interval*(1+Math.floor(late/interval));
   this.lastFrame=time;
   return true;
  }

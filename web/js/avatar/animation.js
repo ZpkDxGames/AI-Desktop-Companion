@@ -5,21 +5,38 @@ export const DURATION = Object.freeze({wave:2.4,jump:0.95,think:3.2,celebrate:1.
 export const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 export const smooth = t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export const mix=(a,b,t)=>a+(b-a)*t;
+const POSE_KEYS=Object.freeze(['headX','headY','headZ','bodyZ','armRX','armLX','armRZ','armLZ','legRX','legLX','rootY','rootX','rootZ']);
 export class BehaviorController {
-  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};}
+  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};this.transitionFrom={...this.poseBuffer};this.blinkElapsed=-1;}
   request(action) {
     if(!ACTIONS.includes(action)) return false;
     if(action==='idle' || PRIORITY[action]>=PRIORITY[this.action] || !DURATION[this.action]){
-      if(action!==this.action){this.previous=this.action;this.action=action;this.elapsed=0;this.blendTime=0;}
+      if(action!==this.action){
+        const previousPose=this.pose();
+        for(const key of POSE_KEYS)this.transitionFrom[key]=previousPose[key];
+        this.previous=this.action;this.action=action;this.elapsed=0;this.blendTime=0;
+      }
       return true;
     }
     return false;
   }
+  triggerBlink(){this.blinkElapsed=0;this.blink=0;return true;}
   update(dt){
-    dt=Number.isFinite(dt)?clamp(dt,0,0.05):0;this.time+=dt;this.elapsed+=dt;this.blendTime+=dt;
-    if(this.time>=this.nextBlink){this.nextBlink=this.time+3.0+(Math.sin(this.time*23)*.5+.5)*2.8;this.blink=1;}
-    if(this.blink>0) this.blink=Math.max(0,this.blink-dt/0.14);
-    if(DURATION[this.action] && this.elapsed>DURATION[this.action])this.request('idle');
+    dt=Number.isFinite(dt)?clamp(dt,0,0.05):0;
+    this.time+=dt;this.elapsed+=dt;this.blendTime+=dt;
+    if(this.time>=this.nextBlink&&this.blinkElapsed<0){
+      this.triggerBlink();
+      this.nextBlink=this.time+3+(Math.sin(this.time*23)*.5+.5)*2.8;
+    }
+    if(this.blinkElapsed>=0){
+      this.blinkElapsed+=dt;
+      const t=this.blinkElapsed;
+      if(t<.075)this.blink=clamp(t/.075,0,1);
+      else if(t<.11)this.blink=1;
+      else if(t<.23)this.blink=clamp(1-(t-.11)/.12,0,1);
+      else{this.blink=0;this.blinkElapsed=-1;}
+    }
+    if(DURATION[this.action]&&this.elapsed>DURATION[this.action])this.request('idle');
   }
   setGaze(x,y){this.gaze[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gaze[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
   pose(){
@@ -45,8 +62,9 @@ export class BehaviorController {
     applyExtraAnimation(a,p,e);
     p.headY+=this.gaze[0]*.27;p.headX+=this.gaze[1]*-.15;
     const fade=smooth(this.blendTime/.17);
-    // Neutral-pose interpolation is used for smooth entries; locomotion is continuous.
-    if(fade<1){const keys=['armRX','armLX','armRZ','armLZ','legRX','legLX','rootY','rootX','rootZ'];for(const k of keys)p[k]*=fade;}
+    // Interpolate from the previously visible pose. Zeroing limbs during
+    // preemption would snap sitting or waving directly to the neutral pose.
+    if(fade<1)for(const k of POSE_KEYS)p[k]=mix(this.transitionFrom[k],p[k],fade);
     return p;
   }
   expression(){return this.blink>.28?'blink':this.action==='think'?'thinking':'neutral';}

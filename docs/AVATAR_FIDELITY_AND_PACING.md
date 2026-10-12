@@ -37,3 +37,19 @@ Import the authentic ZpkDxGames skin into the new **unsigned dev installer** and
 - E: compare overlay-only and Workspace-open actual FPS, frame-time p50/p95/p99, process CPU/RAM, GPU activity and VRAM on Windows 11 25H2 / RTX 3050 8 GB. Check 120/144Hz monitor and fullscreen-game coexistence; 60 FPS is a **target**, not a claimed measurement.
 
 Do not merge to recovery/main or label stable until actual Windows screenshots and hardware measurements pass. More gestures (eating, reading, books/items) are **deliberately deferred**.
+
+## Occluded pupil regression — follow-up correction
+
+The owner’s first on-device screenshot of the 3D eye build revealed **split/fragmented upper irises and lower pupils** around the mask. Analysis of the genuine local 64×64 PNG confirmed that the outer head layer is **opaque at the adjacent upper-left eye pixel and adjacent upper-right eye pixel**, while both lower eye-row pixels are transparent on the outer layer. An unconditional one-pixel gaze shift therefore hid the upper iris behind hair but left the pupil visible below it. The old micro planes also sat only 0.018 units above the inner head, leaving little depth precision margin for eye textures.
+
+### Corrective ownership and tradeoff
+
+- Read the actual *outer head/hat layer* alpha from the standard Java skin UV x40–47 at the eye coordinates (offset +32 from the base head front). Each eye stores four booleans for upper/lower 2×2 cell occlusion.
+- Validate that the existing iris column remains visible. Reject unsupported profiles rather than constructing geometry that will override the skin incorrectly.
+- **Only allow a full one-pixel gaze shift when the destination column is visible in both upper and lower rows.** On the current ZpkDxGames skin, both outward columns are obscured by opaque upper hair, so this temporarily limits horizontal *pupil* displacement to preserve alignment. **Head gaze still tracks the cursor.** This is intentional conservative behavior, not a completed implementation of full expressive gaze through hair.
+- **At neutral blink/gaze, suppress the entire facial micro-geometry**, leaving skinview3d to render the original imported PNG. This guarantees that idling cannot redraw or mismatch the native eye pixels.
+- Move active micro layers forward from the head surface: base z=4.18, iris/pupil z=4.22, lids z=4.26, all still behind the hat front at z=4.5. Keep depth testing and skinview3d materials. This reduces coplanar depth artifacts.
+- Regression: `tests/eye-occlusion.test.mjs` exercises asymmetric upper/lower hair masks, prevents split pupils, asserts neutral source preservation, enforces depth margins, and preserves full gaze for compatible unoccluded skins.
+- Do not treat passing CI as proof that all face rotations or WebView2 rasterization are defect-free. Visual recheck on the reference machine is mandatory.
+
+**Next acceptance:** install the new development artifact; with experimental facial eyes enabled, compare neutral face against eyes disabled and capture open, half-blink and fully closed face, from front and three-quarter views. Do not merge if any duplicated dark/cyan pixels or mask displacement remain.

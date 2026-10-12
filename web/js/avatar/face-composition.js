@@ -1,8 +1,22 @@
-import {deriveFaceRig,clamp} from './face-rig-layout.js';
+const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+const validColor=c=>Array.isArray(c)&&c.length===4&&c.every(v=>Number.isInteger(v)&&v>=0&&v<=255)&&c[3]>240;
+function validProfile(p){
+ if(!p?.supported||!p.eyes||!p.background||!p.occlusion||!p.colors)return false;
+ if(!['lid','white','iris','pupil'].every(k=>validColor(p.colors[k])))return false;
+ for(const side of ['left','right']){
+  const eye=p.eyes[side],bg=p.background[side],occ=p.occlusion[side];
+  if(!Array.isArray(eye)||eye.length!==2||!eye.every(Number.isInteger))return false;
+  if(eye[0]<0||eye[0]>6||eye[1]<0||eye[1]>6)return false;
+  if(!validColor(bg?.top)||!validColor(bg?.bottom))return false;
+  if(!['top','bottom'].every(row=>Array.isArray(occ?.[row])&&occ[row].length===2&&occ[row].every(v=>typeof v==='boolean')))return false;
+  const column=side==='left'?1:0;
+  if(occ.top[column]||occ.bottom[column])return false;
+ }
+ return true;
+}
 
 export function createFaceComposition(profile){
- const layout=deriveFaceRig(profile);
- if(!layout.supported)return {supported:false,reason:layout.reason||profile?.reason||'unsupported'};
+ if(!validProfile(profile))return {supported:false,reason:profile?.reason||'unsafe-eye-profile'};
  const eye=(side)=>({
   x:8+profile.eyes[side][0],y:8+profile.eyes[side][1],
   neutralX:side==='left'?1.5:.5,

@@ -1,0 +1,81 @@
+name: Windows desktop build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build Windows NSIS installer
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Rust stable (MSVC)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend tooling
+        run: npm install --no-audit --no-fund
+
+      - name: Run source tests
+        run: npm run check
+
+      - name: Build Tauri Windows NSIS installer
+        run: npm run tauri:build -- --bundles nsis
+
+      - name: Stage installer and verification records
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundles = @(Get-ChildItem 'src-tauri/target/release/bundle/nsis' -Filter '*.exe' -File)
+          if ($bundles.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($bundles.Count)."
+          }
+          New-Item -ItemType Directory -Force -Path 'dist/windows-alpha' | Out-Null
+          $installer = $bundles[0]
+          Copy-Item -LiteralPath $installer.FullName -Destination 'dist/windows-alpha/'
+          $sha = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sha  $($installer.Name)" | Set-Content -Path 'dist/windows-alpha/SHA256SUMS.txt' -Encoding utf8
+          @(
+            "repository=${{ github.repository }}"
+            "commit=${{ github.sha }}"
+            "ref=${{ github.ref }}"
+            "run_id=${{ github.run_id }}"
+            "run_attempt=${{ github.run_attempt }}"
+            "runner=windows-2022"
+            "build=unsigned development alpha (NOT production-certified)"
+          ) | Set-Content -Path 'dist/windows-alpha/BUILD_INFO.txt' -Encoding utf8
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA256: $sha"
+
+      - name: Upload unsigned Windows alpha installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: zpkdx-desktop-companion-windows-alpha-${{ github.run_number }}
+          path: dist/windows-alpha/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

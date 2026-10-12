@@ -37,10 +37,22 @@ export function detectFaceProfile(pixels){
   matches.push({left,right});
  }
  if(matches.length!==1)return {supported:false,reason:matches.length?'ambiguous-eye-position':'eye-position-not-matched'};
+ const eyes=matches[0];
+ // Reconstruct ONLY the recognized 2x2 eye cells. The untouched PNG remains the
+ // source of truth; upper corners may be dark hair rather than white sclera.
+ const leftTop=pix(pixels,8+eyes.left[0],8+eyes.left[1]);
+ const rightTop=pix(pixels,8+eyes.right[0]+1,8+eyes.right[1]);
+ const leftBottom=pix(pixels,8+eyes.left[0],8+eyes.left[1]+1);
+ const rightBottom=pix(pixels,8+eyes.right[0]+1,8+eyes.right[1]+1);
+ if(![leftTop,rightTop,leftBottom,rightBottom].every(visible)||
+    !rgbEqual(leftBottom,bottom[0])||!rgbEqual(rightBottom,bottom[3])||
+    rgbEqual(leftTop,top[1])||rgbEqual(rightTop,top[2]))
+  return {supported:false,reason:'unsafe-eye-background'};
  return {
   supported:true,
   style:'symmetric-2x2-swatch',
-  eyes:matches[0],
+  eyes,
+  background:{left:{top:clone(leftTop),bottom:clone(leftBottom)},right:{top:clone(rightTop),bottom:clone(rightBottom)}},
   marker:MARKER_RECT,
   colors:{lid:clone(lids[0]),white:clone(bottom[0]),iris:clone(top[1]),pupil:clone(bottom[1])}
  };

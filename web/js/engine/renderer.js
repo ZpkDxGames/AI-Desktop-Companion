@@ -1,91 +1,171 @@
-import {chain,translation,rotateX,rotateY,rotateZ} from './mat4.js';
-import {avatarViewProjection, avatarRootMatrix} from './camera.js';
-import {rigParts,cuboidTriangles} from '../avatar/rig.js';
-import {detectFaceProfile,composeFacePixels,facePlaneTriangles} from '../avatar/face.js';
+import {SkinViewer} from 'skinview3d';
+import {Group,Mesh,PlaneGeometry,MeshBasicMaterial} from 'three';
+import {detectFaceProfile} from '../avatar/face.js';
+import {deriveFaceRig,pupilOffset,eyelidPose} from '../avatar/face-rig-layout.js';
+import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
 
-const vs=`#version 300 es
-precision highp float;
-in vec3 a_position;in vec2 a_tex;in vec3 a_normal;
-uniform mat4 u_model;uniform mat4 u_viewproj;
-out vec2 v_tex;out vec3 v_normal;
-void main(){gl_Position=u_viewproj*u_model*vec4(a_position,1.0);v_tex=a_tex;v_normal=mat3(u_model)*a_normal;}`;
-const fs=`#version 300 es
-precision highp float;
-in vec2 v_tex;in vec3 v_normal;
-uniform sampler2D u_skin;
-out vec4 color;
-void main(){vec4 pixel=texture(u_skin,v_tex);if(pixel.a<0.04) discard;
-vec3 n=normalize(v_normal);float light=0.74+0.26*max(0.0,dot(n,normalize(vec3(-0.35,0.7,0.6))));
-color=vec4(pixel.rgb*light,pixel.a);}`;
-function shader(gl,type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
-function program(gl){const p=gl.createProgram();gl.attachShader(p,shader(gl,gl.VERTEX_SHADER,vs));gl.attachShader(p,shader(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));return p;}
-export class AvatarRenderer {
- constructor(canvas){
-  this.canvas=canvas;this.gl=canvas.getContext('webgl2',{alpha:true,antialias:true,depth:true,preserveDrawingBuffer:false,powerPreference:'low-power'});
-  if(!this.gl)throw Error('WebGL2 is unavailable. Enable GPU acceleration in your browser/WebView2.');
-  const gl=this.gl;this.program=program(gl);this.uModel=gl.getUniformLocation(this.program,'u_model');this.uVp=gl.getUniformLocation(this.program,'u_viewproj');
-  this.aPos=gl.getAttribLocation(this.program,'a_position');this.aTex=gl.getAttribLocation(this.program,'a_tex');this.aNormal=gl.getAttribLocation(this.program,'a_normal');
-  this.texture=gl.createTexture();this.faceTexture=gl.createTexture();this.faceBuffer=gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER,this.faceBuffer);gl.bufferData(gl.ARRAY_BUFFER,facePlaneTriangles(),gl.STATIC_DRAW);
-  this.faceCanvas=document.createElement('canvas');this.faceCanvas.width=64;this.faceCanvas.height=64;
-  this.faceContext=this.faceCanvas.getContext('2d');this.faceProfile={supported:false,reason:'no-skin'};
-  this.lastFaceState='';this.facesEnabled=true;this.slim=false;this.meshes=[];this.skin=null;this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
+const rgbHex=rgba=>((rgba?.[0]||0)<<16)|((rgba?.[1]||0)<<8)|(rgba?.[2]||0);
+
+class FaceRig3D{
+ constructor(head){
+  this.head=head;
+  this.root=new Group();
+  this.root.name='zpkdx-face-rig';
+  this.head.add(this.root);
+  this.enabled=true;
+  this.supported=false;
+  this.eyes={};
+  this.resources=[];
  }
- createRig(slim){
-  const gl=this.gl;for(const m of this.meshes)gl.deleteBuffer(m.vbo);this.slim=slim;
-  this.meshes=rigParts(slim).map(part=>{const data=cuboidTriangles(part),vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);return {...part,vbo,count:data.length/8};});
- }
- setSkin(image){this.skin=image;this.updateTexture();
-  const ctx=document.createElement('canvas');ctx.width=64;ctx.height=64;
-  const c=ctx.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0,64,64);
-  const data=c.getImageData(0,0,64,64).data;this.faceProfile=detectFaceProfile(data);this.lastFaceState='';
-  return this.faceProfile;
- }
- setFacesEnabled(enabled){this.facesEnabled=!!enabled;this.lastFaceState='';}
- uploadFace(gazeX,blink){
-  if(!this.faceProfile.supported||!this.facesEnabled)return false;
-  const x=Math.max(-1,Math.min(1,Math.round(gazeX)));const b=blink>=.6?2:blink>=.25?1:0;
-  const state=x+':'+b;
-  if(state!==this.lastFaceState){
-   this.lastFaceState=state;
-   const pixels=composeFacePixels(this.faceProfile,{gazeX:x,blink});
-   this.faceContext.putImageData(new ImageData(pixels,64,64),0,0);
-   const gl=this.gl;gl.bindTexture(gl.TEXTURE_2D,this.faceTexture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
-   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
-   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,this.faceCanvas);
+ clear(){
+  this.root.clear();
+  const disposed=new Set();
+  for(const item of this.resources){
+   if(item&&!disposed.has(item)){item.dispose?.();disposed.add(item);}
   }
-  return (x!==0||b!==0);
+  this.resources=[];
+  this.eyes={};
+  this.supported=false;
  }
- updateTexture(){if(!this.skin)return;const gl=this.gl;
- gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
- gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,this.skin);
+ setEnabled(enabled){
+  this.enabled=!!enabled;
+  this.root.visible=this.enabled&&this.supported;
  }
- resize(){const gl=this.gl,rect=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);const w=Math.max(2,Math.floor(rect.width*dpr)),h=Math.max(2,Math.floor(rect.height*dpr));if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);}
+ configure(profile){
+  this.clear();
+  const layout=deriveFaceRig(profile);
+  if(!layout.supported){this.root.visible=false;return layout;}
+  const scleraGeometry=new PlaneGeometry(2,2);
+  const pixelGeometry=new PlaneGeometry(.92,.92);
+  const lidGeometry=new PlaneGeometry(2.02,2.02);
+  const whiteMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.white),depthTest:true,depthWrite:true});
+  const irisMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.iris),depthTest:true,depthWrite:true});
+  const pupilMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.pupil),depthTest:true,depthWrite:true});
+  const lidMaterial=new MeshBasicMaterial({color:rgbHex(layout.colors.lid),depthTest:true,depthWrite:true});
+  this.resources.push(scleraGeometry,pixelGeometry,lidGeometry,whiteMaterial,irisMaterial,pupilMaterial,lidMaterial);
+  for(const side of ['left','right']){
+   const group=new Group();
+   group.name='eye-'+side;
+   const c=layout[side].center;
+   group.position.set(c.x,c.y,c.z);
+   const sclera=new Mesh(scleraGeometry,whiteMaterial);
+   sclera.position.z=0;
+   const iris=new Mesh(pixelGeometry,irisMaterial);
+   iris.position.set(pupilOffset(side,0),.5,.012);
+   const pupil=new Mesh(pixelGeometry,pupilMaterial);
+   pupil.position.set(pupilOffset(side,0),-.5,.018);
+   const lid=new Mesh(lidGeometry,lidMaterial);
+   lid.position.set(0,1,.03);
+   lid.scale.y=.001;
+   lid.visible=false;
+   group.add(sclera,iris,pupil,lid);
+   this.root.add(group);
+   this.eyes[side]={group,iris,pupil,lid};
+  }
+  this.supported=true;
+  this.root.visible=this.enabled;
+  return layout;
+ }
+ update(gazeX,blink){
+  if(!this.supported)return;
+  const lid=eyelidPose(blink);
+  for(const side of ['left','right']){
+   const eye=this.eyes[side];
+   const x=pupilOffset(side,gazeX);
+   eye.iris.position.x=x;
+   eye.pupil.position.x=x;
+   eye.iris.visible=lid.pupilVisible;
+   eye.pupil.visible=lid.pupilVisible;
+   eye.lid.visible=lid.visible;
+   eye.lid.scale.y=lid.scaleY;
+   eye.lid.position.y=lid.centerY;
+  }
+ }
+ dispose(){this.clear();this.head.remove(this.root);}
+}
+
+export class AvatarRenderer{
+ constructor(canvas,{overlay=false}={}){
+  this.canvas=canvas;
+  this.overlay=overlay;
+  this.modelMode='auto';
+  this.detectedModel='default';
+  this.skin=null;
+  this.facesEnabled=true;
+  this.baseYaw=overlay?.08:.18;
+  this.baseZoom=overlay?.64:.73;
+  this.lastScale=0;
+  this.viewer=new SkinViewer({
+   canvas,
+   width:2,
+   height:2,
+   background:null,
+   model:'auto-detect',
+   enableControls:false,
+   renderPaused:true,
+   fov:34,
+   zoom:this.baseZoom,
+   pixelRatio:'match-device'
+  });
+  this.viewer.globalLight.intensity=2.25;
+  this.viewer.cameraLight.intensity=.85;
+  this.viewer.controls.enabled=false;
+  this.faceRig=new FaceRig3D(this.viewer.playerObject.skin.head);
+  this.faceProfile={supported:false,reason:'no-skin'};
+ }
+ imagePixels(image){
+  const canvas=document.createElement('canvas');
+  canvas.width=64;canvas.height=64;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(image,0,0,64,64);
+  return ctx.getImageData(0,0,64,64).data;
+ }
+ setSkin(image,{model=this.modelMode}={}){
+  this.skin=image;
+  this.modelMode=normalizeModelMode(model);
+  this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
+  this.detectedModel=this.viewer.playerObject.skin.modelType;
+  this.faceProfile=detectFaceProfile(this.imagePixels(image));
+  this.faceRig.configure(this.faceProfile);
+  this.faceRig.setEnabled(this.facesEnabled);
+  return {...this.faceProfile,modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};
+ }
+ setModelMode(mode){
+  this.modelMode=normalizeModelMode(mode);
+  if(this.skin)return this.setSkin(this.skin,{model:this.modelMode});
+  return {supported:false,reason:'no-skin',modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};
+ }
+ createRig(slim){return this.setModelMode(slim?'slim':'classic');}
+ setFacesEnabled(enabled){this.facesEnabled=!!enabled;this.faceRig.setEnabled(this.facesEnabled);}
+ resize(){
+  const rect=this.canvas.getBoundingClientRect();
+  const width=Math.max(2,Math.floor(rect.width));
+  const height=Math.max(2,Math.floor(rect.height));
+  if(this.viewer.width!==width||this.viewer.height!==height)this.viewer.setSize(width,height);
+ }
  render(pose,{scale=1,rotation=0,gazeX=0,blink=0}={}){
-  const gl=this.gl;this.resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(!this.skin)return;
-  gl.useProgram(this.program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.uniform1i(gl.getUniformLocation(this.program,'u_skin'),0);
-  const vp=avatarViewProjection(this.canvas.width/this.canvas.height,scale);
-  gl.uniformMatrix4fv(this.uVp,false,new Float32Array(vp));
-  const root=avatarRootMatrix(pose,this.angle+rotation);
-  let headModel=null;
-  for(const part of this.meshes){const id=part.part||part.id;
-   let rot=chain();if(id==='head')rot=chain(rotateY(pose.headY),rotateX(pose.headX),rotateZ(pose.headZ));
-   if(id==='rightArm')rot=chain(rotateZ(pose.armRZ),rotateX(pose.armRX));
-   if(id==='leftArm')rot=chain(rotateZ(pose.armLZ),rotateX(pose.armLX));
-   if(id==='rightLeg')rot=rotateX(pose.legRX);if(id==='leftLeg')rot=rotateX(pose.legLX);
-   const model=chain(root,translation(...part.pivot),rot,translation(...part.center));if(id==='head'&&!part.layer)headModel=model;
-   gl.uniformMatrix4fv(this.uModel,false,new Float32Array(model));gl.bindBuffer(gl.ARRAY_BUFFER,part.vbo);
-   for(const [attrib,count,offset] of [[this.aPos,3,0],[this.aTex,2,12],[this.aNormal,3,20]]){gl.enableVertexAttribArray(attrib);gl.vertexAttribPointer(attrib,count,gl.FLOAT,false,32,offset);}
-   gl.drawArrays(gl.TRIANGLES,0,part.count);
+  if(!this.skin)return;
+  this.resize();
+  const player=this.viewer.playerObject;
+  const skin=player.skin;
+  skin.resetJoints();
+  player.position.set(pose.rootX||0,pose.rootY||0,pose.rootZ||0);
+  player.rotation.set(0,this.baseYaw+rotation,0);
+  skin.head.rotation.set(pose.headX||0,pose.headY||0,pose.headZ||0);
+  skin.body.rotation.set(0,0,pose.bodyZ||0);
+  skin.rightArm.rotation.set(pose.armRX||0,0,pose.armRZ||0);
+  skin.leftArm.rotation.set(pose.armLX||0,0,pose.armLZ||0);
+  skin.rightLeg.rotation.set(pose.legRX||0,0,0);
+  skin.leftLeg.rotation.set(pose.legLX||0,0,0);
+  this.faceRig.update(gazeX,blink);
+  const bounded=Math.max(.55,Math.min(1.5,Number.isFinite(scale)?scale:1));
+  if(Math.abs(this.lastScale-bounded)>.001){
+   this.lastScale=bounded;
+   this.viewer.zoom=this.baseZoom*bounded;
   }
-  if(headModel&&this.uploadFace(gazeX,blink)){
-   gl.uniformMatrix4fv(this.uModel,false,new Float32Array(headModel));gl.bindTexture(gl.TEXTURE_2D,this.faceTexture);
-   gl.bindBuffer(gl.ARRAY_BUFFER,this.faceBuffer);
-   for(const [attrib,count,offset] of [[this.aPos,3,0],[this.aTex,2,12],[this.aNormal,3,20]]){gl.enableVertexAttribArray(attrib);gl.vertexAttribPointer(attrib,count,gl.FLOAT,false,32,offset);}
-   gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
-   gl.drawArrays(gl.TRIANGLES,0,6);gl.depthMask(true);gl.disable(gl.BLEND);
-  }
+  this.viewer.render();
  }
- dispose(){const gl=this.gl;for(const m of this.meshes)gl.deleteBuffer(m.vbo);gl.deleteTexture(this.texture);gl.deleteTexture(this.faceTexture);gl.deleteBuffer(this.faceBuffer);gl.deleteProgram(this.program);}
+ get modelType(){return fromSkinViewModel(this.detectedModel);}
+ dispose(){this.faceRig.dispose();this.viewer.dispose();}
 }

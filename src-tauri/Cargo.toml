@@ -1,6 +1,6 @@
 [package]
 name = "zpkdx-desktop-agent"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.6.0"
 description = "ZpkDxGames 3D Minecraft desktop companion"
 authors = ["ZpkDxGames"]
 edition = "2021"

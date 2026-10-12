@@ -11,21 +11,18 @@
 <body>
   <div id="workshop" class="workshop">
     <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">Z<span>.</span></div>
-        <div><strong>ZpkDxGames</strong><small>DESKTOP COMPANION / ANIMATION LAB</small></div>
-      </div>
-      <div class="header-status"><span class="live-pip"></span>LOCAL RENDERER <span class="header-sep"></span><span>v0.1 · ALPHA</span></div>
+      <div class="brand"><div class="brand-mark">Z<span>.</span></div><div><strong>ZpkDxGames</strong><small>DESKTOP COMPANION / AVATAR STUDIO</small></div></div>
+      <div class="header-status"><span class="live-pip"></span>LOCAL RENDERER <span class="header-sep"></span><span>ALPHA.6</span></div>
     </header>
     <div class="workspace">
       <section class="preview-section" aria-label="3D avatar preview">
-        <div class="preview-topline"><div><span class="section-eyebrow">01 / CHARACTER</span><h1>Meet your desktop companion.</h1><p>A real 3D voxel player. Vanilla geometry, expressive pixels, zero AI inference.</p></div><span class="mode-chip">3D · WEBGL2</span></div>
+        <div class="preview-topline"><div><span class="section-eyebrow">01 / CHARACTER</span><h1>Your Minecraft character, properly rendered.</h1><p>Canonical skin geometry, perspective presentation, local animation and a head-attached expression rig.</p></div><span class="mode-chip">THREE · CANONICAL</span></div>
         <div class="stage" id="stage">
           <div class="stage-grid"></div><div class="stage-halo"></div><div class="floor-shadow"></div><div class="floor-line"></div>
           <div class="stage-orientation"><span class="live-pip"></span> PREVIEW ACTIVE <span id="render-fps">— FPS</span></div>
           <canvas id="avatar-canvas" aria-label="Interactive three-dimensional Minecraft avatar"></canvas>
           <div class="stage-hint">MOVE CURSOR TO LOOK AROUND <span>·</span> DRAG TO ROTATE</div>
-          <div class="preview-watermark">ZPKDX <span>/</span> 001</div>
+          <div class="preview-watermark">ZPKDX <span>/</span> A6</div>
         </div>
         <div class="animation-tray" role="group" aria-label="Trigger avatar animations">
           <div class="tray-label">ANIMATIONS</div>
@@ -33,24 +30,28 @@
             <button class="action active" data-action="idle">Idle</button><button class="action" data-action="walk">Walk</button><button class="action" data-action="run">Run</button><button class="action" data-action="wave">Wave</button><button class="action" data-action="sit">Sit</button><button class="action" data-action="jump">Jump</button><button class="action" data-action="think">Think</button><button class="action" data-action="celebrate">Celebrate</button><button class="action" data-action="nod">Nod</button><button class="action" data-action="shrug">Shrug</button><button class="action" data-action="stretch">Stretch</button><button class="action" data-action="bow">Bow</button>
           </div>
         </div>
-        <div class="bottom-stats"><span><i></i> NO CLOUD CONNECTION</span><span><i></i> NO MODEL LOADED</span><span>SKIN: <b id="current-skin-label">SAMPLE / IMPORT YOUR OWN</b></span></div>
+        <div class="bottom-stats"><span><i></i> LOCAL ONLY</span><span><i></i> NO AI MODEL LOADED</span><span>SKIN: <b id="current-skin-label">SAMPLE / IMPORT YOUR OWN</b></span></div>
       </section>
       <aside class="settings" aria-label="Avatar settings">
         <div class="settings-heading"><span class="section-eyebrow">02 / CONFIGURATION</span><h2>Avatar settings</h2><p>Changes stay on this device.</p></div>
         <div class="settings-group"><div class="group-heading"><h3>Appearance</h3><span>SKIN / RIG</span></div>
           <div class="upload-block"><div class="upload-label"><strong>Character skin</strong><small>Java Edition · 64 × 64 PNG</small></div><label class="upload-button" for="skin-upload">Import PNG <span>↗</span></label><input id="skin-upload" type="file" accept="image/png" hidden /></div>
-          <div class="setting-line"><span>Player model</span><select id="model-type" aria-label="Player model"><option value="classic">Classic (4px arms)</option><option value="slim">Slim (3px arms)</option></select></div>
+          <div class="setting-line"><span>Player model</span><select id="model-type" aria-label="Player model"><option value="auto">Auto detect</option><option value="classic">Classic (4px arms)</option><option value="slim">Slim (3px arms)</option></select></div>
+          <div class="metric-row"><span>Model result</span><strong id="model-status">Detecting…</strong></div>
           <div class="setting-slider"><label for="avatar-scale">Avatar scale <output id="scale-value">100%</output></label><input id="avatar-scale" type="range" min="75" max="140" value="100" step="5" /></div>
         </div>
-        <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>SKIN-NATIVE / PLANNED</span></div>
-          <div class="setting-line"><div><strong>Skin-native eye animations</strong><small>Uses recognized marker pixels; no manual positioning.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" checked /><span></span></label></div><div class="metric-row"><span>Skin eye format</span><strong id="face-marker-status">Checking skin...</strong></div>
-          <div class="setting-line"><div><strong>Follow cursor</strong><small>Gentle head tracking; no eye-pixel repainting.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
-          <div class="setting-line"><button id="blink-now" class="quiet-button">Test blink</button></div><div class="preview-warning">Experimental skin-native 2×2 eye marker support. Unknown layouts preserve the unchanged vanilla face. Full Just Expressions format parity remains in development.</div>
+        <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>3D / EXPERIMENTAL</span></div>
+          <div class="setting-line"><div><strong>3D expressive eyes</strong><small>Head-attached sclera, pupil and eyelid geometry.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" checked /><span></span></label></div>
+          <div class="metric-row"><span>Skin eye format</span><strong id="face-marker-status">Checking skin...</strong></div>
+          <div class="setting-line"><div><strong>Follow cursor</strong><small>Subtle head and pupil tracking.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
+          <div class="setting-line"><button id="blink-now" class="quiet-button">Test blink</button></div>
+          <div class="preview-warning">Supported markers use separate 3D facial geometry behind the normal hat/hair layer. Unsupported skins keep their original vanilla face unchanged.</div>
         </div>
-        <div class="settings-group"><div class="group-heading"><h3>Runtime</h3><span>PREVIEW</span></div><div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
-          <div class="preview-warning">This milestone contains no screen access, app observation, computer control, or background model inference.</div>
+        <div class="settings-group"><div class="group-heading"><h3>Runtime</h3><span>PREVIEW</span></div>
+          <div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
+          <div class="preview-warning">Alpha.6 rebuilds the avatar viewer only. Screen access, app observation and computer-control permissions remain disabled.</div>
         </div>
-        <div class="settings-footer">PHASE 0 + v0.1 FOUNDATION <span>·</span> OFFLINE-FIRST</div>
+        <div class="settings-footer">ALPHA.6 VIEWER REBUILD <span>·</span> OFFLINE-FIRST</div>
       </aside>
     </div>
   </div>

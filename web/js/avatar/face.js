@@ -38,6 +38,18 @@ export function detectFaceProfile(pixels){
  }
  if(matches.length!==1)return {supported:false,reason:matches.length?'ambiguous-eye-position':'eye-position-not-matched'};
  const eyes=matches[0];
+ // Outer/hat layer pixels are offset +32 in the standard Java Edition head UV
+ // layout (front x8..15 maps to x40..47). Their alpha determines where a 3D
+ // iris can actually be seen through hair; lower and upper rows may differ.
+ const hairOccludes=(x,y)=>pixels[(y*64+x+32)*4+3]>15;
+ const occlusion={};
+ for(const side of ['left','right']){
+  const [cx,cy]=eyes[side],x=8+cx,y=8+cy;
+  occlusion[side]={
+   top:[hairOccludes(x,y),hairOccludes(x+1,y)],
+   bottom:[hairOccludes(x,y+1),hairOccludes(x+1,y+1)]
+  };
+ }
  // Reconstruct ONLY the recognized 2x2 eye cells. The untouched PNG remains the
  // source of truth; upper corners may be dark hair rather than white sclera.
  const leftTop=pix(pixels,8+eyes.left[0],8+eyes.left[1]);
@@ -52,6 +64,7 @@ export function detectFaceProfile(pixels){
   supported:true,
   style:'symmetric-2x2-swatch',
   eyes,
+  occlusion,
   background:{left:{top:clone(leftTop),bottom:clone(leftBottom)},right:{top:clone(rightTop),bottom:clone(rightBottom)}},
   marker:MARKER_RECT,
   colors:{lid:clone(lids[0]),white:clone(bottom[0]),iris:clone(top[1]),pupil:clone(bottom[1])}

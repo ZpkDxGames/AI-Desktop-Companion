@@ -10,7 +10,8 @@ export function eyeCenter(cell){
 export function pupilOffset(side,gazeX){
  const gaze=clamp(Number.isFinite(gazeX)?gazeX:0,-1,1);
  const neutral=side==='left'?.45:-.45;
- return clamp(neutral+gaze*.55,-.48,.48);
+ // Full gaze moves both pupils to the same edge; neutral remains slightly inward.
+ return clamp(neutral+gaze*.93,-.48,.48);
 }
 
 export function eyelidPose(blink){

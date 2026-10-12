@@ -7,7 +7,7 @@ export const smooth = t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export const mix=(a,b,t)=>a+(b-a)*t;
 const POSE_KEYS=Object.freeze(['headX','headY','headZ','bodyZ','armRX','armLX','armRZ','armLZ','legRX','legLX','rootY','rootX','rootZ']);
 export class BehaviorController {
-  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};this.transitionFrom={...this.poseBuffer};this.blinkElapsed=-1;}
+  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.gazeTarget=[0,0];this.headGaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};this.transitionFrom={...this.poseBuffer};this.blinkElapsed=-1;}
   request(action) {
     if(!ACTIONS.includes(action)) return false;
     if(action==='idle' || PRIORITY[action]>=PRIORITY[this.action] || !DURATION[this.action]){
@@ -23,6 +23,11 @@ export class BehaviorController {
   triggerBlink(){this.blinkElapsed=0;this.blink=0;return true;}
   update(dt){
     dt=Number.isFinite(dt)?clamp(dt,0,0.05):0;
+    const eyeBlend=1-Math.exp(-dt*18),headBlend=1-Math.exp(-dt*5.5);
+    for(let axis=0;axis<2;axis++){
+      this.gaze[axis]+=(this.gazeTarget[axis]-this.gaze[axis])*eyeBlend;
+      this.headGaze[axis]+=(this.gazeTarget[axis]-this.headGaze[axis])*headBlend;
+    }
     this.time+=dt;this.elapsed+=dt;this.blendTime+=dt;
     if(this.time>=this.nextBlink&&this.blinkElapsed<0){
       this.triggerBlink();
@@ -38,7 +43,8 @@ export class BehaviorController {
     }
     if(DURATION[this.action]&&this.elapsed>DURATION[this.action])this.request('idle');
   }
-  setGaze(x,y){this.gaze[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gaze[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
+  setGaze(x,y){this.gazeTarget[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gazeTarget[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
+  gazeMoving(){return this.gaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004)||this.headGaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004);}
   pose(){
     const t=this.time,e=this.elapsed,a=this.action;
     // Reuse the controller-owned pose object; reset every channel before layering actions.
@@ -60,7 +66,7 @@ export class BehaviorController {
     if(a==='think'){p.headZ=.13;p.headY=.2;p.armRX=-.93;p.armRZ=-.18;}
     if(a==='celebrate'){p.armLX=-1.9;p.armRX=-1.9;p.rootY=Math.abs(Math.sin(e*9))*2;p.legRX=.2;p.legLX=-.2;}
     applyExtraAnimation(a,p,e);
-    p.headY+=this.gaze[0]*.27;p.headX+=this.gaze[1]*-.15;
+    p.headY+=this.headGaze[0]*.20;p.headX+=this.headGaze[1]*-.11;
     const fade=smooth(this.blendTime/.17);
     // Interpolate from the previously visible pose. Zeroing limbs during
     // preemption would snap sitting or waving directly to the neutral pose.

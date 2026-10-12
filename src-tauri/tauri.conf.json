@@ -1,52 +1,21 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ZpkDxGames Desktop Companion",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.6.0",
   "identifier": "dev.zpkdxgames.desktop-agent",
   "build": {
-    "beforeDevCommand": "npm run serve",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:4173",
     "beforeBuildCommand": "npm run check",
-    "frontendDist": "../web"
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
-      {
-        "label": "avatar",
-        "title": "ZpkDxGames Companion",
-        "url": "index.html?mode=overlay",
-        "width": 252,
-        "height": 370,
-        "minWidth": 252,
-        "minHeight": 370,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "center": true,
-        "visible": true
-      },
-      {
-        "label": "workshop",
-        "title": "ZpkDxGames · Animation Workshop",
-        "url": "index.html",
-        "width": 1120,
-        "height": 780,
-        "minWidth": 840,
-        "minHeight": 650,
-        "resizable": true,
-        "visible": false
-      }
+      {"label":"avatar","title":"ZpkDxGames Companion","url":"index.html?mode=overlay","width":252,"height":370,"minWidth":252,"minHeight":370,"resizable":false,"decorations":false,"transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"center":true,"visible":true},
+      {"label":"workshop","title":"ZpkDxGames · Avatar Studio","url":"index.html","width":1120,"height":780,"minWidth":840,"minHeight":650,"resizable":true,"visible":false}
     ],
-    "security": {
-      "csp": "default-src 'self'; img-src 'self' blob: data:; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'"
-    }
+    "security": {"csp":"default-src 'self'; img-src 'self' blob: data:; script-src 'self'; style-src 'self'; connect-src 'self' http://127.0.0.1:4173 ws://127.0.0.1:4173; object-src 'none'"}
   },
-  "bundle": {
-    "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/32x32.png", "icons/icon.png", "icons/icon.ico"]
-  }
+  "bundle": {"active":true,"targets":["nsis"],"icon":["icons/32x32.png","icons/icon.png","icons/icon.ico"]}
 }

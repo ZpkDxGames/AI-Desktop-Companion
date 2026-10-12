@@ -7,11 +7,13 @@ permissions:
 jobs:
   node-check:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
       - name: Validate avatar and workshop source
         run: npm run check

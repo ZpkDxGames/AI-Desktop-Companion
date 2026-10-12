@@ -1,37 +1,42 @@
-# Phase 0 / v0.1 animation contract
+# Alpha.6 animation and avatar contract
 
-## Geometry
-- Body: 8×12×4; head: 8×8×8; arms: 4×12×4 Classic or 3×12×4 Slim; legs: 4×12×4.
-- Arm/leg pivots are at the shoulders and hips; head pivots at the neck (no smooth elbow/knee bending).
-- Second skin layers render at slightly inflated dimensions with transparent pixels discarded.
-- Skin samples use nearest-neighbor interpolation. Default camera is orthographic.
+## Canonical player geometry
+Player geometry, Java 64×64 texture mapping, outer layers and Classic/Slim model selection come from `skinview3d 3.4.2`. The project no longer maintains a parallel custom cuboid/UV implementation.
 
-## State machine
-`IDLE`, `WALK`, `RUN`, `WAVE`, `SIT`, `JUMP`, `THINK`, `CELEBRATE`. Higher-priority actions interrupt lower-priority actions. Timed actions return to idle. Locomotion is currently **in place**; cross-window pathfinding and real physics belong to v0.2.
+## Local pose controller
+`BehaviorController` remains the authority for companion behavior. It emits bounded pose channels which Alpha.6 maps to the skinview3d joints:
 
-| Animation | Method | Approx. duration |
-|---|---|---|
-| Idle | Subtle independent head/breathing sway | Continuous |
-| Walk | Sinusoidal opposing legs/arms | Continuous |
-| Run | Faster and wider opposing limbs | Continuous |
-| Wave | Raised arm oscillation | 2.4 s |
-| Sit | Both legs rotate to seated pose | Continuous |
-| Jump | Sinusoidal vertical trajectory | 0.95 s |
-| Think | Head turn plus arm raise | 3.2 s |
-| Celebrate | Arm raise and repeated hop | 1.7 s |
+- head pitch/yaw/roll
+- body roll
+- left/right arm pitch and roll
+- left/right leg pitch
+- root X/Y/Z
+- whole-character yaw
 
-## Eye atlas / expression rules
-The head's front face is skin pixels `x=8..15`, `y=8..15`. User profile eye coordinates are relative to this 8×8 face, integers 0–7. Each modeled iris has one pixel width, two pixels height. Blink suppresses the iris and draws an eyelid-colored pixel.
+Base actions: idle, walk, run, wave, sit, jump, think, celebrate.
 
-A non-destructive derived canvas is recomputed on only **gaze/blink state changes**, not per GPU frame. The original 64×64 bitmap is never edited. The default example coordinates are `[2,3]` and `[5,3]`.
+Trusted supplementary handlers: nod, shrug, stretch, bow.
 
-**Caveat:** Skin artwork varies dramatically. A generic auto detector is not trustworthy. Imported skins therefore disable eyes by default until coordinates are set. For final release, build a 2D face-grid calibration UI with color sampling, eye masks, and a per-skin hash-based profile.
+Locomotion is still in-place. Window collision, platform sitting, climbing and gravity are later desktop-physics milestones.
 
-## Rendering and CPU/GPU policy
-- Render WebGL2 with transparent framebuffer and depth test.
-- Aim 60 FPS while actively animating, ~18 FPS idle. These are requested frame caps, not measurements on the user's RTX 3050.
-- Browser throttling and refresh rates can affect actual FPS.
-- Do not start or preload an LLM; future AI is a separate service.
+## Facial rig
+A supported skin marker generates separate 3D eye geometry under the head group:
+- 2×2 sclera planes;
+- 1×1 iris and pupil planes;
+- 2×2 eyelid planes;
+- continuous bounded horizontal pupil travel;
+- eyelid closure from top to bottom.
 
-## Real desktop overlay note
-The native Tauri window is 252×370 in alpha mode, frameless and always on top. It supports **whole-window** click-through via the system tray. Avatar-specific hit regions, collision with app windows, multi-monitor/DPI certification, game suppression and fullscreen interaction policies are outstanding requirements.
+These parts follow the head transform automatically. They are placed in front of the 8×8 base head but behind the 9×9 hat layer, allowing normal hair pixels to occlude the eyes through depth testing.
+
+Unknown/ambiguous markers: no added face geometry.
+
+## Rendering policy
+- Perspective SkinViewer, transparent WebGL scene.
+- FXAA and nearest-neighbor skin texture sampling.
+- Workshop: tuned ambient/camera light and CSS studio backdrop.
+- Overlay: same player renderer on transparent window with tighter camera zoom.
+- Target frame pacing remains ~60 FPS active and ~18 FPS passive; hardware measurements are still required.
+
+## Safety and extension policy
+Animation modules are local, reviewed code. Do not load executable animation handlers from URLs. External motion data or code requires provenance and license review before inclusion.

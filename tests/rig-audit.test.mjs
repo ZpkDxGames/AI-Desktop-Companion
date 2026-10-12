@@ -67,7 +67,7 @@ test('official head and Classic/Slim arm skin atlas UV tiles remain intact',()=>
   });
  };
  assert.deepEqual(uvRanges(rigParts(false).find(p=>p.id==='head')),
- [[0,8,8,16],[16,24,8,16],[8,16,0,8],[16,24,0,8],[8,16,8,16],[24,32,8,16]]);
+ [[16,24,8,16],[0,8,8,16],[8,16,0,8],[16,24,0,8],[8,16,8,16],[24,32,8,16]]);
  for(const [slim,w] of [[false,4],[true,3]]){
   const p=new Map(rigParts(slim).map(part=>[part.id,part]));
   assert.deepEqual(uvRanges(p.get('rightArm'))[4],[44,44+w,20,32]);

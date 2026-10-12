@@ -21,8 +21,8 @@ export function rigParts(slim=false){
 export function cuboidTriangles(part){
  const [w,h,d]=part.size,[u,v,tw,th,td]=part.uv;const x=w/2,y=h/2,z=d/2;
  const faces=[
- {rect:[u,v+td,td,th],norm:[1,0,0],p:[[x,y,z],[x,y,-z],[x,-y,-z],[x,-y,z]]},
- {rect:[u+td+tw,v+td,td,th],norm:[-1,0,0],p:[[-x,y,-z],[-x,y,z],[-x,-y,z],[-x,-y,-z]]},
+ {rect:[u+td+tw,v+td,td,th],norm:[1,0,0],p:[[x,y,z],[x,y,-z],[x,-y,-z],[x,-y,z]]},
+ {rect:[u,v+td,td,th],norm:[-1,0,0],p:[[-x,y,-z],[-x,y,z],[-x,-y,z],[-x,-y,-z]]},
  {rect:[u+td,v,tw,td],norm:[0,1,0],p:[[-x,y,-z],[x,y,-z],[x,y,z],[-x,y,z]]},
  {rect:[u+td+tw,v,tw,td],norm:[0,-1,0],p:[[-x,-y,z],[x,-y,z],[x,-y,-z],[-x,-y,-z]]},
  {rect:[u+td,v+td,tw,th],norm:[0,0,1],p:[[-x,y,z],[x,y,z],[x,-y,z],[-x,-y,z]]},

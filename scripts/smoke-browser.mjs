@@ -44,11 +44,18 @@ try {
         return canvas && canvas.width>2 && canvas.height>2 && canvas.getAttribute('data-render-ready')==='true';
       },null,{timeout:10000});
       await page.waitForTimeout(900);
+      if(mode==='workshop'){
+        checkpoint='Workspace navigation';
+        await page.locator('[data-nav="behavior"]').click();
+        await page.waitForFunction(()=>document.querySelector('[data-page="behavior"]')?.hidden===false,null,{timeout:10000});
+        await page.locator('[data-nav="overview"]').click();
+        await page.waitForFunction(()=>document.querySelector('[data-page="overview"]')?.hidden===false,null,{timeout:10000});
+      }
       const surface=page.locator(mode==='overlay'?'#overlay-canvas':'#avatar-canvas');
       checkpoint='initial avatar screenshot';
       const before=await surface.screenshot();
       checkpoint='Wave event';
-      await page.locator(mode==='overlay'?'#overlay-wave':'[data-action="wave"]').click();
+      await page.locator(mode==='overlay'?'#overlay-wave':'[data-quick="wave"]').click();
       if(mode==='workshop')await page.waitForFunction(()=>document.querySelector('#animation-status')?.textContent?.toLowerCase()==='wave',null,{timeout:10000});
       await page.waitForTimeout(450);
       checkpoint='animated avatar screenshot';
@@ -59,6 +66,7 @@ try {
       if(mode==='workshop') {
         const status=await page.locator('#graphics-status').innerText();
         if(!status.includes('skinview3d'))throw new Error('Unexpected renderer status: '+status);
+        await page.locator('[data-nav="studio"]').click();
         const png=await readFile(resolve('web/assets/sample-skin.png'));
         checkpoint='skin import';
         await page.locator('#skin-upload').setInputFiles({name:'recovery-test-skin.png',mimeType:'image/png',buffer:png});
@@ -66,6 +74,12 @@ try {
         checkpoint='skin persistence reload';
         await page.reload({waitUntil:'load'});
         await page.waitForFunction(()=>document.querySelector('#current-skin-label')?.textContent==='RECOVERY-TEST-SKIN.PNG'&&document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+        checkpoint='responsive Workspace';
+        for(const viewport of [{width:840,height:650},{width:1120,height:780}]){
+          await page.setViewportSize(viewport);
+          const clipped=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
+          if(clipped)throw new Error('Horizontal page overflow at '+viewport.width+'×'+viewport.height);
+        }
       }
       if(errors.length)throw new Error('Browser errors: '+errors.join('; '));
       await page.screenshot({path:'smoke-artifacts/'+mode+'.png'});

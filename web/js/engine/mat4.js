@@ -5,7 +5,7 @@ export function translation(x=0,y=0,z=0) { const m=identity(); m[12]=x;m[13]=y;m
 export function scale(x=1,y=1,z=1) { const m=identity(); m[0]=x;m[5]=y;m[10]=z;return m; }
 export function rotateX(t) {const c=Math.cos(t),s=Math.sin(t);return [1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1];}
 export function rotateY(t) {const c=Math.cos(t),s=Math.sin(t);return [c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1];}
-export function rotateZ(t) {const c=Math.cos(t),s=Math.sin(t);return [c,s,0,0,-s,c,0,0,0,1,0,0,0,0,1];}
+export function rotateZ(t) {const c=Math.cos(t),s=Math.sin(t);return [c,s,0,0,-s,c,0,0,0,0,1,0,0,0,0,1];}
 export function chain(...matrices) {return matrices.reduce((a,b)=>multiply(a,b),identity());}
 export function ortho(left,right,bottom,top,near,far) { return [2/(right-left),0,0,0,0,2/(top-bottom),0,0,0,0,-2/(far-near),0,-(right+left)/(right-left),-(top+bottom)/(top-bottom),-(far+near)/(far-near),1]; }
 const sub=(a,b)=>a.map((n,i)=>n-b[i]); const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0); const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; const unit=a=>{const l=Math.hypot(...a)||1;return a.map(v=>v/l);};

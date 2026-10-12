@@ -2,6 +2,8 @@
 
 **Phase 0 + v0.1 animation foundation — source preview / Windows integration alpha.**
 
+**v0.1.0-alpha.2 renderer hotfix:** Fixes a malformed Z-axis rotation matrix that made the avatar invisible in both windows despite WebGL2 reporting ready. See [the regression report](docs/RENDER_FIX_ALPHA_2.md). The Windows executable still requires real-machine visual certification.
+
 A 3D Minecraft-style desktop avatar powered by a small custom WebGL2 engine. It renders a pixel-perfect Java Edition skin, supports Classic and Slim arms, animates six articulated body parts, handles eye tracking and blinking through a user-calibrated per-skin profile, and optionally runs as a small always-on-top **Windows 11 Tauri 2** companion with tray controls.
 
 This is **not yet an AI agent**. It does not inspect the screen, observe applications, execute actions, or run Ollama. Those are explicitly reserved for later opt-in milestones.

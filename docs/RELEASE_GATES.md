@@ -7,6 +7,12 @@
 - [x] Built-in Node preview HTTP server responds successfully with correct local Content-Type/CSP.
 - [x] App source remains local/offline by default, with no cloud request code.
 
+## Alpha.2 regression patch
+- [x] Reproduced the blank model: 15-element Z-axis matrix contaminated the projection with NaN.
+- [x] Corrected rotation matrix (16 finite elements, correct column-major basis).
+- [x] Added four tests spanning basis rotations, projected geometry, 8 states and both arm rigs; tests failed on alpha.1 and pass on alpha.2.
+- [ ] Re-test **actual WebView2** visualization with fresh alpha.2 installer; this remains a separate certification gate.
+
 ## What remains unverified
 - [ ] **Browser visual integration:** the installed managed Chromium refuses local navigation (`ERR_BLOCKED_BY_ADMINISTRATOR`). No successful interactive WebGL2 rendering screenshot was obtained in this environment.
 - [ ] **Rust compilation / Windows NSIS:** Rust/cargo/MSVC toolchain unavailable here.

@@ -1,4 +1,5 @@
-import {chain,translation,rotateX,rotateY,rotateZ,ortho,lookAt,multiply} from './mat4.js';
+import {chain,translation,rotateX,rotateY,rotateZ} from './mat4.js';
+import {avatarViewProjection, avatarRootMatrix} from './camera.js';
 import {rigParts,cuboidTriangles} from '../avatar/rig.js';
 import {applyExpression} from '../avatar/eyes.js';
 
@@ -24,7 +25,7 @@ export class AvatarRenderer {
   if(!this.gl)throw Error('WebGL2 is unavailable. Enable GPU acceleration in your browser/WebView2.');
   const gl=this.gl;this.program=program(gl);this.uModel=gl.getUniformLocation(this.program,'u_model');this.uVp=gl.getUniformLocation(this.program,'u_viewproj');
   this.aPos=gl.getAttribLocation(this.program,'a_position');this.aTex=gl.getAttribLocation(this.program,'a_tex');this.aNormal=gl.getAttribLocation(this.program,'a_normal');
-  this.texture=gl.createTexture();this.slim=false;this.meshes=[];this.skin=null;this.profile=null;this.lastExpression='';this.angle=0.18;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
+  this.texture=gl.createTexture();this.slim=false;this.meshes=[];this.skin=null;this.profile=null;this.lastExpression='';this.angle=0.0;this.createRig(false);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.useProgram(this.program);
  }
  createRig(slim){
   const gl=this.gl;for(const m of this.meshes)gl.deleteBuffer(m.vbo);this.slim=slim;
@@ -41,9 +42,9 @@ export class AvatarRenderer {
   const gl=this.gl;this.resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(!this.skin)return;
   this.updateTexture(Math.round(eyes[0]),Math.round(eyes[1]),blink);
   gl.useProgram(this.program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.uniform1i(gl.getUniformLocation(this.program,'u_skin'),0);
-  const aspect=this.canvas.width/this.canvas.height;const halfHeight=19/scale;const vp=multiply(ortho(-halfHeight*aspect,halfHeight*aspect,-halfHeight,halfHeight,-120,120),lookAt([40,23,70],[0,15.5,0]));
+  const vp=avatarViewProjection(this.canvas.width/this.canvas.height,scale);
   gl.uniformMatrix4fv(this.uVp,false,new Float32Array(vp));
-  const root=chain(translation(0,pose.rootY,pose.rootZ),translation(0,15,0),rotateY(this.angle+rotation),rotateZ(pose.bodyZ),translation(0,-15,0));
+  const root=avatarRootMatrix(pose,this.angle+rotation);
   for(const part of this.meshes){const id=part.part||part.id;
    let rot=chain();if(id==='head')rot=chain(rotateY(pose.headY),rotateX(pose.headX),rotateZ(pose.headZ));
    if(id==='rightArm')rot=chain(rotateZ(pose.armRZ),rotateX(pose.armRX));

@@ -38,7 +38,7 @@ jobs:
           workspaces: src-tauri -> target
 
       - name: Install frontend tooling
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run source tests
         run: npm run check

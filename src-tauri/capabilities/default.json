@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Minimal local animation preview capabilities; no shell, file, network, screenshot or automation permissions.",
+  "windows": ["avatar", "workshop"],
+  "permissions": ["core:default"]
+}

@@ -11,11 +11,11 @@ Authoritative specification: `AI_DESKTOP_COMPANION_MASTER_WORKSPACE_AND_RECOVERY
 | Production sample texture exists at emitted URL | PASS (browser) | Before: run [38306681867](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38306681867), two 404 requests per surface. After: [38307557615](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38307557615), none. |
 | Nonzero, properly sized renderer in production browser | PASS (browser) | Before: [38307323554](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38307323554), 2×2 deadlock. Fixed by measuring parent viewport; [38307557615](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38307557615). |
 | Unit/animation regression tests | PASS (CI) | 24 Node tests in [38307920882](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38307920882). |
-| Production browser moving pixels + skin import/reload | IN PROGRESS | `scripts/smoke-browser.mjs`, awaiting complete interaction gate; see latest branch Actions. |
+| Production browser moving pixels + skin import/reload | PASS (browser) | [run 38308469848](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38308469848) verified non-static wave pixels, import and reload on both surfaces. |
 | Deterministic Node dependency resolution | IMPLEMENTED; CI verify | `package-lock.json` committed, `npm ci` in both workflow jobs. |
 | Clean Windows installer + native WebView2 startup | **NOT VERIFIED** | Production browser is not a Tauri/WebView2 installer. Need real interactive Windows run with cold storage. |
 | User's authentic skin all-angle visual parity | **NOT VERIFIED** | Source 64×64 PNG and comparative screenshots required; sample PNG cannot certify identity. |
-| Workspace design + full functional sections | **NOT IMPLEMENTED** | Old Alpha.6 Workshop remains in current branch. Must follow R1 gate. |
+| Workspace design + full functional sections | SOURCE/BROWSER PASS; NATIVE NOT VERIFIED | [run 38309056656](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38309056656) checks navigation and 840×650/1120×780 horizontal overflow. Core Avatar/Behavior/Diagnostics controls operate; Desktop World/AI/Activity explicitly unsupported. |
 | Overlay hit testing + desktop physics | **NOT IMPLEMENTED** | Whole-window passthrough only. |
 | AI/vision and security permissions | **NOT IMPLEMENTED** | No local model execution or screen capture integrated, no permissions granted. |
 | 60 FPS, p50/p95/p99 and CPU/GPU/VRAM on RTX 3050 | **NOT VERIFIED** | Render-call CPU cost is a diagnostic; not proof of GPU frame pacing. |
@@ -47,7 +47,7 @@ Authoritative specification: `AI_DESKTOP_COMPANION_MASTER_WORKSPACE_AND_RECOVERY
 ## Work that must follow the native/skin gates
 
 - R1: native skin geometry and expression parity; remove experimental facial defects before default-on.
-- U1: professional responsive Workspace shell with Overview, Avatar Studio, Behavior, Desktop World, Conversation, AI & Models, Privacy, Activity and Diagnostics, implemented rather than mocked.
+- U1: extend the initial responsive Workspace shell and functional Avatar Studio/Behavior/Diagnostics pages; certify on actual Windows WebView2 at 100–200% DPI, test all controls, then complete the currently unavailable systems only when their native backends exist.
 - B1: desktop presence, safe hit testing and event-driven 2.5D physics.
 - A1/A2: optional local AI, vision and explicit consent-bound actions.
 - S1: install/uninstall, provenance, resilience, performance gates and owner acceptance.

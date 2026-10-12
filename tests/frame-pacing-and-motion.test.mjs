@@ -35,7 +35,7 @@ test('blink closes, holds and opens rather than starting instantly closed',()=>{
  assert.ok(animator.blink>.2&&animator.blink<1);
  animator.update(.05);
  assert.ok(animator.blink>.85);
- animator.update(.18);
+ for(let i=0;i<4;i++)animator.update(.045);
  assert.equal(animator.blink,0);
 });
 

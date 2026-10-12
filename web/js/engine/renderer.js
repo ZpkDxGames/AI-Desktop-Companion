@@ -45,8 +45,11 @@ export class AvatarRenderer{
   this.modelMode=normalizeModelMode(model);
   await this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
   this.detectedModel=this.viewer.playerObject.skin.modelType;
-  this.faceProfile=detectFaceProfile(this.imagePixels(image));
-  this.faceMaterial.configure(this.faceProfile,this.viewer.playerObject.skin.map);
+  const detected=(image.naturalWidth===64&&image.naturalHeight===64)
+   ?detectFaceProfile(this.imagePixels(image))
+   :{supported:false,reason:'legacy-or-non-64x64-skin'};
+  const composed=this.faceMaterial.configure(detected,this.viewer.playerObject.skin.map);
+  this.faceProfile=composed.supported?detected:{supported:false,reason:composed.reason};
   this.faceMaterial.setEnabled(this.facesEnabled);
   return {...this.faceProfile,modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};
  }

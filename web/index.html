@@ -42,12 +42,10 @@
           <div class="setting-line"><span>Player model</span><select id="model-type" aria-label="Player model"><option value="classic">Classic (4px arms)</option><option value="slim">Slim (3px arms)</option></select></div>
           <div class="setting-slider"><label for="avatar-scale">Avatar scale <output id="scale-value">100%</output></label><input id="avatar-scale" type="range" min="75" max="140" value="100" step="5" /></div>
         </div>
-        <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>PIXEL-ALIGNED</span></div>
-          <div class="setting-line"><div><strong>Expressive eyes</strong><small>Use a per-skin eye profile</small></div><label class="switch" title="Enable or disable eye overlay"><input id="eyes-enabled" type="checkbox" checked /><span></span></label></div>
-          <div class="setting-line"><div><strong>Follow cursor</strong><small>Subtle head + eye tracking</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
-          <div class="eye-config"><div class="eye-coordinates"><label>Left eye (x,y)<input id="left-eye" value="2,3" spellcheck="false" /></label><label>Right eye (x,y)<input id="right-eye" value="5,3" spellcheck="false" /></label></div><p>Relative to the 8 × 8 head front face. Imported skins require manual eye calibration to prevent texture damage.</p></div>
-          <div class="setting-slider"><label for="gaze-x">Manual horizontal gaze <output id="gaze-value">Center</output></label><input id="gaze-x" type="range" min="-1" max="1" value="0" step="1" /></div>
-          <div class="setting-line"><button id="blink-now" class="quiet-button">Test blink</button><button id="restore-eyes" class="quiet-button">Restore eye profile</button></div>
+        <div class="settings-group"><div class="group-heading"><h3>Facial expressions</h3><span>SKIN-NATIVE / PLANNED</span></div>
+          <div class="setting-line"><div><strong>Original eyes preserved</strong><small>Manual eye-color and position editing removed.</small></div></div>
+          <div class="setting-line"><div><strong>Follow cursor</strong><small>Gentle head tracking; no eye-pixel repainting.</small></div><label class="switch"><input id="follow-pointer" type="checkbox" checked /><span></span></label></div>
+          <div class="preview-warning">Automatic Just Expressions-style eye and eyelid decoding is under development. For exact skin-style matching, supply the original 64 × 64 PNG with the extra-pixel data. Unknown skins use their unmodified vanilla face.</div>
         </div>
         <div class="settings-group"><div class="group-heading"><h3>Runtime</h3><span>PREVIEW</span></div><div class="metric-row"><span>Graphics</span><strong id="graphics-status">Initializing…</strong></div><div class="metric-row"><span>Current state</span><strong id="animation-status">Idle</strong></div><div class="metric-row"><span>AI engine</span><strong>Not installed</strong></div>
           <div class="preview-warning">This milestone contains no screen access, app observation, computer control, or background model inference.</div>

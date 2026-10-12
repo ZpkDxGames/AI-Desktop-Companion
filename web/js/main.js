@@ -7,21 +7,22 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={slim:false,scale:100,follow:true,skin:null,skinName:'Sample skin'};
+const DEFAULT={slim:false,scale:100,follow:true,expressions:true,skin:null,skinName:'Sample skin'};
 const STORE='zpkdx-avatar-v0.1';
 function stored(){try{const raw=JSON.parse(localStorage.getItem(STORE)||'null');if(raw&&typeof raw==='object'){const {eyes:_legacyEyes,...clean}=raw;return {...DEFAULT,...clean};}return structuredClone(DEFAULT);}catch{return structuredClone(DEFAULT);}}
 const state=stored();
 const controller=new BehaviorController();
 let renderer=null, skinImage=null, lastTime=0,renderT=0,renderCount=0,reportedFrames=0,lastReport=performance.now();
-let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0;
+let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,forceBlinkUntil=0;
 const canvas=$(overlay?'overlay-canvas':'avatar-canvas');
 const toast=(message)=>{const node=$('toast');node.textContent=message;node.hidden=false;clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>node.hidden=true,4100);};
 const save=()=>{try{localStorage.setItem(STORE,JSON.stringify(state));if(native)window.__TAURI__?.event?.emit?.('zpkdx:settings-changed').catch(()=>{});}catch{toast('Settings could not be saved. Local storage may be full.');}};
 function syncUi(){
  if(overlay)return;
- $('model-type').value=state.slim?'slim':'classic';$('avatar-scale').value=state.scale;$('scale-value').textContent=state.scale+'%';$('follow-pointer').checked=state.follow;$('current-skin-label').textContent=state.skinName.toUpperCase();
+ $('model-type').value=state.slim?'slim':'classic';$('avatar-scale').value=state.scale;$('scale-value').textContent=state.scale+'%';$('follow-pointer').checked=state.follow;$('expressions-enabled').checked=state.expressions;$('current-skin-label').textContent=state.skinName.toUpperCase();
 }
-async function setSkin(image){skinImage=image;renderer.setSkin(image);}
+async function setSkin(image){skinImage=image;const profile=renderer.setSkin(image);renderer.setFacesEnabled(state.expressions);if(!overlay)updateFaceStatus(profile);}
+function updateFaceStatus(profile){const el=$('face-marker-status');el.textContent=profile.supported?'Eye markers recognized · 2×2 symmetrical':'Vanilla face · '+profile.reason;el.dataset.supported=String(profile.supported);}
 async function reloadFromStorage(){const newData=stored();Object.assign(state,newData);try{if(state.skin){await setSkin(await decodeImage(state.skin));}else{await setSkin(await decodeImage('./assets/sample-skin.png'));}}catch{state.skin=null;state.skinName='Sample skin';await setSkin(await decodeImage('./assets/sample-skin.png'));}
  renderer.createRig(state.slim);syncUi();}
 async function boot(){
@@ -36,12 +37,14 @@ function connectWorkshop(){
   try{const image=await loadSkin(file);
    const off=document.createElement('canvas');off.width=64;off.height=64;off.getContext('2d').drawImage(image,0,0);
    state.skin=off.toDataURL('image/png');state.skinName=file.name;state.follow=true;
-   await setSkin(image);save();syncUi();toast('Skin imported locally. Original facial pixels preserved.');
+   await setSkin(image);save();syncUi();toast(renderer.faceProfile.supported?'Skin imported. Embedded eye data recognized.':'Skin imported. Original face preserved; no recognized eye marker.');
   }catch(err){toast(err.message);}finally{e.target.value='';}
  });
  $('model-type').addEventListener('change',e=>{state.slim=e.target.value==='slim';renderer.createRig(state.slim);save();});
  $('avatar-scale').addEventListener('input',e=>{state.scale=Number(e.target.value);$('scale-value').textContent=state.scale+'%';save();});
  $('follow-pointer').addEventListener('change',e=>{state.follow=e.target.checked;save();});
+ $('expressions-enabled').addEventListener('change',e=>{state.expressions=e.target.checked;renderer.setFacesEnabled(state.expressions);save();});
+ $('blink-now').addEventListener('click',()=>{forceBlinkUntil=performance.now()+210;});
  $('action-row').addEventListener('click',e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(!action)return;controller.request(action);setActiveAction(action);});
  attachPointer($('stage'));
 }
@@ -69,7 +72,7 @@ function frame(time){
  const interval=active?1/60:1/18;
  if(renderT>=interval){renderT=0;
   if(state.follow&&tracking){controller.setGaze(cursor[0],cursor[1]);}else{controller.setGaze(0,0);}
-  const pose=controller.pose();renderer.render(pose,{scale:state.scale/100,rotation:angle});renderCount++;
+  const pose=controller.pose();const blink=controller.blink>0?controller.blink:performance.now()<forceBlinkUntil?1:0;renderer.render(pose,{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],blink});renderCount++;
   if(!overlay){$('animation-status').textContent=controller.action.toUpperCase();if(controller.action==='idle')setActiveAction('idle');}
  }
  if(time-lastReport>=1250){reportedFrames=Math.round(renderCount*1000/(time-lastReport));renderCount=0;lastReport=time;if(!overlay)$('render-fps').textContent=reportedFrames+' FPS';}

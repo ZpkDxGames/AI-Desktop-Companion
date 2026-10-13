@@ -2,6 +2,7 @@ name: V4 complete motion evidence
 on:
   push:
     branches: [dev/animation-complete-review-4b98c5f]
+    paths: ['web/**', 'scripts/capture-motion.mjs', 'scripts/soak-motion.mjs', 'scripts/bench-food-renderer.mjs', 'scripts/bench-motion.mjs']
   workflow_dispatch:
 permissions:
   contents: read

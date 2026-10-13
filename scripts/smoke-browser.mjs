@@ -187,17 +187,21 @@ try {
           await page.waitForFunction(name=>document.querySelector('[data-action="'+name+'"]')?.classList.contains('active'),action,{timeout:3000});
           await page.waitForTimeout(480);
           const capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
-          if(action==='eat'){
-            const red=await page.evaluate(async data=>{
+          if(action==='eat'||action==='drink'){
+            const colored=await page.evaluate(async ({data,action})=>{
               const image=new Image();image.src='data:image/png;base64,'+data;await image.decode();
               const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
               const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
               const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
               let count=0;
-              for(let i=0;i<pixels.length;i+=4)if(pixels[i]>85&&pixels[i]>pixels[i+1]*1.35&&pixels[i]>pixels[i+2]*1.25)count++;
+              for(let i=0;i<pixels.length;i+=4){
+                const r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+                if(action==='eat'&&r>85&&r>g*1.35&&r>b*1.25)count++;
+                else if(action==='drink'&&b>105&&b>r*1.25&&b>g*1.10)count++;
+              }
               return count;
-            },capture.toString('base64'));
-            if(red<8)throw new Error('Eating prop is not visibly rendered (red pixels='+red+')');
+            },{data:capture.toString('base64'),action});
+            if(colored<8)throw new Error(action+' prop is not visibly rendered (target-colored pixels='+colored+')');
           }
         }
         await page.locator('[data-action="idle"]').click();

@@ -31,3 +31,7 @@ Windows-hosted browser CI tests a production Vite build and the separate fixed-h
 ## Constraints
 
 No skin images are uploaded to CI or checked into the public repository. The owner can keep the original private. Experimental props have intentionally simple vanilla-inspired geometry; final styling should be based on on-device screenshots, not inferred visual certification.
+
+## Visual correction / rendered-pixel regression
+
+The first synthetic browser captures revealed that the book was near face height and the held objects were hidden, despite a passing unit test. The follow-up attempt anchoring all props to the torso still failed the red-food pixel gate. This correction places the book at chest height on the torso and the held props on the real right-arm joint, with a forward local Z offset for the eating/drinking motion. Production Chromium screenshots must contain red pixels while eating **and** blue pixels while drinking. Real-skin native captures remain the acceptance authority, not this synthetic fixture.

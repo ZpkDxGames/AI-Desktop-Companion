@@ -15,9 +15,10 @@ export class AvatarProps{
   this.book=this.buildBook();
   this.food=this.buildFood();
   this.drink=this.buildDrink();
-  // Stable front-facing torso anchor keeps small held objects legible across
-  // body poses; hand gestures are matched procedurally by the pose director.
-  skin.body.add(this.book,this.food,this.drink);
+  // Book is torso-local; held props follow the canonical right-arm joint.
+  // The negative local Z offset places them in front as the arm raises.
+  skin.body.add(this.book);
+  skin.rightArm.add(this.food,this.drink);
   this.book.visible=false;this.food.visible=false;this.drink.visible=false;
  }
  box(parent,color,width,height,depth,x=0,y=0,z=0){
@@ -31,7 +32,7 @@ export class AvatarProps{
  }
  buildBook(){
   const group=new Group();
-  group.position.set(0,4.6,7.0);
+  group.position.set(0,-.6,7.0);
   // Two open covers, cream page blocks and central spine: intentional blocky style.
   this.box(group,0x203d42,2.38,3.28,.26,-1.15,0,0);
   this.box(group,0x203d42,2.38,3.28,.26,1.15,0,0);
@@ -43,7 +44,7 @@ export class AvatarProps{
  }
  buildFood(){
   const group=new Group();
-  group.position.set(-4.1,5.3,7.2);
+  group.position.set(1.9,-7.8,-1.05);
   this.box(group,0xba4e47,2.05,1.95,1.9);
   this.box(group,0x714a34,.34,.55,.3,0,1.0,0);
   this.box(group,0x638b57,.7,.18,.38,.45,1.14,0);
@@ -51,7 +52,7 @@ export class AvatarProps{
  }
  buildDrink(){
   const group=new Group();
-  group.position.set(-4.1,5.3,7.2);
+  group.position.set(1.9,-7.8,-1.05);
   this.box(group,0x6494a7,1.18,2.1,1.18,0,0,0);
   this.box(group,0xb1d5d4,1.26,.36,1.26,0,1.21,0);
   this.box(group,0x203b4b,1.35,.36,1.35,0,-.45,.61);

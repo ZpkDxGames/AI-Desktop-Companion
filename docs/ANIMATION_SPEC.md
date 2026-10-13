@@ -19,17 +19,8 @@ Trusted supplementary handlers: nod, shrug, stretch, bow.
 
 Locomotion is still in-place. Window collision, platform sitting, climbing and gravity are later desktop-physics milestones.
 
-## Facial rig
-A supported skin marker generates separate 3D eye geometry under the head group:
-- 2×2 sclera planes;
-- 1×1 iris and pupil planes;
-- 2×2 eyelid planes;
-- continuous bounded horizontal pupil travel;
-- eyelid closure from top to bottom.
-
-These parts follow the head transform automatically. They are placed in front of the 8×8 base head but behind the 9×9 hat layer, allowing normal hair pixels to occlude the eyes through depth testing.
-
-Unknown/ambiguous markers: no added face geometry.
+## Eyes and face
+Supported skin markers drive two-axis gaze and blinking through the head-only native-UV material compositor. The source skin, hat/hair layer, body materials and skinview3d geometry remain unmodified. Unsupported faces keep the vanilla skin unchanged. See `EXPRESSIVE_EYES_UV_COMPOSITION.md`.
 
 ## Rendering policy
 - Perspective SkinViewer, transparent WebGL scene.
@@ -40,3 +31,10 @@ Unknown/ambiguous markers: no added face geometry.
 
 ## Safety and extension policy
 Animation modules are local, reviewed code. Do not load executable animation handlers from URLs. External motion data or code requires provenance and license review before inclusion.
+
+
+## Behavior director / daily actions (draft)
+
+The existing `BehaviorController` is the only action arbiter; no second scheduler or motion state machine was added. It schedules `look`, `read`, `eat`, `drink`, `inspect`, `stretch` and `nod` only while idle, with seeded deterministic choice and bounded calm/lively countdowns. Manual activity requests override or defer automatic actions using the same priority and transition rules. Idle mode `off` is a hard stop for new automatic actions.
+
+The canonical renderer owns an `AvatarProps` instance; it attaches prebuilt blocky book, food and drink meshes to existing body/right-arm joint groups. All geometries/materials are cached for the renderer's lifetime, updated in place and disposed when the renderer is destroyed. Props do not modify imported textures. This remains a development milestone; actual native Windows screenshots and performance gates are pending.

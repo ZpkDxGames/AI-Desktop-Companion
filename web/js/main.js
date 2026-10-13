@@ -11,7 +11,7 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,skin:null,skinName:'Sample skin'};
+const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin'};
 const STORE='zpkdx-avatar-v0.1';
 
 function stored(){
@@ -22,15 +22,17 @@ function stored(){
   if(!clean.modelMode&&typeof clean.slim==='boolean')clean.modelMode=clean.slim?'slim':'classic';
   delete clean.slim;delete clean.eyes;
   clean.modelMode=normalizeModelMode(clean.modelMode);
+  clean.idleMode=['off','calm','lively'].includes(clean.idleMode)?clean.idleMode:DEFAULT.idleMode;
   return {...DEFAULT,...clean};
  }catch{return structuredClone(DEFAULT);}
 }
 const state=stored();
-const controller=new BehaviorController();
+const controller=new BehaviorController({seed:Date.now()});
+controller.setIdleMode(state.idleMode);
 const journal=new RuntimeJournal();
 const framePacer=new FramePacer({activeFps:60,idleFps:20});
 const sessionId=Math.random().toString(36).slice(2);
-let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootReady=false;
+let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootReady=false,shownAction=null;
 let rafId=0,idleTimer=0,frameSamples=new Float32Array(120),sampleCount=0,sampleCursor=0,contextLosses=0;
 let renderer=null,lastTime=0,renderT=0,renderCount=0,lastReport=performance.now();
 let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,lastPointerEvent=-Infinity;
@@ -44,7 +46,8 @@ const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
 const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.0',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
-  modelMode:state.modelMode,customSkinPresent:!!state.skin,faceRigEnabled:state.expressions});
+  modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
+  idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts});
 const copyReport=async()=>{
  const text=report();
  try{await navigator.clipboard.writeText(text);toast('Diagnostics copied.');}
@@ -74,6 +77,7 @@ function syncUi(){
  $('scale-value').textContent=state.scale+'%';
  $('follow-pointer').checked=state.follow;
  $('expressions-enabled').checked=state.expressions;
+ $('idle-mode').value=state.idleMode;
  $('current-skin-label').textContent=state.skinName.toUpperCase();
 }
 function updateStatus(result){
@@ -91,6 +95,7 @@ async function setSkin(image){
 }
 async function reloadFromStorage(){
  Object.assign(state,stored());
+ controller.setIdleMode(state.idleMode);
  stage('ASSETS',state.skin?'Loading saved skin':'Loading bundled sample texture');
  let image;
  if(state.skin){
@@ -201,7 +206,7 @@ function bindWorkspaceNavigation(){
   const button=event.target.closest('[data-quick]');
   if(!button)return;
   switch(button.dataset.quick){
-   case 'wave':controller.request('wave');setActiveAction('wave');wake();break;
+   case 'wave':if(controller.request('wave'))setActiveAction('wave');wake();break;
    case 'studio':showPage('studio');break;
    case 'reset-view':angle=0;cursor[0]=0;cursor[1]=0;tracking=false;wake();break;
    case 'reset-scale':state.scale=100;save();syncUi();wake();break;
@@ -231,10 +236,20 @@ function connectWorkshop(){
  $('follow-pointer').addEventListener('change',e=>{state.follow=e.target.checked;save();});
  $('expressions-enabled').addEventListener('change',e=>{state.expressions=e.target.checked;renderer.setFacesEnabled(state.expressions);save();wake();});
  $('blink-now').addEventListener('click',()=>{controller.triggerBlink();wake();});
- $('action-row').addEventListener('click',e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(!action)return;controller.request(action);setActiveAction(action);wake();});
+ $('idle-mode').addEventListener('change',event=>{
+  state.idleMode=event.target.value;
+  if(!controller.setIdleMode(state.idleMode))return;
+  save();wake();
+ });
+ $('action-row').addEventListener('click',e=>{
+  const action=e.target.closest('[data-action]')?.dataset.action;
+  if(!action)return;
+  if(controller.request(action))setActiveAction(action);
+  wake();
+ });
  attachPointer($('stage'));
 }
-function setActiveAction(action){if(overlay)return;for(const node of document.querySelectorAll('[data-action]'))node.classList.toggle('active',node.dataset.action===action);}
+function setActiveAction(action){if(overlay||shownAction===action)return;shownAction=action;for(const node of document.querySelectorAll('[data-action]'))node.classList.toggle('active',node.dataset.action===action);}
 function attachPointer(element){
  // Window-local only: Workspace panels also drive the eyes; never hook the
  // global Windows cursor. Origin is the projected upper-head area on canvas.
@@ -281,10 +296,10 @@ function frame(time){
  lastTime=time;
  try{
   controller.update(dt);
-  active=active||controller.blink>0||controller.gazeMoving();
+  active=active||controller.action!=='idle'||controller.blink>0||controller.gazeMoving();
   const blink=controller.blink;
   const started=performance.now();
-  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink});
+  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt});
   const cost=performance.now()-started;
   frameSamples[sampleCursor]=cost;
   sampleCursor=(sampleCursor+1)%frameSamples.length;
@@ -292,7 +307,7 @@ function frame(time){
   canvas.dataset.renderReady='true';
   if(journal.stage!=='RUNNING')stage('RUNNING','First graphics frame rendered');
   renderCount++;
-  if(!overlay){statusNode('animation-status').textContent=controller.action.toUpperCase();if(controller.action==='idle')setActiveAction('idle');}
+  if(!overlay){statusNode('animation-status').textContent=controller.action.toUpperCase();setActiveAction(controller.action);}
   if(time-lastReport>=1250){
    const fps=Math.round(renderCount*1000/(time-lastReport));
    renderCount=0;lastReport=time;

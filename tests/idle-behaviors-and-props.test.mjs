@@ -31,8 +31,9 @@ test('auto idle never overrides explicit sit, walk or manual gestures',()=>{
  c.request('wave');
  assert.equal(c.action,'wave');
  assert.equal(c.source,'manual');
+ const beforeStop=c.autoStarts;
  c.setIdleMode('off');advance(c,90);
- assert.equal(c.autoStarts,1);
+ assert.equal(c.autoStarts,beforeStop);
  assert.equal(c.action,'idle');
 });
 test('manual idle interrupts auto reading and clears its prop without breaking gaze or blink',()=>{

@@ -1,6 +1,6 @@
 # ZpkDxGames Desktop Companion
 
-**Alpha.6 recovery + Companion Workspace redesign — draft Windows development build, not a stable release.**
+**Alpha.6 recovery + expressive eyes + idle behaviors — draft Windows development build, not a stable release.**
 
 A local-first Windows 11 desktop companion using the user's Minecraft skin as a fully 3D character. The current recovery branch builds on Alpha.6, replacing its broken packaged startup and technical-preview Workshop. Alpha.6 previously replaced the earlier custom WebGL player mesh with the established MIT-licensed **skinview3d 3.4.2 / Three.js** player model so Java 64×64 UVs, outer layers and Classic/Slim geometry have one canonical rendering path.
 
@@ -12,8 +12,8 @@ This is **not yet an AI agent**. Screen observation, Ollama, tool execution and 
 - Automatic Classic/Slim detection with manual override.
 - Perspective camera, FXAA, nearest-neighbor textures and tuned local lighting.
 - Existing local animation state machine drives skinview3d joints.
-- Supported symmetric eye markers can create **experimental 3D sclera, iris, pupil and eyelid planes** attached to the head. These are disabled by default until authentic-skin visual certification.
-- Facial micro-geometry sits above the base head and behind the normal hat/hair outer layer, so opaque hair naturally occludes it.
+- Supported eye markers use a **single head-only UV compositor** for two-axis pupil movement and blinking, with no separate eye meshes. The original skin artwork and outer hair/hat geometry are preserved.
+- The owner has reported satisfactory expressive-eye behavior; native automated GPU performance certification is still pending.
 - Unsupported eye layouts preserve the original vanilla face.
 - The redesigned Workspace contains Overview, Avatar Studio, Behavior, Desktop World, Conversation, AI & Models, Privacy, Activity, Diagnostics and Settings. Unsupported features are labeled unavailable, not simulated. A single 3D preview remains canonical; desktop overlay stays transparent.
 
@@ -60,9 +60,9 @@ npm run tauri:build
 | Idle/walk/run/wave/sit/jump/think/celebrate | Implemented |
 | Nod/shrug/stretch/bow | Implemented |
 | 3D skin-native eye/pupil/eyelid rig | Experimental; off by default; visual parity unverified |
-| Cursor head/pupil tracking | Implemented, experimental micro-geometry opt-in |
+| Cursor head/pupil tracking | Implemented using native-UV composition |
 | Companion Workspace responsive pages | Source implemented; browser-smoke tested; native Windows visuals pending |
-| Transparent always-on-top Tauri overlay | Implemented; Windows visual certification required |
+| Timed reading/eating/drinking + procedural idle director | Development branch; configurable local frequency |\n| Transparent always-on-top Tauri overlay | Implemented; Windows visual certification required |
 | Whole-window click-through | Implemented; tray recovery required |
 | Per-pixel avatar hit testing | Planned |
 | Desktop/window physics | Planned |
@@ -95,11 +95,11 @@ web/
   index.html
   css/app.css
   js/main.js
-  js/engine/renderer.js          # skinview3d / Three.js adapter + 3D face rig
+  js/engine/renderer.js          # skinview3d / Three.js adapter + UV facial shader\n  js/engine/avatar-props.js      # owned cached props on canonical joints
   js/avatar/animation.js
   js/avatar/animation-handlers.js
   js/avatar/face.js              # marker detection only
-  js/avatar/face-rig-layout.js   # pure 3D eye geometry math
+  js/avatar/animation-handlers.js # trusted local gesture + activity poses
   js/avatar/model-policy.js      # auto/manual Classic/Slim policy
   js/avatar/skin.js              # local PNG validation
 src-tauri/

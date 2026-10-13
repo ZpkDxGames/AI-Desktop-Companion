@@ -25,6 +25,8 @@ jobs:
         run: npx playwright install chromium
       - name: Exercise emitted production bundle (cold storage)
         run: node scripts/smoke-browser.mjs
+      - name: Verify fixed-head pupil motion in real WebGL pixels
+        run: node scripts/smoke-eye-gpu.mjs
       - name: Preserve browser failure screenshots
         if: always()
         uses: actions/upload-artifact@v4

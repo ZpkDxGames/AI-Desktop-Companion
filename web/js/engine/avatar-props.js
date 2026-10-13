@@ -165,7 +165,7 @@ export class AvatarProps{
   const open=state.bookOpen||0;
   this.book.scale.setScalar(Math.max(.001,.98*visibility));
   const orient=smootherstep(((state.bookLift||0)-.45)/.55);
-  this.bookQuaternion.setFromEuler(this.bookEuler.set(-.55-.50*open,1.35-1.45*orient,-.055));
+  this.bookQuaternion.setFromEuler(this.bookEuler.set(-.55-1.15*open,1.35-1.45*orient,-.055));
   this.book.quaternion.copy(this.skin.leftArm.quaternion).invert().multiply(this.bookQuaternion);
   this.bookPalm.x=this.skin.modelType==='slim'?.3:-.2;this.book.userData.palmPoint[0]=this.bookPalm.x;
   this.bookOffset.copy(this.bookAnchor).multiplyScalar(this.book.scale.x).applyQuaternion(this.book.quaternion);

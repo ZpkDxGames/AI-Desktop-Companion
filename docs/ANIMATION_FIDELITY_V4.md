@@ -138,7 +138,9 @@ anticipates each turn by 0.5 s, follows across the hinge, and lowers afterward.
 The book is mounted directly to skin.leftArm. Its local offset is solved from a
 cover-underside support point and the actual palm; counter-rotation preserves
 orientation through lift and recovery. Brown pixel leather, gold corner clips,
-and blank cream parchment replace the printed/gilt-strip style. Page textures
+and blank cream parchment replace the printed/gilt-strip style. Open page
+normals are checked against the avatar eye position so both pages face the
+reader. Page textures
 and the curled sheet remain cached. Original avatar proportions are retained.
 
 Foods now use four original volumetric block profiles in voxel-foods.js: stepped

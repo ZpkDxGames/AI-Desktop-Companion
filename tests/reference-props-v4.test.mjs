@@ -56,6 +56,16 @@ test('quiet reading supports the book with the left hand while the free right ha
  const palm=new Vector3().fromArray(props.book.userData.palmPoint).applyMatrix4(skin.leftArm.matrixWorld);
  assert.ok(grip.distanceTo(palm)<1e-6,'book must remain attached to the actual supporting palm');props.dispose();
 });
+test('both open page faces point toward the avatar eyes, rather than presenting their backs to the reader',()=>{
+ for(const mode of ['default','slim']){
+  const skin=new SkinObject();skin.modelType=mode;const props=new AvatarProps(skin),rig=new AvatarRig(),c=new BehaviorController();c.request('read');tick(c,5);rig.apply(skin,c.pose());props.update('read',c.elapsed,1/120,c.presentation);skin.updateMatrixWorld(true);
+  for(const page of [props.leftPrint,props.rightPrint]){
+   const center=page.getWorldPosition(new Vector3()),normal=new Vector3(0,0,1).transformDirection(page.matrixWorld);
+   const eye=new Vector3(0,3.2,4.5).applyMatrix4(skin.head.matrixWorld);
+   assert.ok(normal.dot(eye.sub(center).normalize())>.5,mode+' page faces away from the reader');
+  }props.dispose();
+ }
+});
 test('page-turn hand arrives before the sheet and follows across the hinge, then returns to rest',()=>{
  const poses=[];for(const t of [10.5,11.1,11.6,12.3]){const c=new BehaviorController();c.request('read');tick(c,t);poses.push({...c.pose()});}
  assert.ok(poses[0].armRX<-1.3);assert.ok(poses[0].armRZ>poses[2].armRZ+.2);

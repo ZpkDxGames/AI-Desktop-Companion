@@ -1,5 +1,6 @@
 /** Real canonical-renderer evidence. Synthetic public sample skin, never owner certification.
  * npm install --no-save --no-package-lock playwright@1.56.1
+ * Clip capture requires ffmpeg and ffprobe on PATH (development evidence only).
  * node scripts/capture-motion.mjs <output-directory> [--clips]
  */
 import {build} from 'vite';
@@ -30,7 +31,7 @@ const server=createServer(async(req,res)=>{try{
  res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'}).end(await readFile(path));
 }catch{res.writeHead(404).end();}});
 server.listen(0,'127.0.0.1');await once(server,'listening');
-let browser;
+let browser,activeEncoder;
 const manifest={commit:sourceCommit,sourceTree,skin:'repository sample-skin.png (synthetic)',
  backend:'Chromium / ANGLE SwiftShader (software WebGL)',viewport:[320,400],deviceScaleFactor:1,shots:[],clips:[],performance:[]};
 try{
@@ -115,6 +116,7 @@ try{
    console.log(`Rendering actual frame sequence: ${action} (${hz} Hz simulation / 30 fps authored-time video)`);
    const file=`${directory}/${action}.webm`;
    const encoder=spawn('ffmpeg',['-v','error','-y','-framerate','30','-f','image2pipe','-vcodec','png','-i','pipe:0','-an','-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','28','-b:v','0','-pix_fmt','yuv420p',resolve(out,file)],{stdio:['pipe','ignore','pipe']});
+   activeEncoder=encoder;
    let encoderError='';encoder.stderr.on('data',chunk=>{encoderError+=chunk.toString();});
    const encoded=once(encoder,'close');
    const frames=await page.evaluate(({action})=>{
@@ -133,14 +135,16 @@ try{
     },{action,hz,i});
     if(!encoder.stdin.write(Buffer.from(png,'base64')))await once(encoder.stdin,'drain');
    }
-   encoder.stdin.end();const [code]=await encoded;if(code!==0)throw Error('Clip encoder failed: '+encoderError);
+   encoder.stdin.end();const [code]=await encoded;activeEncoder=null;if(code!==0)throw Error('Clip encoder failed: '+encoderError);
+   const decoded=JSON.parse(execFileSync('ffprobe',['-v','error','-count_frames','-show_entries','stream=nb_read_frames,width,height','-of','json',resolve(out,file)],{encoding:'utf8'}));
+   if(Number(decoded.streams[0]?.nb_read_frames)!==frames||decoded.streams[0].width!==320||decoded.streams[0].height!==400)throw Error('Incomplete encoded frame sequence: '+file);
    const final=await page.evaluate(()=>({action:c.action,sitPhase:c.sitPhase,propVisibility:c.presentation.visibility,elapsed:c.elapsed,rootY:c.pose().rootY}));
    if(!['idle','walk','run','sit'].includes(action)&&!action.startsWith('interrupt-')&&final.action!=='idle')throw Error('Incomplete action capture: '+action);
-   if((action==='read'||action.startsWith('interrupt-')||action==='stand-up')&&(final.sitPhase!=='standing'||final.propVisibility!==0))throw Error('Incomplete capture recovery: '+action);
+   if((['read','eat','drink'].includes(action)||action.startsWith('interrupt-')||action==='stand-up')&&(final.sitPhase!=='standing'||final.propVisibility!==0))throw Error('Incomplete capture recovery: '+action);
    manifest.clips.push({file,action,simulationHz:hz,recordingHz:30,yaw:.35,frames,recordingMode:'deterministic actual-renderer PNG frames; authored time, not native display pacing',final});
   }
  }
  if(errors.length)throw Error(errors.join('\n'));await page.evaluate(()=>r.dispose());
  await writeFile(resolve(out,'manifest.json'),JSON.stringify(manifest,null,2));
  console.log(`Captured ${manifest.shots.length} canonical-renderer frames; ${manifest.clips.length} clips at ${out}`);
-}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+}finally{activeEncoder?.kill('SIGTERM');await browser?.close();await new Promise(resolve=>server.close(resolve));}

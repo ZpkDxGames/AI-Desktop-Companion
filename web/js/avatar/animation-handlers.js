@@ -43,13 +43,13 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
  if(name==='eat'){
   const chewing=(phase==='chew1'||phase==='chew2')?Math.sin(elapsed*12)*.045:0;
   const raise=ease((elapsed-.2)/.75)*(1-ease((elapsed-3.65)/.85));
-  pose.armRX=-2.19*raise*w+chewing;
+  pose.armRX=-1.84*raise*w+chewing;
   pose.armRZ=.23*raise*w;
   pose.headX=(.07+chewing*.8)*w;pose.headZ=-.035*w;
  }
  if(name==='drink'){
   const raise=ease((elapsed-.25)/.8)*(1-ease((elapsed-3.15)/.78));
-  pose.armRX=(-2.19-.18*(activity?.bottleTilt||0))*raise*w;
+  pose.armRX=(-1.82-.11*(activity?.bottleTilt||0))*raise*w;
   pose.armRZ=.19*raise*w;
   pose.headX=(-.035-.11*(activity?.bottleTilt||0))*w;
  }

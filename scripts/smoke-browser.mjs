@@ -185,10 +185,13 @@ try {
           await page.locator('[data-action="idle"]').click();
           await page.locator('[data-action="'+action+'"]').click();
           await page.waitForFunction(name=>document.querySelector('[data-action="'+name+'"]')?.classList.contains('active'),action,{timeout:3000});
-          await page.waitForTimeout(480);
-          const capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+          // Selection highlights change synchronously, but software WebGL can
+          // still be displaying the previous pose. Wait for a *rendered* action.
+          await page.waitForFunction(name=>document.querySelector('#animation-status')?.textContent===name.toUpperCase(),action,{timeout:9000});
+          await page.waitForTimeout(550);
+          let capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
           if(action==='eat'||action==='drink'){
-            const colored=await page.evaluate(async ({data,action})=>{
+            const countPropPixels=async buffer=>page.evaluate(async ({data,action})=>{
               const image=new Image();image.src='data:image/png;base64,'+data;await image.decode();
               const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
               const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
@@ -200,8 +203,17 @@ try {
                 else if(action==='drink'&&b>105&&b>r*1.25&&b>g*1.10)count++;
               }
               return count;
-            },{data:capture.toString('base64'),action});
-            if(colored<8)throw new Error(action+' prop is not visibly rendered (target-colored pixels='+colored+')');
+            },{data:buffer.toString('base64'),action});
+            // Deterministic gate: require actual pixels, never just pose state.
+            // Poll through transient blink/pose transitions on slow SwiftShader
+            // runners before reporting a true missing-prop defect.
+            let colored=await countPropPixels(capture);
+            for(let attempts=0;colored<8&&attempts<6;attempts++){
+              await page.waitForTimeout(300);
+              capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+              colored=await countPropPixels(capture);
+            }
+            if(colored<8)throw new Error(action+' prop is not visibly rendered after 2.3 s (target-colored pixels='+colored+', action='+await page.locator('#animation-status').textContent()+')');
           }
         }
         await page.locator('[data-action="idle"]').click();

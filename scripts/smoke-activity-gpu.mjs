@@ -153,6 +153,30 @@ try{
   }
  }
 
+ // Confirm the user-controlled local texture can replace fallback without a second
+ // renderer, and that reset fully restores the initial texture geometry.
+ await page.evaluate(async()=>{
+  const renderer=window.activityRenderer;
+  const tex=document.createElement('canvas');tex.width=16;tex.height=16;
+  const ctx=tex.getContext('2d');ctx.fillStyle='#00ff48';
+  ctx.fillRect(3,3,10,10);ctx.clearRect(5,5,6,6);
+  const count=await renderer.setItemTextures({apple:tex.toDataURL('image/png')});
+  if(count!==1)throw Error('Local sprite import was not applied');
+  if(renderer.props.itemModels.get('apple').texture.magFilter!==1003)throw Error('Imported pixels lost nearest-neighbor filtering');
+  const c=window.activityController;c.request('idle');c.request('eat');
+  for(let i=0;i<25;i++)c.update(.05);
+  renderer.render(c.pose(),{action:'eat',actionElapsed:c.elapsed,foodVariant:'apple',activity:c.activity,dt:.05});
+ });
+ const importFrame=await screenshot('v3-local-apple-imported');
+ await page.evaluate(async()=>{
+  const renderer=window.activityRenderer;
+  await renderer.setItemTextures({});
+  renderer.viewer.render();
+ });
+ const fallbackFrame=await screenshot('v3-local-apple-restored');
+ const importChanged=await diff(importFrame,fallbackFrame);
+ if(importChanged<25)throw Error('Imported asset not visually distinct from fallback: '+importChanged);
+ console.log('PASS local opt-in item asset pixel gate: '+importChanged+' changed pixels after restoring original geometry');
  if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
  await page.evaluate(()=>window.activityRenderer.dispose());
  await page.close();

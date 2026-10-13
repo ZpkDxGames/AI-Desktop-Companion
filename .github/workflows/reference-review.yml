@@ -79,13 +79,23 @@ jobs:
       - name: Stress final source resources for ten minutes
         working-directory: candidate
         run: node scripts/soak-motion.mjs "$REVIEW_ROOT/data/soak.json" > "$REVIEW_ROOT/logs/soak.log" 2>&1
+      - name: Preserve completed raw evidence checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-v4-reference-raw-${{ github.run_id }}
+          path: |
+            /tmp/companion-reference-review/before/
+            /tmp/companion-reference-review/after/
+            /tmp/companion-reference-review/data/
+            /tmp/companion-reference-review/logs/
+          retention-days: 30
       - name: Fetch exact tested Windows installer and CI records
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/artifacts/11838978201/zip > "$REVIEW_ROOT/installer-source.zip"
-          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473454109/logs > "$REVIEW_ROOT/logs/windows-build-ci.log"
-          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473453915/logs > "$REVIEW_ROOT/logs/source-browser-ci.log"
+          gh api --allow-escape-sequences /repos/ZpkDxGames/AI-Desktop-Companion/actions/artifacts/11838978201/zip > "$REVIEW_ROOT/installer-source.zip"
+          gh api --allow-escape-sequences /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473454109/logs > "$REVIEW_ROOT/logs/windows-build-ci.log"
+          gh api --allow-escape-sequences /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473453915/logs > "$REVIEW_ROOT/logs/source-browser-ci.log"
       - name: Assemble and certify review files
         run: |
           "$RUNNER_TEMP/reference-venv/bin/python" review-tools/.github/scripts/package-reference-review.py "$REVIEW_ROOT" candidate
@@ -108,5 +118,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: companion-v4-reference-diagnostics-${{ github.run_id }}
-          path: ${{ runner.temp }}/companion-reference/logs/*
+          path: /tmp/companion-reference-review/logs/*
           retention-days: 14

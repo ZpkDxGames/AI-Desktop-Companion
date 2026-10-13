@@ -24,7 +24,7 @@ export function applyExtraAnimation(name,pose,elapsed){
   pose.rootY-=3.55*w;pose.rootZ+=.7*w;
   pose.legRX=-1.34*w;pose.legLX=-1.34*w;
   pose.armRX=-1.08*w;pose.armLX=-1.08*w;
-  pose.armRZ=.43*w;pose.armLZ=-.43*w;
+  pose.armRZ=.32*w;pose.armLZ=-.32*w;
   pose.headX=.22*w;pose.headY+=Math.sin(elapsed*1.2)*.025*w;
  }
  if(name==='eat'){

@@ -32,7 +32,7 @@ export class AvatarProps{
  }
  buildBook(){
   const group=new Group();
-  group.position.set(0,-.6,7.0);
+  group.position.set(0,2.35,9.25);
   // Two open covers, cream page blocks and central spine: intentional blocky style.
   this.box(group,0x203d42,2.38,3.28,.26,-1.15,0,0);
   this.box(group,0x203d42,2.38,3.28,.26,1.15,0,0);

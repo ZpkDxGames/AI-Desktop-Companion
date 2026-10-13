@@ -103,7 +103,7 @@ try{
     const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:900000});
     const chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);
     const done=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
-    const duration=special?2.4:(mod.DURATION[action]||3.2)+.6,frames=Math.ceil(duration*30);let simulationTime=0;
+    const duration=special?4.0:(mod.DURATION[action]||3.2)+.6,frames=Math.ceil(duration*30);let simulationTime=0;
     for(let i=0;i<frames;i++){
      if((action.startsWith('interrupt-')&&i===6)||(action==='walk-stop'&&i===30))c.request(action==='walk-stop'?'idle':'wave');
      const target=(i+1)/30;

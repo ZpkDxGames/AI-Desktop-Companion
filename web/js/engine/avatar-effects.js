@@ -4,7 +4,7 @@ export class AvatarEffects{
  constructor(root,{reducedMotion=false}={}){
   this.root=root;this.reducedMotion=reducedMotion;this.capacity=48;this.geometries=[];this.materials=[];
   this.bubble=new Group();root.add(this.bubble);
-  this.bubble.position.set(9.0,29.3,2.0);
+  this.bubble.position.set(8.1,17.8,2.0);
   const geometry=new BoxGeometry(1,1,.18);this.geometries.push(geometry);
   const outline=new MeshBasicMaterial({color:0x39404a,depthTest:true});
   const ivory=new MeshBasicMaterial({color:0xf5f1df,depthTest:true});
@@ -40,7 +40,7 @@ export class AvatarEffects{
    const enter=Math.min(1,t/.32),exit=Math.min(1,(3.2-t)/.35);
    const w=Math.max(.01,Math.min(enter,exit));
    this.bubble.scale.setScalar((this.reducedMotion?1:.95+.05*Math.sin(t*2.2))*w);
-   this.bubble.position.y=29.3+(this.reducedMotion?0:Math.sin(t*1.9)*.18);
+   this.bubble.position.y=17.8+(this.reducedMotion?0:Math.sin(t*1.9)*.18);
   }
   if(action!=='celebrate'||this.reducedMotion){
    this.particles.count=0;this.lastCount=0;return;

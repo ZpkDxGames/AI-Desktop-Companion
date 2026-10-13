@@ -73,7 +73,11 @@ Periodic percentile diagnostics remain bounded, outside the per-frame hot path.
 OS reduced motion suppresses cosmetic drift/saccades, reduces large gesture
 amplitude and disables existing fireworks. Core UI, prop manipulation, eyes,
 manual blink and pointer response remain available. No graphics UI or native
-permissions are added. The book keeps nearest-filter pixel parchment/leather; foods use flat voxel surfaces and discrete vertex colors.
+permissions are added. The book keeps nearest-filter pixel parchment/leather;
+foods merge identical coplanar voxel faces with discrete vertex colors. Spatial
+surface fingerprints preserve original colored cells; whole-triangle clearance
+tests cover both body widths during bites and interrupted recovery. The meshes
+contain 320/202/290/276 triangles for apple/chop/carrot/cake respectively.
 Exact vanilla food art is read through explicitly selected PNGs, a Minecraft
 client JAR or resource-pack ZIP; only allowlisted item entries are decoded.
 Archives have size/entry/decompression/CRC limits and never extract to disk or

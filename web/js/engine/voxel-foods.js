@@ -79,17 +79,38 @@ export function createVoxelFood(id,pixels){
   [0,0,-1,[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]],
   [0,0,1,[[1,0,1],[1,1,1],[0,1,1],[0,0,1]]]
  ];
- for(let y=0;y<h;y++)for(let z=0;z<d;z++)for(let x=0;x<w;x++){
-  const tag=at(x,y,z);if(tag<0)continue;
-  for(const [nx,ny,nz,points] of faces){if(at(x+nx,y+ny,z+nz)>=0)continue;
-   let shade=1;
-   // Broad, aligned pixel patches echo vanilla's low-resolution food shading.
-   if(tag===0)shade=((Math.floor(x/2)+Math.floor(y/2)*3+Math.floor(z/2)*7)%9===0)?1.12:((x+y+z)%11===0)?.90:1;
+ const dimensions=[w,h,d],mask=new Int16Array(Math.max(w*h,w*d,h*d));
+ // Merge only coplanar exterior cells with identical color and normal. Pixel
+ // boundaries, steps, silhouette and every original surface cell stay intact;
+ // flat regions need one rectangle rather than one rectangle per voxel.
+ for(const [nx,ny,nz,points] of faces){
+  const axis=nx?0:ny?1:2,uAxis=axis===0?1:0,vAxis=axis===2?1:2;
+  const columns=dimensions[uAxis],rows=dimensions[vAxis],origin=[0,0,0],extent=[1,1,1];
+  for(let slice=0;slice<dimensions[axis];slice++){
+   mask.fill(0);
+   for(let v=0;v<rows;v++)for(let u=0;u<columns;u++){
+    origin[axis]=slice;origin[uAxis]=u;origin[vAxis]=v;
+    const [x,y,z]=origin,tag=at(x,y,z);
+    if(tag<0||at(x+nx,y+ny,z+nz)>=0)continue;
+    const shade=tag===0?((Math.floor(x/2)+Math.floor(y/2)*3+Math.floor(z/2)*7)%9===0?1:(x+y+z)%11===0?2:0):0;
+    mask[v*columns+u]=1+tag*3+shade;
+   }
+   for(let v=0;v<rows;v++)for(let u=0;u<columns;){
+    const key=mask[v*columns+u];if(!key){u++;continue;}
+    let width=1,height=1;
+    while(u+width<columns&&mask[v*columns+u+width]===key)width++;
+    row:while(v+height<rows){for(let n=0;n<width;n++)if(mask[(v+height)*columns+u+n]!==key)break row;height++;}
+    for(let row=0;row<height;row++)mask.fill(0,(v+row)*columns+u,(v+row)*columns+u+width);
+    origin[axis]=slice;origin[uAxis]=u;origin[vAxis]=v;
+    extent[axis]=1;extent[uAxis]=width;extent[vAxis]=height;
+    const tag=Math.floor((key-1)/3),shade=[1,1.12,.90][(key-1)%3];
    // skinview3d deliberately disables Three's global ColorManagement. Vertex
    // colors still enter the linear lighting pipeline, so decode our sRGB art
    // explicitly without changing that global setting (or skin/bottle colors).
    const hex=palette[tag];c.setRGB((hex>>16&255)/255,(hex>>8&255)/255,(hex&255)/255,LinearSRGBColorSpace).convertSRGBToLinear().multiplyScalar(shade);
-   for(const i of [0,1,2,0,2,3]){const q=points[i];position.push((x+q[0]-w/2)*unit,(y+q[1]-h/2)*unit,(z+q[2]-d/2)*unit);normal.push(nx,ny,nz);color.push(c.r,c.g,c.b);}
+    for(const i of [0,1,2,0,2,3]){const q=points[i];position.push((origin[0]+q[0]*extent[0]-w/2)*unit,(origin[1]+q[1]*extent[1]-h/2)*unit,(origin[2]+q[2]*extent[2]-d/2)*unit);normal.push(nx,ny,nz);color.push(c.r,c.g,c.b);}
+    u+=width;
+   }
   }
  }
  const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(position,3));geometry.setAttribute('normal',new Float32BufferAttribute(normal,3));geometry.setAttribute('color',new Float32BufferAttribute(color,3));geometry.computeBoundingBox();geometry.computeBoundingSphere();

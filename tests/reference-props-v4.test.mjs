@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Box3,ColorManagement,Matrix4,Vector3} from 'three';
+import {Box3,ColorManagement,Matrix4,Triangle,Vector3} from 'three';
 import {SkinObject} from 'skinview3d';
 import {AvatarProps} from '../web/js/engine/avatar-props.js';
 import {AvatarRig} from '../web/js/engine/avatar-rig.js';
@@ -28,15 +28,17 @@ test('reference foods are solid volumes with distinct silhouettes, not shallow s
 test('solid food surface avoids the head, hat and jacket during full bites and interrupted recovery',()=>{
  for(const mode of ['default','slim'])for(const id of ['apple','cooked_porkchop','golden_carrot','cake_slice'])for(const interrupt of [false,true]){
   const skin=new SkinObject();skin.modelType=mode;const props=new AvatarProps(skin),rig=new AvatarRig(),c=new BehaviorController();c.request('eat');c.foodVariant=id;
-  const v=new Vector3(),toHead=new Matrix4(),toBody=new Matrix4(),matrix=new Matrix4();
+  const triangle=new Triangle(),toHead=new Matrix4(),toBody=new Matrix4(),matrix=new Matrix4(),epsilon=1e-5;
+  const headBounds=new Box3(new Vector3(-4.5+epsilon,-.5+epsilon,-4.5+epsilon),new Vector3(4.5-epsilon,8.5-epsilon,4.5-epsilon));
+  const bodyBounds=new Box3(new Vector3(-4.25+epsilon,-6.25+epsilon,-2.25+epsilon),new Vector3(4.25-epsilon,6.25-epsilon,2.25-epsilon));
   for(let frame=0;frame<330;frame++){
    if(interrupt&&frame===90)c.request('idle');c.update(1/60);rig.apply(skin,c.pose());props.update(c.action,c.elapsed,1/60,c.presentation,id);skin.updateMatrixWorld(true);
    if(!props.food.visible)continue;
    toHead.copy(skin.head.matrixWorld).invert();toBody.copy(skin.body.matrixWorld).invert();
    const model=props.itemModels.get(id),positions=model.geometry.attributes.position;matrix.multiplyMatrices(toHead,model.mesh.matrixWorld);
-   for(let i=0;i<positions.count;i++){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.5&&v.y>-.5&&v.y<8.5&&Math.abs(v.z)<4.5),`head ${mode}/${id}/${frame}`);}
+   for(let i=0;i<positions.count;i+=3){triangle.a.fromBufferAttribute(positions,i).applyMatrix4(matrix);triangle.b.fromBufferAttribute(positions,i+1).applyMatrix4(matrix);triangle.c.fromBufferAttribute(positions,i+2).applyMatrix4(matrix);assert.ok(!headBounds.intersectsTriangle(triangle),`head ${mode}/${id}/${frame}`);}
    matrix.multiplyMatrices(toBody,model.mesh.matrixWorld);
-   for(let i=0;i<positions.count;i++){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.25&&Math.abs(v.y)<6.25&&Math.abs(v.z)<2.25),`jacket ${mode}/${id}/${frame}`);}
+   for(let i=0;i<positions.count;i+=3){triangle.a.fromBufferAttribute(positions,i).applyMatrix4(matrix);triangle.b.fromBufferAttribute(positions,i+1).applyMatrix4(matrix);triangle.c.fromBufferAttribute(positions,i+2).applyMatrix4(matrix);assert.ok(!bodyBounds.intersectsTriangle(triangle),`jacket ${mode}/${id}/${frame}`);}
   }props.dispose();
  }
 });

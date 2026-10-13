@@ -152,14 +152,19 @@ builder is removed, rather than retained as an alternate active path. Default
 profiles/palettes ship in the app; no item import is required to see 3D foods.
 Optional locally selected PNGs supply body/pale-frost palette colors while the
 geometry and structural accents remain intact. Per-frame updates only change
-transforms, visibility and fade opacity. All food surface vertices are sampled
-against head/hat and jacket volumes through bites and interrupted recovery.
+transforms, visibility and fade opacity. Every food triangle is checked against
+head/hat and jacket volumes through bites and interrupted recovery, so large
+merged faces cannot cross those volumes between otherwise clear corners.
 
 A bounded 16-instance pool in AvatarEffects uses selected food pixel colors for
 crumbs. Deliberate bite/chew timing and the finishing opacity fade remain intact.
 Depth testing is retained; reduced motion suppresses crumbs. Food geometry has
-more triangles but needs one draw call per selected item, with no interior faces
-or individual cube objects. sRGB food palette values are explicitly decoded to
+one draw call per selected item, with no interior faces or individual cube
+objects. Matching coplanar exterior faces merge into rectangles while retaining
+every original colored surface cell. Mesh triangles fall from 1,380 to 320 for
+apple, 936 to 202 for cooked chop, 824 to 290 for carrot and 1,220 to 276 for
+cake. A spatial surface fingerprint from bb2727b verifies all cells, normals
+and exact Float32 colors with default and imported palettes. sRGB food palette values are explicitly decoded to
 linear vertex colors because the canonical skinview3d runtime disables global
 Three ColorManagement; the global skin/bottle pipeline remains unchanged.
 Import/reset/disposal remains owned by AvatarProps.
@@ -170,14 +175,16 @@ planes keep the water top level while fill drains to zero. The whole bottle
 shell is tested against head/hat and jacket volumes through full sipping and
 interrupted recovery in Classic/Slim, in addition to real-renderer inspection.
 
-Exact vanilla food pixels use the user's selected client JAR/resource-pack ZIP
-or PNGs through the existing local importer. The bounded ZIP reader selects
+Custom body/pale-frost colors can use the user's selected client JAR/resource-pack
+ZIP or PNGs through the existing local importer; the authored surface patterns
+and structural accents are retained. The bounded ZIP reader selects
 only known item paths, limits expanded PNG sizes, checks CRC and does not
 extract files, enumerate installations or use runtime network access. `cake.png`
 aliases the legacy settings key. Reset restores the original 3D palette;
 no game texture files are committed or bundled in the public installer.
-Local-reference renderer review uses explicit vanilla PNGs, with raw source
-assets excluded from deliverables. This is not a claim of Mojang affiliation
+Optional local-reference capture can use explicit vanilla PNGs, with raw source
+assets excluded from deliverables. Default review captures use the included
+authored palettes. This is not a claim of Mojang affiliation
 or ownership of the imported art.
 
 ```bash
@@ -192,6 +199,12 @@ certification remains pending. Review the owner skin and masked/hat layers in
 Classic/Slim, both surfaces, 100/150/200% DPI, context recovery, minimize/restore,
 click-through/tray, startup and high-refresh display presentation. Collect actual
 RTX 3050 GPU telemetry and WebView2 frame percentiles before changing FPS defaults.
+The evidence-only `scripts/bench-food-renderer.mjs` compares fixed eating poses
+for all four foods in two sequential trials. It records submission time and
+completed software-WebGL work using synchronous `gl.finish()` and a one-pixel
+readback fence, which are never called by the application. These measurements distinguish GPU queue variation
+from item rendering cost; they do not certify native displayed FPS.
+
 Main must not be merged without explicit owner acceptance. The original block
 rig has no elbow or wrist articulation; temporary hand-side occlusion during
 mouth contact is a remaining rig constraint, not a claim of perfect visuals.

@@ -1,0 +1,45 @@
+{
+  "source": "bb2727b85ca21d5205620fc571d2f63b9bbe67ce",
+  "surfaces": {
+    "apple/default": {
+      "cells": 690,
+      "sha256": "2196efbc2f6270ed64c6e907582980ad19e6abb96033eeb2fc505db764a428b2",
+      "triangles": 1380
+    },
+    "apple/imported": {
+      "cells": 690,
+      "sha256": "f201765f35b652406f08bfaecaaa95835889c08c84dc5c2023302ef86c100f3b",
+      "triangles": 1380
+    },
+    "cooked_porkchop/default": {
+      "cells": 468,
+      "sha256": "73f8434dd76ec8a1157bb3dea42e6253a5761fcb16ad0a704daedf6fa5fae070",
+      "triangles": 936
+    },
+    "cooked_porkchop/imported": {
+      "cells": 468,
+      "sha256": "530189265a35e157b6df0ee934d0ed8600ff6376fa8df9392c3f81696fd33e6b",
+      "triangles": 936
+    },
+    "golden_carrot/default": {
+      "cells": 412,
+      "sha256": "6dc2f88cbf0ae0b6c46a9dacc757bc1d9f921cccfe61772a388df12a6398bbe1",
+      "triangles": 824
+    },
+    "golden_carrot/imported": {
+      "cells": 412,
+      "sha256": "7e5671f3fe1aec3c8f78ca43c251f1a2a28dc3d29c3f356ece879a12d2d7abd9",
+      "triangles": 824
+    },
+    "cake_slice/default": {
+      "cells": 610,
+      "sha256": "de98ef9f20976a9466b23c56f3e8c7627e8f0ed6f8ad633f9137dcd44a2fdb54",
+      "triangles": 1220
+    },
+    "cake_slice/imported": {
+      "cells": 610,
+      "sha256": "de98ef9f20976a9466b23c56f3e8c7627e8f0ed6f8ad633f9137dcd44a2fdb54",
+      "triangles": 1220
+    }
+  }
+}

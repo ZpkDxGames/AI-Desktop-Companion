@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SkinObject} from 'skinview3d';
-import {Vector3,Matrix4,Quaternion} from 'three';
+import {Vector3,Matrix4,Quaternion,Box3} from 'three';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
 import {AvatarRig} from '../web/js/engine/avatar-rig.js';
 import {AvatarProps} from '../web/js/engine/avatar-props.js';
@@ -130,4 +130,36 @@ test('the bottle neck keeps its intended pouring axis through shoulder yaw and r
   assert.ok(neck.z<-.85&&neck.y<-.20&&Math.abs(neck.x)<.15,'bottle rotation used the wrong local axis');
  }
  props.dispose();
+});
+
+test('sit and stand retain the standing sole plane through the complete transition',()=>{
+ const skin=new SkinObject(),rig=new AvatarRig(),c=new BehaviorController();
+ const floor=-24.25;
+ c.request('sit');
+ for(let i=0;i<150;i++){
+  if(i===48)c.request('idle');
+  c.update(1/120);const pose=c.pose();rig.apply(skin,pose);skin.position.y=pose.rootY;skin.updateMatrixWorld(true);
+  const foot=new Box3().setFromObject(skin.rightLeg.outerLayer).min.y;
+  assert.ok(foot>=floor-.20&&foot<=floor+.20,`sole plane drift at frame ${i}: ${foot-floor}`);
+ }
+});
+
+test('held props remain outside the jacket volume while equipping and recovering',()=>{
+ for(const action of ['eat','drink'])for(const interrupt of [false,true]){
+  const skin=new SkinObject(),rig=new AvatarRig(),props=new AvatarProps(skin),c=new BehaviorController();
+  c.request(action);
+  for(let i=0;i<100;i++){
+   if(interrupt&&i===25)c.request('idle');c.update(.05);rig.apply(skin,c.pose());
+   props.update(c.action,c.elapsed,.05,c.presentation,c.foodVariant);skin.updateMatrixWorld(true);
+   const inverse=new Matrix4().copy(skin.body.matrixWorld).invert();
+   const id=action==='drink'?'water_potion':c.foodVariant,group=action==='drink'?props.drink:props.food;
+   if(!group.visible)continue;
+   const pixels=FALLBACK_ITEMS[id],matrix=props.itemModels.get(id).group.matrixWorld;
+   for(let y=0;y<16;y++)for(let x=0;x<16;x++)if(pixels[(y*16+x)*4+3]>=128){
+    const v=new Vector3((x+.5-8)*5.35/16,(8-y-.5)*5.35/16,0).applyMatrix4(matrix).applyMatrix4(inverse);
+    assert.ok(!(Math.abs(v.x)<4.25&&Math.abs(v.y)<6.25&&Math.abs(v.z)<2.25),`${action}/${interrupt}/frame ${i} jacket clipping`);
+   }
+  }
+  props.dispose();
+ }
 });

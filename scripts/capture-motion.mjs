@@ -13,6 +13,8 @@ import {execFileSync} from 'node:child_process';
 const out=resolve(process.argv[2]||'motion-evidence');
 const onlyPerf=process.argv.includes('--performance-only'),onlyClips=process.argv.includes('--clips-only');
 const clipRates=(process.argv.find(x=>x.startsWith('--clip-rates='))?.split('=')[1]||'60').split(',').map(Number);
+const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const sourceTree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
 if(clipRates.some(hz=>![30,60,120,144].includes(hz)))throw Error('Unsupported simulation cadence');
 await mkdir(out,{recursive:true});await mkdir('dist/motion-probe',{recursive:true});
 await writeFile('dist/motion-entry.js',"export {AvatarRenderer} from '../web/js/engine/renderer.js';export {BehaviorController,ACTIONS,DURATION} from '../web/js/avatar/animation.js';");
@@ -27,7 +29,7 @@ const server=createServer(async(req,res)=>{try{
 }catch{res.writeHead(404).end();}});
 server.listen(0,'127.0.0.1');await once(server,'listening');
 let browser;
-const manifest={commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),skin:'repository sample-skin.png (synthetic)',
+const manifest={commit:sourceCommit,sourceTree,skin:'repository sample-skin.png (synthetic)',
  backend:'Chromium 141 / ANGLE SwiftShader (software WebGL)',viewport:[320,400],deviceScaleFactor:1,shots:[],clips:[],performance:[]};
 try{
  browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});

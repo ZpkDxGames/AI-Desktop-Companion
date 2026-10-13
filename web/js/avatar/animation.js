@@ -276,11 +276,13 @@ export class BehaviorController{
   if(a==='sit'){
    const rate=this.sitPhase==='sittingDown'?1/.35:this.sitPhase==='standingUp'?-1/.65:0;
    const w=smootherstep(this.sitAmount+rate*lead);
-   p.legRX=-1.42*w;p.legLX=-1.42*w;
    p.armRX+=-.12*w;p.armLX+=-.12*w;
    // Floor sitting: pelvis and horizontal legs meet the standing foot plane.
    p.legRX=-1.56*w;p.legLX=-1.56*w;
-   p.rootY+=-10*w;p.rootZ+=.6*w;
+   // Project the original 12.5 x 4.5 outer leg box onto the standing sole
+   // plane. A linear hip drop sends the soles through the floor halfway down.
+   const fold=1.56*w;
+   p.rootY+=12.25*(Math.cos(fold)-1)+2.25*Math.sin(fold);p.rootZ+=.6*w;
    p.bodyX+=.12*Math.sin(w*Math.PI);p.headX-=.05*Math.sin(w*Math.PI);
    p.headY+=Math.sin(t*.55)*.028*w;
   }

@@ -25,6 +25,9 @@ and withdraws for 300 ms. New props wait for that recovery before appearing.
 The renderer does not run an independent transition or behavior clock.
 Held props counter-rotate the complete shoulder quaternion using cached scratch
 objects, preserving authored mouth/tilt axes through chest, shoulder yaw and roll.
+Continuous joint-local palm constraints maintain jacket clearance through
+equip and interrupted recovery. The seat curve projects the unchanged leg-box
+dimensions onto the standing sole plane throughout sit/stand.
 
 ## Activities
 

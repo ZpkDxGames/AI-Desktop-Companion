@@ -67,6 +67,10 @@ M2 authors C1 jump preparation/impact, passing-phase walking, distinct running,
 floor-aligned sitting, continuous seat reversals and full-body gestures. The
 new rig coordinates original sibling joints about the waist so the neck and
 shoulders remain attached. Timed actions, priorities and sit intent are retained.
+A final sole-plane regression replaces linear seat lowering with the projected
+original leg-box support curve, preventing floor penetration halfway through
+sitting and standing. The full transition is sampled against the original sole
+plane without changing leg geometry or the existing transition durations.
 
 M3 calibrates book cover corners against actual Classic/Slim palms, adds a
 cached curled sheet with separate printed sides, separates bites from chewing,
@@ -83,6 +87,11 @@ The existing GPU item visibility gates then passed without weaker thresholds.
 The final axis review also replaced Euler subtraction in held grips with cached
 full-quaternion compensation. A neck-direction regression verifies that yaw
 and roll cannot change the authored bottle pouring axis.
+Full equip/recovery sampling reproduced jacket intersection with inward grips
+while the arm was lowered. Continuous joint-local clearance constraints now
+keep the prop on the outside/front of the lowered palm, approaching the mouth
+grip only after the actual arm angle clears the torso. No independent prop
+animation loop or per-frame object creation was introduced.
 
 M4 preserves 60/20 scheduling, bounds cached resources and adds reproducible
 CPU/real-WebGL profiling plus a ten-minute wall-clock lifecycle soak. Tests

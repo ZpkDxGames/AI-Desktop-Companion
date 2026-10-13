@@ -7,6 +7,8 @@ import {resolve,extname,sep} from 'node:path';
 import {once} from 'node:events';
 import {execFileSync} from 'node:child_process';
 const out=resolve(process.argv[2]||'motion-soak.json'),root=resolve('dist');
+const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const sourceTree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
 await mkdir('dist/soak-probe',{recursive:true});
 await writeFile('dist/soak-entry.js',"export {AvatarRenderer} from '../web/js/engine/renderer.js';export {BehaviorController,ACTIONS} from '../web/js/avatar/animation.js';");
 await build({configFile:false,root:process.cwd(),logLevel:'error',build:{target:'es2020',outDir:'dist/soak-probe',emptyOutDir:false,lib:{entry:resolve('dist/soak-entry.js'),formats:['es'],fileName:'soak'}}});
@@ -69,7 +71,7 @@ try{
  const tail=samples.slice(6),range=Math.max(...tail.map(x=>x.usedHeap))-Math.min(...tail.map(x=>x.usedHeap));
  if(range>8*1024*1024)throw Error('Retained heap range exceeded 8 MiB after warmup: '+range);
  if(errors.length)throw Error(errors.join('\n'));
- await writeFile(out,JSON.stringify({commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),backend:'Chromium ANGLE SwiftShader (software)',wallClockMs:Date.now()-start,
+ await writeFile(out,JSON.stringify({commit:sourceCommit,sourceTree,backend:'Chromium ANGLE SwiftShader (software)',wallClockMs:Date.now()-start,
   lifecycleOperations:100,actionRequests:actionIndex,resourcesStable:true,retainedHeapRange:range,lifecycle,samples},null,2));
  console.log('PASS 10-minute wall-clock soak, 100 import/reset/renderer lifecycles, bounded resource counts and retained heap.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}

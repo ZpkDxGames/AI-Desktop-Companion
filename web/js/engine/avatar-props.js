@@ -161,8 +161,13 @@ export class AvatarProps{
   // The inside face of both canonical hands is x=+1 in shoulder-local space.
   // The item overlaps that face as a grip while its silhouette remains exposed.
   const slim=this.skin.modelType==='slim';
-  this.food.position.set(slim?2.25:2.40,-10.5,-.80);
-  this.drink.position.set(slim?2.25:2.40,-10.5,-.05);
+  // A lowered hand grips at its outside edge. Approach the inside mouth grip
+  // only after the arm clears the jacket; this also keeps interruption exits
+  // outside the torso. The constraint is continuous in the actual joint angle.
+  const approach=smootherstep((Math.abs(this.skin.rightArm.rotation.x)-.15)/.85);
+  const gripX=-.65+((slim?2.25:2.40)+.65)*approach;
+  this.food.position.set(gripX,-10.5,2.85*(1-approach)-.80*approach);
+  this.drink.position.set(gripX,-10.5,3.40*(1-approach)-.05*approach);
   const foodScale=.86*(1-(state.consume??(state.bite===0?0:state.bite===1?.20:.42)))*visibility;
   this.food.scale.setScalar(foodScale);
   // A counter-rotated hand grip keeps the thin item sprite facing outward;

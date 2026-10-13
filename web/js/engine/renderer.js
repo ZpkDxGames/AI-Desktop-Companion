@@ -2,6 +2,7 @@ import {SkinViewer} from 'skinview3d';
 import {detectFaceProfile} from '../avatar/face.js';
 import {EyeFaceMaterial} from './eye-face-material.js';
 import {AvatarProps} from './avatar-props.js';
+import {AvatarEffects} from './avatar-effects.js';
 import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
 
 export class AvatarRenderer{
@@ -32,6 +33,7 @@ export class AvatarRenderer{
   this.viewer.controls.enabled=false;
   this.faceMaterial=new EyeFaceMaterial(this.viewer.playerObject.skin.head);
   this.props=new AvatarProps(this.viewer.playerObject.skin);
+  this.effects=new AvatarEffects(this.viewer.playerObject,{reducedMotion:typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches});
   this.faceProfile={supported:false,reason:'no-skin'};
  }
  imagePixels(image){
@@ -72,7 +74,7 @@ export class AvatarRenderer{
   const height=Math.max(2,Math.floor((bounds?.height||0)-(this.overlay?52:0)));
   if(this.viewer.width!==width||this.viewer.height!==height)this.viewer.setSize(width,height);
  }
- render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0,action='idle',actionElapsed=0,dt=0}={}){
+ render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0,action='idle',actionElapsed=0,dt=0,activity=null,foodVariant='apple'}={}){
   if(!this.skin)return;
   this.resize();
   const player=this.viewer.playerObject;
@@ -81,13 +83,14 @@ export class AvatarRenderer{
   player.position.set(pose.rootX||0,pose.rootY||0,pose.rootZ||0);
   player.rotation.set(0,this.baseYaw+rotation,0);
   skin.head.rotation.set(pose.headX||0,pose.headY||0,pose.headZ||0);
-  skin.body.rotation.set(0,0,pose.bodyZ||0);
+  skin.body.rotation.set(pose.bodyX||0,0,pose.bodyZ||0);
   skin.rightArm.rotation.set(pose.armRX||0,0,pose.armRZ||0);
   skin.leftArm.rotation.set(pose.armLX||0,0,pose.armLZ||0);
   skin.rightLeg.rotation.set(pose.legRX||0,0,0);
   skin.leftLeg.rotation.set(pose.legLX||0,0,0);
   this.faceMaterial.update(gazeX,gazeY,blink);
-  this.props.update(action,actionElapsed,dt);
+  this.props.update(action,actionElapsed,dt,activity,foodVariant);
+  this.effects.update(action,actionElapsed,dt);
   const bounded=Math.max(.55,Math.min(1.5,Number.isFinite(scale)?scale:1));
   if(Math.abs(this.lastScale-bounded)>.001){
    this.lastScale=bounded;
@@ -96,5 +99,5 @@ export class AvatarRenderer{
   this.viewer.render();
  }
  get modelType(){return fromSkinViewModel(this.detectedModel);}
- dispose(){this.props.dispose();this.faceMaterial.dispose();this.viewer.dispose();}
+ dispose(){this.effects.dispose();this.props.dispose();this.faceMaterial.dispose();this.viewer.dispose();}
 }

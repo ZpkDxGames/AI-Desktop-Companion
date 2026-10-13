@@ -299,7 +299,7 @@ function frame(time){
   active=active||controller.action!=='idle'||controller.blink>0||controller.gazeMoving();
   const blink=controller.blink;
   const started=performance.now();
-  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt});
+  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt,activity:controller.activity,foodVariant:controller.foodVariant});
   const cost=performance.now()-started;
   frameSamples[sampleCursor]=cost;
   sampleCursor=(sampleCursor+1)%frameSamples.length;

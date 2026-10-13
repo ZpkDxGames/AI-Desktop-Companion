@@ -5,5 +5,7 @@ dist/
 .DS_Store
 *.log
 *.tmp
+smoke-artifacts/
+motion-evidence/
 .vscode/
 .idea/

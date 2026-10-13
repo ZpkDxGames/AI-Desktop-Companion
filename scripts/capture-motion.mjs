@@ -8,7 +8,7 @@ import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {once} from 'node:events';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawn} from 'node:child_process';
 
 const out=resolve(process.argv[2]||'motion-evidence');
 const onlyPerf=process.argv.includes('--performance-only'),onlyClips=process.argv.includes('--clips-only');
@@ -44,8 +44,8 @@ try{
   const img=new Image();img.src='data:image/png;base64,'+skin;await img.decode();
   window.r=new mod.AvatarRenderer(document.querySelector('canvas'));await r.setSkin(img);r.baseYaw=0;
   window.start=(action)=>{window.c=new mod.BehaviorController({seed:2026});c.request(action);};
-  window.draw=(yaw=0)=>r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,
-   foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/30});
+  window.draw=(yaw=0)=>{r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,
+   foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/30});if(r.viewer.renderer.getContext().isContextLost())throw Error('Capture WebGL context lost');};
   window.seek=(seconds)=>{for(let time=0;time<seconds-1e-9;time+=1/120)c.update(Math.min(1/120,seconds-time));};
  },(await readFile('web/assets/sample-skin.png')).toString('base64'));
  if(itemDirectory){
@@ -112,27 +112,32 @@ try{
   const directory=hz===60?'clips':`clips-${hz}`;
   await mkdir(resolve(out,directory),{recursive:true});
   for(const action of [...Object.keys(times),'interrupt-mid-book','interrupt-mid-drink','walk-stop','stand-up']){
-   console.log(`Recording real-renderer clip: ${action} (${hz} Hz simulation / 30 Hz recording)`);
-   const data=await page.evaluate(async({action,hz})=>{
+   console.log(`Rendering actual frame sequence: ${action} (${hz} Hz simulation / 30 fps authored-time video)`);
+   const file=`${directory}/${action}.webm`;
+   const encoder=spawn('ffmpeg',['-v','error','-y','-framerate','30','-f','image2pipe','-vcodec','png','-i','pipe:0','-an','-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','28','-b:v','0','-pix_fmt','yuv420p',resolve(out,file)],{stdio:['pipe','ignore','pipe']});
+   let encoderError='';encoder.stderr.on('data',chunk=>{encoderError+=chunk.toString();});
+   const encoded=once(encoder,'close');
+   const frames=await page.evaluate(({action})=>{
     const special=action==='interrupt-mid-book'?'read':action==='interrupt-mid-drink'?'drink':action==='walk-stop'?'walk':action==='stand-up'?'sit':null;
     start(special||action);if(special)seek(special==='read'?10.9:special==='drink'?1.7:.8);
     if(action==='stand-up')c.request('idle');
-    const canvas=document.querySelector('canvas'),stream=canvas.captureStream(0),track=stream.getVideoTracks()[0];
-    const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:900000});
-    const chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);
-    const done=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
-    const duration=special?4.0:(mod.DURATION[action]||3.2)+.6,frames=Math.ceil(duration*30);let simulationTime=0;
-    for(let i=0;i<frames;i++){
+    window.simulationTime=0;
+    return Math.ceil((special?4.0:(mod.DURATION[action]||3.2)+(action==='read'?1:.6))*30);
+   },{action});
+   for(let i=0;i<frames;i++){
+    const png=await page.evaluate(({action,hz,i})=>{
      if((action.startsWith('interrupt-')&&i===6)||(action==='walk-stop'&&i===30))c.request(action==='walk-stop'?'idle':'wave');
      const target=(i+1)/30;
      while(simulationTime+1/hz<=target+1e-9){c.update(1/hz);simulationTime+=1/hz;}
-     draw(.35);track.requestFrame();await new Promise(resolve=>setTimeout(resolve,1000/30));
-    }
-    recorder.stop();await done;track.stop();
-    const bytes=new Uint8Array(await new Blob(chunks).arrayBuffer());let text='';for(const b of bytes)text+=String.fromCharCode(b);
-    return btoa(text);
-   },{action,hz});
-   const file=`${directory}/${action}.webm`;await writeFile(resolve(out,file),Buffer.from(data,'base64'));manifest.clips.push({file,action,simulationHz:hz,recordingHz:30,yaw:.35});
+     draw(.35);return document.querySelector('canvas').toDataURL('image/png').split(',')[1];
+    },{action,hz,i});
+    if(!encoder.stdin.write(Buffer.from(png,'base64')))await once(encoder.stdin,'drain');
+   }
+   encoder.stdin.end();const [code]=await encoded;if(code!==0)throw Error('Clip encoder failed: '+encoderError);
+   const final=await page.evaluate(()=>({action:c.action,sitPhase:c.sitPhase,propVisibility:c.presentation.visibility,elapsed:c.elapsed,rootY:c.pose().rootY}));
+   if(!['idle','walk','run','sit'].includes(action)&&!action.startsWith('interrupt-')&&final.action!=='idle')throw Error('Incomplete action capture: '+action);
+   if((action==='read'||action.startsWith('interrupt-')||action==='stand-up')&&(final.sitPhase!=='standing'||final.propVisibility!==0))throw Error('Incomplete capture recovery: '+action);
+   manifest.clips.push({file,action,simulationHz:hz,recordingHz:30,yaw:.35,frames,recordingMode:'deterministic actual-renderer PNG frames; authored time, not native display pacing',final});
   }
  }
  if(errors.length)throw Error(errors.join('\n'));await page.evaluate(()=>r.dispose());

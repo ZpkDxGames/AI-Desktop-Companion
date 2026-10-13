@@ -30,6 +30,11 @@ function stored(){
 }
 const state=stored();
 const controller=new BehaviorController({seed:Date.now()});
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
+controller.setReducedMotion(motionPreference.matches);
+motionPreference.addEventListener('change',event=>{
+ controller.setReducedMotion(event.matches);renderer?.effects.setReducedMotion(event.matches);wake();
+});
 controller.setIdleMode(state.idleMode);
 const journal=new RuntimeJournal();
 const framePacer=new FramePacer({activeFps:60,idleFps:20});
@@ -318,7 +323,7 @@ function frame(time){
   active=active||controller.action!=='idle'||controller.blink>0||controller.gazeMoving();
   const blink=controller.blink;
   const started=performance.now();
-  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.gaze[0],gazeY:controller.gaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt,activity:controller.activity,foodVariant:controller.foodVariant});
+  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.eyeGaze[0],gazeY:controller.eyeGaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt,activity:controller.activity,presentation:controller.presentation,foodVariant:controller.foodVariant});
   const cost=performance.now()-started;
   frameSamples[sampleCursor]=cost;
   sampleCursor=(sampleCursor+1)%frameSamples.length;

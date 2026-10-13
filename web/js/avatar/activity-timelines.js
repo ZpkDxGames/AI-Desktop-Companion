@@ -1,3 +1,4 @@
+import {smootherstep,arcPulse} from './motion-polish.js';
 /** Deterministic, authored activity clock. Sampling never allocates when out is supplied. */
 export const ACTIVITY_PHASES=Object.freeze({
  read:Object.freeze([['enter',.65],['open',1.5],['readA',4.6],['pageTurn',5.5],['readB',10.7],['close',11.7]]),
@@ -27,6 +28,7 @@ export function sampleTimeline(action,elapsed,out={}){
  out.time=time;out.duration=phases?end:0;
  out.bookOpen=0;out.pageAngle=0;out.visibility=0;
  out.bite=0;out.bottleTilt=0;
+ out.mouthWeight=0;out.consume=0;out.exit=0;
  if(action==='read'){
   out.visibility=ease(time/.35)*ease((11.7-time)/.7);
   out.bookOpen=ease((time-.65)/.85)*(1-ease((time-10.7)/1));
@@ -35,10 +37,15 @@ export function sampleTimeline(action,elapsed,out={}){
  if(action==='eat'){
   out.visibility=ease(time/.3)*ease((4.8-time)/.6);
   out.bite=time>=2.7?2:time>=1.55?1:0;
+  // Separate deliberate contacts, with the food held lower during chewing.
+  out.mouthWeight=smootherstep((time-.65)/.5)*(1-smootherstep((time-1.55)/.45))
+   +smootherstep((time-2.15)/.38)*(1-smootherstep((time-2.75)/.45));
+  out.consume=.20*smootherstep((time-1.51)/.14)+.22*smootherstep((time-2.66)/.14);
  }
  if(action==='drink'){
   out.visibility=ease(time/.3)*ease((4.4-time)/.45);
   out.bottleTilt=ease((time-1)/.42)*(1-ease((time-3.15)/.6))*.96;
+  out.mouthWeight=smootherstep((time-.4)/.75)*(1-smootherstep((time-2.6)/.85));
  }
  return out;
 }

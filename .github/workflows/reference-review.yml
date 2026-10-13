@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      REVIEW_ROOT: ${{ runner.temp }}/companion-reference
+      REVIEW_ROOT: /tmp/companion-reference-review
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,12 +95,13 @@ jobs:
         working-directory: candidate
         run: node "$REVIEW_ROOT/gallery-check.mjs"
       - name: Finalize checksummed package
-        run: "$RUNNER_TEMP/reference-venv/bin/python" review-tools/.github/scripts/package-reference-review.py "$REVIEW_ROOT" candidate --zip
+        run: |
+          "$RUNNER_TEMP/reference-venv/bin/python" review-tools/.github/scripts/package-reference-review.py "$REVIEW_ROOT" candidate --zip
       - name: Publish complete review artifacts
         uses: actions/upload-artifact@v4
         with:
           name: companion-v4-reference-bb2727b
-          path: ${{ runner.temp }}/companion-reference/publish/*
+          path: /tmp/companion-reference-review/publish/*
           retention-days: 90
       - name: Preserve diagnostics on failure
         if: failure()

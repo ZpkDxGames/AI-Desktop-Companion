@@ -44,7 +44,7 @@ export class AvatarProps{
   return book;
  }
  buildFood(){
-  const group=new Group();group.position.set(1.75,-7.65,-1.15);
+  const group=new Group();group.position.set(2.12,-7.75,-2.6);
   this.foodVariants=FOOD_VARIANTS.map(({id})=>{
    const root=new Group();root.userData.variant=id;group.add(root);
    if(id==='apple'){
@@ -75,7 +75,7 @@ export class AvatarProps{
   return group;
  }
  buildDrink(){
-  const group=new Group();group.position.set(1.75,-7.65,-1.15);
+  const group=new Group();group.position.set(2.12,-7.75,-2.6);
   this.box(group,0x748e9b,1.78,1.97,.88,0,-.2,0);
   this.box(group,0x289fdc,1.39,1.28,.94,0,-.46,.05); // water potion contents
   this.box(group,0x65c4ed,.48,1.08,1.0,-.37,-.39,.02);
@@ -94,17 +94,17 @@ export class AvatarProps{
   this.book.visible=isRead&&state.visibility>.01;
   this.food.visible=isFood&&state.visibility>.01;
   this.drink.visible=isDrink&&state.visibility>.01;
-  this.book.scale.setScalar(.92+.08*state.visibility);
+  this.book.scale.setScalar(1.02+.09*state.visibility);
   this.book.rotation.y=Math.sin(state.time*.59)*.025*(isRead?1:0);
   this.leftCover.rotation.y=(1-state.bookOpen)*1.48;
   this.rightCover.rotation.y=-(1-state.bookOpen)*1.48;
   this.turningPage.rotation.y=state.pageAngle;
   this.turningPage.visible=isRead&&state.bookOpen>.05;
-  this.food.scale.setScalar((state.bite===0?1:state.bite===1?.78:.56)*(.85+.15*state.visibility));
+  this.food.scale.setScalar((state.bite===0?1.26:state.bite===1?1.05:.78)*(.87+.13*state.visibility));
   this.food.rotation.z=isFood?Math.sin(state.time*12)*.055:0;
   for(let i=0;i<this.foodVariants.length;i++)
    this.foodVariants[i].visible=isFood&&FOOD_VARIANTS[i].id===variant;
-  this.drink.scale.setScalar(.85+.15*state.visibility);
+  this.drink.scale.setScalar(1.05+.19*state.visibility);
   this.drink.rotation.x=-.08-state.bottleTilt;
  }
  dispose(){

@@ -97,7 +97,7 @@ try{
   ['read',5.52,'read-page-complete'],['read',11.4,'read-exit'],
   ['sit',.13,'sit-down'],['sit',.8,'sit-seated'],['stand',.35,'sit-standing-up'],
   ['think',1.1,'think-bubble'],['celebrate',.43,'celebrate-flight'],
-  ['celebrate',.82,'celebrate-burst'],['celebrate',2.3,'celebrate-fade'],
+  ['celebrate',1.02,'celebrate-burst'],['celebrate',2.3,'celebrate-fade'],
   ['eat',1.45,'eat-apple','apple'],['eat',1.8,'eat-porkchop','cooked_porkchop'],
   ['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],
   ['drink',1.1,'drink-raise'],['drink',1.9,'drink-sip'],
@@ -106,7 +106,10 @@ try{
   ['read',5.05,'read-quarter-left',null,-.785],
   ['read',5.05,'read-quarter-right',null,.785],
   ['drink',1.9,'drink-quarter',null,.785],
-  ['think',1.1,'think-quarter',null,-.785]
+  ['think',1.1,'think-quarter',null,-.785],
+  ['look',1.6,'look-quarter',null,.785],
+  ['sit',.8,'sit-quarter',null,.785],
+  ['eat',1.45,'eat-apple-quarter','apple',.785]
  ];
  for(const [requested,seconds,label,variant,yaw] of sequence){
   await page.evaluate(({requested,seconds,variant,yaw})=>{
@@ -125,6 +128,17 @@ try{
    });
   },{requested,seconds,variant,yaw});
   const frame=await screenshot(label);
+  if(label.startsWith('eat-')||label==='drink-sip'){
+   await page.evaluate(()=>{
+    const renderer=window.activityRenderer;
+    renderer.props.food.visible=false;renderer.props.drink.visible=false;
+    renderer.viewer.render();
+   });
+   const bare=await screenshot(label+'-no-prop');
+   const changed=await diff(frame,bare);
+   if(changed<65)throw Error(label+' held item not sufficiently visible: '+changed+' changed pixels');
+   console.log('PASS held prop pixel visibility '+label+': '+changed);
+  }
   if(['think-bubble','celebrate-burst','celebrate-flight'].includes(label)){
    await page.evaluate(()=>{
     const renderer=window.activityRenderer;

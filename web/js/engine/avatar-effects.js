@@ -13,8 +13,10 @@ export class AvatarEffects{
    const mesh=new Mesh(geometry,mat);
    mesh.position.set(x,y,depth);mesh.scale.set(w,h,1);this.bubble.add(mesh);
   };
-  square(0,0,6.9,3.5,0,outline);
-  square(0,0,6.35,3.0,.12,ivory);
+  square(0,0,7.1,3.5,0,outline);
+  square(0,0,6.5,2.92,.12,ivory);
+  square(-2.65,1.65,1.25,.82,0,outline);square(-2.65,1.65,.91,.49,.12,ivory);
+  square(2.57,1.6,1.15,.81,0,outline);square(2.57,1.6,.86,.47,.12,ivory);
   square(-1.8,-2.55,1.15,.8,0,outline);square(-1.8,-2.55,.78,.52,.12,ivory);
   square(-3.3,-3.66,.65,.65,0,outline);square(-3.3,-3.66,.38,.38,.12,ivory);
   // Three small pixel dots instead of remote AI-generated text.
@@ -50,18 +52,18 @@ export class AvatarEffects{
   for(let burst=0;burst<2;burst++){
    const age=t-(burst===0?.3:1.15);
    if(age<0||age>1.35)continue;
-   const x=burst===0?-10:10,z=-9.5;
+   const x=burst===0?-15.5:15.5,z=-9.5;
    if(age<.38){
     dummy.position.set(x,-2+age/.38*15,z);
-    dummy.scale.set(.65,1.45,.6);dummy.updateMatrix();
+    dummy.scale.set(1.12,2.05,.88);dummy.updateMatrix();
     this.particles.setMatrixAt(n++,dummy.matrix);
    }else{
-    const progress=(age-.38)/.97,spread=3.6*Math.sin(Math.min(1,progress)*Math.PI*.72);
+    const progress=(age-.38)/.97,spread=5.4*Math.sin(Math.min(1,progress)*Math.PI*.72);
     for(let j=0;j<24;j++){
      const angle=j*Math.PI/12+burst*.32;
      const ring=j%3===0?1:.77;
-     dummy.position.set(x+Math.cos(angle)*spread*ring,13+Math.sin(angle)*spread*ring-3*progress*progress,z-.4*Math.sin(angle));
-     const size=.28*(1-progress)+.07;
+     dummy.position.set(x+Math.cos(angle)*spread*ring,11+Math.sin(angle)*spread*ring-2.2*progress*progress,z-.4*Math.sin(angle));
+     const size=.48*(1-progress)+.10;
      dummy.scale.setScalar(size/.46);dummy.updateMatrix();
      this.particles.setMatrixAt(n++,dummy.matrix);
     }

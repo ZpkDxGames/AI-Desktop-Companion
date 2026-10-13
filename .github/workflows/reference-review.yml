@@ -1,0 +1,111 @@
+name: V4 reference review package
+on:
+  push:
+    branches: [dev/animation-reference-evidence-bb2727b]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      REVIEW_ROOT: ${{ runner.temp }}/companion-reference
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: review-tools
+      - uses: actions/checkout@v4
+        with:
+          ref: bb2727b85ca21d5205620fc571d2f63b9bbe67ce
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 535993fbc50f4a4c5a965d44f923fbfb23b688e0
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install evidence dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python3 -m venv "$RUNNER_TEMP/reference-venv"
+          "$RUNNER_TEMP/reference-venv/bin/pip" install Pillow==11.3.0
+          python3 -m py_compile review-tools/.github/scripts/package-reference-review.py
+          mkdir -p "$REVIEW_ROOT/data" "$REVIEW_ROOT/logs"
+          cd candidate
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          cd ../baseline
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Check tested source and production surfaces
+        working-directory: candidate
+        run: |
+          npm run check > "$REVIEW_ROOT/logs/check.log" 2>&1
+          node scripts/smoke-browser.mjs > "$REVIEW_ROOT/logs/browser.log" 2>&1
+          node scripts/smoke-eye-gpu.mjs > "$REVIEW_ROOT/logs/eyes.log" 2>&1
+          node scripts/smoke-activity-gpu.mjs > "$REVIEW_ROOT/logs/activities.log" 2>&1
+      - name: Capture every final frame and recovery
+        working-directory: candidate
+        run: node scripts/capture-motion.mjs "$REVIEW_ROOT/after" --actions=read,eat,drink --prop-details --clips --clip-rates=30,60,144 > "$REVIEW_ROOT/logs/after-capture.log" 2>&1
+      - name: Capture previous version with the same evidence method
+        run: |
+          mkdir -p baseline/dist
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('candidate/scripts/capture-motion.mjs').read_text()
+          Path('baseline/dist/reference-capture.mjs').write_text(s.replace("id==='book-open'?5:1.6","id==='book-open'?5:.6"))
+          PY
+          cd baseline
+          node dist/reference-capture.mjs "$REVIEW_ROOT/before" --actions=read,eat,drink --prop-details --clips > "$REVIEW_ROOT/logs/before-capture.log" 2>&1
+      - name: Measure both versions sequentially without capture load
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess,os
+          out=Path(os.environ['REVIEW_ROOT'])
+          s=Path('candidate/scripts/capture-motion.mjs').read_text().replace("['idle','walk','read','drink','celebrate']","['idle','walk','read','eat','drink','celebrate']").replace('geometries:r.viewer.renderer.info.memory.geometries','trianglesAllPasses:r.viewer.renderer.info.render.triangles,geometries:r.viewer.renderer.info.memory.geometries')
+          for folder in ['candidate','baseline']:Path(folder+'/dist/reference-performance.mjs').write_text(s)
+          with (out/'logs/cpu.log').open('w') as log:
+            subprocess.run(['node','--expose-gc','scripts/bench-motion.mjs','../baseline',str(out/'data/cpu.json')],cwd='candidate',stdout=log,stderr=subprocess.STDOUT,check=True)
+          for label,folder in [('before','baseline'),('after','candidate'),('before-repeat','baseline'),('after-repeat','candidate')]:
+            with (out/'logs'/('performance-'+label+'.log')).open('w') as log:
+              subprocess.run(['node','dist/reference-performance.mjs',str(out/'data'/('performance-'+label)),'--performance-only'],cwd=folder,stdout=log,stderr=subprocess.STDOUT,check=True)
+          PY
+      - name: Stress final source resources for ten minutes
+        working-directory: candidate
+        run: node scripts/soak-motion.mjs "$REVIEW_ROOT/data/soak.json" > "$REVIEW_ROOT/logs/soak.log" 2>&1
+      - name: Fetch exact tested Windows installer and CI records
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/artifacts/11838978201/zip > "$REVIEW_ROOT/installer-source.zip"
+          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473454109/logs > "$REVIEW_ROOT/logs/windows-build-ci.log"
+          gh api /repos/ZpkDxGames/AI-Desktop-Companion/actions/jobs/115473453915/logs > "$REVIEW_ROOT/logs/source-browser-ci.log"
+      - name: Assemble and certify review files
+        run: |
+          "$RUNNER_TEMP/reference-venv/bin/python" review-tools/.github/scripts/package-reference-review.py "$REVIEW_ROOT" candidate
+          git -C candidate diff --exit-code
+          git -C baseline diff --exit-code
+      - name: Verify gallery media and controls
+        working-directory: candidate
+        run: node "$REVIEW_ROOT/gallery-check.mjs"
+      - name: Finalize checksummed package
+        run: "$RUNNER_TEMP/reference-venv/bin/python" review-tools/.github/scripts/package-reference-review.py "$REVIEW_ROOT" candidate --zip
+      - name: Publish complete review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-v4-reference-bb2727b
+          path: ${{ runner.temp }}/companion-reference/publish/*
+          retention-days: 90
+      - name: Preserve diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-v4-reference-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/companion-reference/logs/*
+          retention-days: 14

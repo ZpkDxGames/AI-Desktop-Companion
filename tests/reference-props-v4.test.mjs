@@ -34,9 +34,9 @@ test('solid food surface avoids the head, hat and jacket during full bites and i
    if(!props.food.visible)continue;
    toHead.copy(skin.head.matrixWorld).invert();toBody.copy(skin.body.matrixWorld).invert();
    const model=props.itemModels.get(id),positions=model.geometry.attributes.position;matrix.multiplyMatrices(toHead,model.mesh.matrixWorld);
-   for(let i=0;i<positions.count;i+=3){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.5&&v.y>-.5&&v.y<8.5&&Math.abs(v.z)<4.5),`head ${mode}/${id}/${frame}`);}
+   for(let i=0;i<positions.count;i++){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.5&&v.y>-.5&&v.y<8.5&&Math.abs(v.z)<4.5),`head ${mode}/${id}/${frame}`);}
    matrix.multiplyMatrices(toBody,model.mesh.matrixWorld);
-   for(let i=0;i<positions.count;i+=3){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.25&&Math.abs(v.y)<6.25&&Math.abs(v.z)<2.25),`jacket ${mode}/${id}/${frame}`);}
+   for(let i=0;i<positions.count;i++){v.fromBufferAttribute(positions,i).applyMatrix4(matrix);assert.ok(!(Math.abs(v.x)<4.25&&Math.abs(v.y)<6.25&&Math.abs(v.z)<2.25),`jacket ${mode}/${id}/${frame}`);}
   }props.dispose();
  }
 });

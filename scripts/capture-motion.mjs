@@ -85,7 +85,9 @@ try{
     window.detailObject=book?r.props.book:r.props.itemModels.get(id).group;
     window.detailParent=detailObject.parent;window.detailPosition=detailObject.position.clone();window.detailQuaternion=detailObject.quaternion.clone();window.detailScale=detailObject.scale.clone();
     window.detailCameraPosition=r.viewer.camera.position.clone();window.detailCameraQuaternion=r.viewer.camera.quaternion.clone();
-    r.viewer.playerObject.visible=false;r.effects.bubble.visible=false;r.effects.particles.visible=false;r.effects.crumbs.visible=false;
+    // Effects already belong to playerObject. Hiding their parent isolates
+    // the prop without changing their visibility for subsequent motion clips.
+    r.viewer.playerObject.visible=false;
     r.viewer.scene.add(detailObject);detailObject.visible=true;detailObject.position.set(0,0,0);detailObject.scale.setScalar(1);detailObject.rotation.set(book?-.62:0,yaw,0);
     r.viewer.camera.position.set(0,3.5,book?16:14);r.viewer.camera.lookAt(0,0,0);r.viewer.camera.updateProjectionMatrix();r.viewer.renderer.render(r.viewer.scene,r.viewer.camera);
    },{id,yaw});

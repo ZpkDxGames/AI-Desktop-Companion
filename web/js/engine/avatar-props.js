@@ -1,9 +1,10 @@
 import {
- BoxGeometry,DataTexture,DoubleSide,Group,Mesh,MeshBasicMaterial,
+ BoxGeometry,DataTexture,DoubleSide,FrontSide,BackSide,Group,Mesh,MeshBasicMaterial,
  MeshLambertMaterial,NearestFilter,PlaneGeometry,RGBAFormat,SRGBColorSpace,UnsignedByteType
 } from 'three';
 import {FOOD_VARIANTS} from '../avatar/prop-manifest.js';
 import {sampleTimeline} from '../avatar/activity-timelines.js';
+import {smootherstep} from '../avatar/motion-polish.js';
 import {createExtrudedItem,FALLBACK_ITEMS,ITEM_IDS,validateSpritePixels} from './item-models.js';
 
 /**
@@ -68,7 +69,8 @@ export class AvatarProps{
  }
  buildBook(){
   const book=new Group();
-  book.position.set(0,-1.25,10.35);
+  book.position.set(0,1.70,8.65);
+  book.userData.grip='two palms / lower cover corners';
   book.userData.displayWidth=7.5;
   this.box(book,0x65442e,.42,4.6,.67,0,0,-.14); // spine: direct child for regression tests
   this.leftCover=new Group();this.rightCover=new Group();
@@ -83,8 +85,17 @@ export class AvatarProps{
   this.turningPage=new Group();
   this.turningPage.position.set(0,0,.30);
   book.add(this.turningPage);
-  this.box(this.turningPage,0xf0e2be,3.09,4.20,.075,pageX,0,0);
-  this.printPage(this.turningPage,pageX,17,.056);
+  // One actual hinged sheet, with distinct front/back print and a small cached
+  // curl. A second rigid page box would intersect the sheet during its turn.
+  const sheet=new PlaneGeometry(3.09,4.20,8,1);sheet.translate(1.545,0,.056);
+  this.geometries.set('turning-sheet',sheet);
+  this.pagePositions=sheet.getAttribute('position');
+  this.pageBase=new Float32Array(this.pagePositions.array);
+  const face=new MeshBasicMaterial({map:this.pageTexture(17),side:FrontSide});
+  const backTexture=this.pageTexture(23);backTexture.repeat.x=-1;backTexture.offset.x=1;
+  const back=new MeshBasicMaterial({map:backTexture,side:BackSide});
+  this.materials.set('sheet-front',face);this.materials.set('sheet-back',back);
+  this.turningPage.add(new Mesh(sheet,face),new Mesh(sheet,back));
   // A thin exposed gilt binding frames the hinge without obscuring the page.
   this.box(book,0xcaa363,.14,4.24,.40,0,0,.045);
   return book;
@@ -93,7 +104,7 @@ export class AvatarProps{
   const group=new Group();
   // Calibrated on the canonical right-hand pivot; the arm supplies reach, the
   // local grip counter-rotates so the item remains legible to the camera.
-  group.position.set(1.8,-9.25,-2.6);
+  group.position.set(-1,-8.7,1.2);
   group.userData.grip='skin.rightArm/wrist';
   group.userData.kind=kind;
   return group;
@@ -101,19 +112,21 @@ export class AvatarProps{
  setItemPixels(id,pixels,width=16){
   if(!ITEM_IDS.includes(id))throw Error('Unknown local item id');
   validateSpritePixels({width,height:width,data:pixels});
-  const model=createExtrudedItem(id,pixels,{width,pixelSize:5.35/width,depth:.39});
+  const thickness=id==='water_potion'?1.4:id==='cake_slice'?1.1:id==='apple'?.85:.65;
+  const model=createExtrudedItem(id,pixels,{width,pixelSize:5.35/width,depth:thickness});
   const parent=id==='water_potion'?this.drinkItem:this.foodVariants[FOOD_VARIANTS.findIndex(v=>v.id===id)];
   const old=this.itemModels.get(id);
   if(old)old.dispose();
   // Each sprite is vertically aligned to the actual hand grip, never to the
   // head or to an independent screen-space position.
   parent.add(model.group);
-  model.group.position.set(0,.15,.22);
+  model.group.position.set(.2,.15,.25);
   this.itemModels.set(id,model);
   return model;
  }
  update(action,elapsed,dt,activity,variant='apple'){
   const state=activity||sampleTimeline(action,elapsed,this.state);
+  action=state.action||action;
   const isRead=action==='read',isFood=action==='eat',isDrink=action==='drink';
   this.levels.book=isRead?state.visibility:0;
   this.levels.food=isFood?state.visibility:0;
@@ -123,26 +136,39 @@ export class AvatarProps{
   this.drink.visible=isDrink&&state.visibility>.01;
   // Open book faces the viewer during a reading pose; tilt upward enough for
   // both page surfaces to be visible, without clipping the face.
-  this.book.scale.setScalar(1.0+.10*state.visibility);
-  this.book.rotation.x=-.10+.11*state.bookOpen+Math.sin(state.time*.47)*.01*(isRead?1:0);
+  const visibility=state.visibility||0,exit=state.exit||0;
+  this.book.scale.setScalar(Math.max(.001,1.04*visibility));
+  this.book.position.set(0,1.70-exit*.4,8.65-exit*.6);
+  this.book.rotation.x=-.16-.03*state.bookOpen+Math.sin(state.time*.47)*.007*(isRead?1:0);
   this.book.rotation.y=Math.sin(state.time*.64)*.028*(isRead?1:0);
   this.leftCover.rotation.y=(1-state.bookOpen)*1.30;
   this.rightCover.rotation.y=-(1-state.bookOpen)*1.30;
   this.turningPage.rotation.y=state.pageAngle;
   this.turningPage.visible=isRead&&state.bookOpen>.05;
-  const foodScale=(state.bite===0?1.00:state.bite===1?.80:.58)*(.92+.08*state.visibility);
+  if(isRead){
+   const curl=Math.sin(Math.abs(state.pageAngle))*.24;
+   const points=this.pagePositions.array,base=this.pageBase;
+   for(let i=0;i<points.length;i+=3)points[i+2]=base[i+2]+Math.sin(base[i]/3.09*Math.PI)*curl;
+   this.pagePositions.needsUpdate=true;
+  }
+  // The inside face of both canonical hands is x=+1 in shoulder-local space.
+  // The item overlaps that face as a grip while its silhouette remains exposed.
+  const slim=this.skin.modelType==='slim';
+  this.food.position.set(slim?2.25:2.40,-9.7,-.80);
+  this.drink.position.set(slim?2.25:2.40,-10.5,-.05);
+  const foodScale=.86*(1-(state.consume??(state.bite===0?0:state.bite===1?.20:.42)))*visibility;
   this.food.scale.setScalar(foodScale);
   // A counter-rotated hand grip keeps the thin item sprite facing outward;
   // body lean and shoulder pitch remain the sole action pose authority.
-  this.food.rotation.x=1.66+Math.sin(state.time*11)*.03*(isFood?1:0);
-  this.food.rotation.y=.23;
-  this.food.rotation.z=-.20+(isFood?Math.sin(state.time*8)*.04:0);
+  const mouth=state.mouthWeight||0;
+  this.food.rotation.x=(-.24-1.62*mouth)-this.skin.rightArm.rotation.x;
+  this.food.rotation.y=.12;this.food.rotation.z=.12+.12*mouth;
   for(let i=0;i<this.foodVariants.length;i++){
    this.foodVariants[i].visible=isFood&&FOOD_VARIANTS[i].id===variant;
   }
-  this.drink.scale.setScalar(.96+.04*state.visibility);
-  this.drink.rotation.x=1.72+state.bottleTilt*.28;
-  this.drink.rotation.y=.18;this.drink.rotation.z=-.12-state.bottleTilt*.36;
+  this.drink.scale.setScalar(1.30*visibility);
+  this.drink.rotation.x=(-.18-1.80*state.bottleTilt)-this.skin.rightArm.rotation.x;
+  this.drink.rotation.y=.10;this.drink.rotation.z=.16+state.bottleTilt*.24;
  }
  dispose(){
   for(const group of [this.book,this.food,this.drink])group.removeFromParent();

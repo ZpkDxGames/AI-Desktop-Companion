@@ -36,7 +36,7 @@ try{
   const img=new Image();img.src='data:image/png;base64,'+skin;await img.decode();
   window.r=new mod.AvatarRenderer(document.querySelector('canvas'));await r.setSkin(img);r.baseYaw=0;
   window.start=(action)=>{window.c=new mod.BehaviorController({seed:2026});c.request(action);};
-  window.draw=(yaw=0)=>r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,
+  window.draw=(yaw=0)=>r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,
    foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/60});
   window.seek=(seconds)=>{for(let time=0;time<seconds-1e-9;time+=1/120)c.update(Math.min(1/120,seconds-time));};
  },(await readFile('web/assets/sample-skin.png')).toString('base64'));
@@ -56,7 +56,7 @@ try{
  }
  await page.evaluate(()=>r.setModelMode('classic'));
  for(const [action,time,label,variant] of extras){
-  await page.evaluate(({action,time,variant})=>{start(action);seek(time);if(variant)c.foodVariant=variant;draw();},{action,time,variant});
+  await page.evaluate(({action,time,variant})=>{start(action);seek(time);if(variant){c.foodVariant=variant;c.updatePresentation?.();}draw();},{action,time,variant});
   const file=`detail-${label}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});
   manifest.shots.push({file,model:'classic',view:'front',action,time,variant});
  }

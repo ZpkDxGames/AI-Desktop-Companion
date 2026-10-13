@@ -1,0 +1,78 @@
+name: V4 complete motion evidence
+on:
+  push:
+    branches: [dev/animation-complete-review-4b98c5f]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      REVIEW_ROOT: /tmp/companion-complete-review
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4b98c5f657c3c3f919f111f5269b5e77cbedae3d
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: bb2727b85ca21d5205620fc571d2f63b9bbe67ce
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated evidence dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          mkdir -p "$REVIEW_ROOT/data" "$REVIEW_ROOT/logs"
+          for folder in candidate baseline; do
+            (cd "$folder" && npm ci --no-audit --no-fund && npm install --no-save --no-package-lock playwright@1.56.1)
+          done
+          cd candidate
+          npx playwright install --with-deps chromium
+      - name: Check exact source and production surfaces
+        working-directory: candidate
+        run: |
+          npm run check > "$REVIEW_ROOT/logs/check.log" 2>&1
+          node scripts/smoke-browser.mjs > "$REVIEW_ROOT/logs/browser.log" 2>&1
+          node scripts/smoke-eye-gpu.mjs > "$REVIEW_ROOT/logs/eyes.log" 2>&1
+          node scripts/smoke-activity-gpu.mjs > "$REVIEW_ROOT/logs/activities.log" 2>&1
+      - name: Capture all 17 final actions and interrupted recovery at 30 60 144 Hz
+        working-directory: candidate
+        run: node scripts/capture-motion.mjs "$REVIEW_ROOT/after" --prop-details --clips --clip-rates=30,60,144 > "$REVIEW_ROOT/logs/after.log" 2>&1
+      - name: Capture all 17 previous actions with the identical frame encoder
+        working-directory: baseline
+        run: node scripts/capture-motion.mjs "$REVIEW_ROOT/before" --prop-details --clips --clip-rates=60 > "$REVIEW_ROOT/logs/before.log" 2>&1
+      - name: Measure completed food rendering and all 17 controllers sequentially
+        working-directory: candidate
+        run: |
+          node scripts/bench-food-renderer.mjs ../baseline "$REVIEW_ROOT/data/food-renderer.json" > "$REVIEW_ROOT/logs/food-renderer.log" 2>&1
+          node --expose-gc scripts/bench-motion.mjs ../baseline "$REVIEW_ROOT/data/cpu.json" > "$REVIEW_ROOT/logs/cpu.log" 2>&1
+          cat "$REVIEW_ROOT/data/food-renderer.json"
+      - name: Ten minute resource test on exact final source
+        working-directory: candidate
+        run: |
+          node scripts/soak-motion.mjs "$REVIEW_ROOT/data/soak.json" > "$REVIEW_ROOT/logs/soak.log" 2>&1
+          cat "$REVIEW_ROOT/data/soak.json"
+      - name: Publish complete raw renderer evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-v4-complete-4b98c5f
+          path: |
+            /tmp/companion-complete-review/before/
+            /tmp/companion-complete-review/after/
+            /tmp/companion-complete-review/data/
+            /tmp/companion-complete-review/logs/
+            candidate/smoke-artifacts/*.png
+          retention-days: 90
+      - name: Preserve diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-v4-complete-diagnostics
+          path: /tmp/companion-complete-review/logs/
+          retention-days: 30

@@ -121,6 +121,46 @@ node --expose-gc scripts/bench-motion.mjs ../motion-baseline ../motion-evidence/
 
 ## Acceptance status and remaining owner checks
 
+### Owner-reference prop follow-up
+
+The owner then requested floor-seated calm reading, vanilla food presentation
+and a glass bottle with draining liquid. This intentionally supersedes the
+earlier standing reading pose and 11.7-second read fixture. Reading now lasts
+26.4 seconds, sits over 850 ms, turns at 10.6 and 20.6, closes at 25.2 and uses
+the existing 650 ms stand/queued-intent path. Book exit is suppressed after its
+single recovery so it cannot reappear while standing. Leather cover trim and
+cached page prints retain the original Minecraft proportions and scene owner.
+
+Food models retain their full sprite size with one-pixel thickness, unlit
+nearest-filter faces, deliberate bites and a finishing opacity fade. A bounded
+16-instance pool in AvatarEffects uses selected food pixel colors for crumbs.
+The first crumb render gate failed because the hand/item hid the particles;
+the authored outward/downward trajectories were corrected and the original
+12-pixel gate passed. No depth-test bypass or visibility threshold reduction
+was used. Reduced motion suppresses this effect.
+
+The flat potion extrusion is removed from active props, replaced with a cached
+voxel glass vessel, water volume and level surface. World-horizontal clipping
+planes keep the water top level while fill drains to zero. The whole bottle
+shell is tested against head/hat and jacket volumes through full sipping and
+interrupted recovery in Classic/Slim, in addition to real-renderer inspection.
+
+Exact vanilla food pixels use the user's selected client JAR/resource-pack ZIP
+or PNGs through the existing local importer. The bounded ZIP reader selects
+only known item paths, limits expanded PNG sizes, checks CRC and does not
+extract files, enumerate installations or use runtime network access. `cake.png`
+aliases the legacy settings key. Original fallback art remains until import;
+no game texture files are committed or bundled in the public installer.
+Local-reference renderer review uses explicit vanilla PNGs, with raw source
+assets excluded from deliverables. This is not a claim of Mojang affiliation
+or ownership of the imported art.
+
+```bash
+# Optional explicit local vanilla texture directory for reference capture:
+node scripts/capture-motion.mjs ../prop-review --actions=read,eat,drink \
+  --item-dir=/path/to/extracted/assets/minecraft/textures/item --clips
+```
+
 Implemented on the development branch; original and V4 automated tests and
 software-WebGL visual/resource checks provide development evidence. Native
 certification remains pending. Review the owner skin and masked/hat layers in

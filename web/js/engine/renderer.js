@@ -35,6 +35,7 @@ export class AvatarRenderer{
   this.viewer.globalLight.intensity=2.25;
   this.viewer.cameraLight.intensity=.85;
   this.viewer.controls.enabled=false;
+  this.viewer.renderer.localClippingEnabled=true;
   this.faceMaterial=new EyeFaceMaterial(this.viewer.playerObject.skin.head);
   this.props=new AvatarProps(this.viewer.playerObject.skin);
   this.rig=new AvatarRig();
@@ -102,7 +103,8 @@ export class AvatarRenderer{
   this.rig.apply(skin,pose);
   this.faceMaterial.update(gazeX,gazeY,blink);
   this.props.update(action,actionElapsed,dt,presentation||activity,presentation?.foodVariant||foodVariant);
-  this.effects.update(action,actionElapsed,dt);
+  const shown=presentation||activity;
+  this.effects.update(action,actionElapsed,dt,shown,this.props.itemModels.get(shown?.foodVariant||foodVariant)?.pixels);
   const bounded=Math.max(.55,Math.min(1.5,Number.isFinite(scale)?scale:1));
   if(Math.abs(this.lastScale-bounded)>.001){
    this.lastScale=bounded;

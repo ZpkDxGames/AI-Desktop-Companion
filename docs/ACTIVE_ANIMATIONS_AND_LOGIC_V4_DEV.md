@@ -42,16 +42,21 @@ dimensions onto the standing sole plane throughout sit/stand.
 | Think | Contemplative head/hand overlap, subtle ponder motion, existing bounded bubble |
 | Celebrate | Two asymmetric hops, staggered arm pumps, existing two behind-character bursts |
 | Look | Brief small steps, head-leading chest scan and return |
-| Read | Two palm-supported cover corners, down-gaze, distinct page front/back, cached sheet curl, close/recovery |
-| Eat | Four original food silhouettes, separate bite contacts, lowered chewing holds, continuous consumption |
-| Drink | Closed volumetric blue-water silhouette, stable grip, neck-to-mouth tilt, swallow/lower/recovery |
+| Read | Supported floor sitting, down-gaze, leather covers facing the reader, curled sheet, two turns ten seconds apart, close and stand recovery |
+| Eat | Thin item sprites, direct vanilla PNG/JAR/ZIP import, deliberate bites, bounded texture-colored crumbs and finishing opacity fade |
+| Drink | Block-shaped clear glass vessel, draining water volume with a level surface, neck-to-mouth tilt, empty bottle lowering/recovery |
 | Inspect | Visual attention/lean only; no desktop sensing or native window awareness |
 | Nod | Anticipatory lift, two decaying dips with subtle torso answer |
 | Shrug | Coordinated arm lift, head tilt, small authored settle |
 | Stretch | Preparatory reach, chest opening, quiet hold/tremor, bounded recovery |
 | Bow | Waist/chest-leading bend, delayed head, balanced hold and rise |
 
-Read/eat/drink phase names, endpoints and event thresholds are preserved.
+Eating/drinking phase endpoints remain preserved. The owner-requested reading
+follow-up extends reading to 26.4 seconds: enter/open, turns at 10.6 and 20.6,
+close at 25.2, then the existing queued stand-up path. Read phase names remain
+recognizable; phase indices and fixed-frame fixtures are migrated for two turns.
+Reading uses the existing seat authority, with an 850 ms sit and 650 ms stand.
+Manual gestures queue while rising; the book closes once without reappearing.
 Timed actions still complete; walk/run/sit remain deliberate continuous actions.
 Decision randomness remains seeded. Blink and saccade streams are independent
 of decision RNG and use absolute deadlines to agree across refresh cadences.
@@ -68,9 +73,20 @@ Periodic percentile diagnostics remain bounded, outside the per-frame hot path.
 OS reduced motion suppresses cosmetic drift/saccades, reduces large gesture
 amplitude and disables existing fireworks. Core UI, prop manipulation, eyes,
 manual blink and pointer response remain available. No graphics UI or native
-permissions are added. The renderer keeps nearest-filter original fallback
-art and explicit validated local PNG imports; no proprietary textures or
-private skin are committed or redistributed.
+permissions are added. The renderer keeps nearest-filter original fallback art.
+Exact vanilla food art is read through explicitly selected PNGs, a Minecraft
+client JAR or resource-pack ZIP; only allowlisted item entries are decoded.
+Archives have size/entry/decompression/CRC limits and never extract to disk or
+scan installations. `cake.png` maps to the legacy `cake_slice` settings key.
+No proprietary texture files or private skin are committed/bundled. Reset
+returns to the original fallback. Drinking replaces the obsolete flat potion
+model with one cached glass/water rig; local water sprites tint its palette.
+
+The existing AvatarEffects owner also renders at most 16 crumb instances.
+Their colors come from selected food pixels; no effect timer or extra RAF is
+introduced. Reduced motion suppresses crumbs as well as fireworks. The water
+top stays horizontal during tilt using cached clipping planes and scratch
+transforms. No mesh/material/texture is created as the fill drains.
 
 ## Validation and limits
 

@@ -13,6 +13,8 @@ import {execFileSync} from 'node:child_process';
 const out=resolve(process.argv[2]||'motion-evidence');
 const onlyPerf=process.argv.includes('--performance-only'),onlyClips=process.argv.includes('--clips-only');
 const clipRates=(process.argv.find(x=>x.startsWith('--clip-rates='))?.split('=')[1]||'60').split(',').map(Number);
+const selectedActions=process.argv.find(x=>x.startsWith('--actions='))?.split('=')[1]?.split(',');
+const itemDirectory=process.argv.find(x=>x.startsWith('--item-dir='))?.slice(11);
 const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 const sourceTree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
 if(clipRates.some(hz=>![30,60,120,144].includes(hz)))throw Error('Unsupported simulation cadence');
@@ -42,12 +44,19 @@ try{
   window.r=new mod.AvatarRenderer(document.querySelector('canvas'));await r.setSkin(img);r.baseYaw=0;
   window.start=(action)=>{window.c=new mod.BehaviorController({seed:2026});c.request(action);};
   window.draw=(yaw=0)=>r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,
-   foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/60});
+   foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/30});
   window.seek=(seconds)=>{for(let time=0;time<seconds-1e-9;time+=1/120)c.update(Math.min(1/120,seconds-time));};
  },(await readFile('web/assets/sample-skin.png')).toString('base64'));
- const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:5.05,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
- const extras=[['read',.14,'read-enter'],['read',1.12,'read-open'],['read',4.7,'read-preturn'],['read',4.825,'read-page-25'],['read',5.05,'read-page-50'],['read',5.275,'read-page-75'],['read',5.6,'read-regrip'],['read',11.4,'read-close'],
-  ['jump',.16,'jump-crouch'],['jump',.82,'jump-land'],['eat',1.8,'eat-porkchop','cooked_porkchop'],['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],['drink',.7,'drink-raise'],['drink',3.6,'drink-lower']];
+ if(itemDirectory){
+  const sources={};for(const [id,file] of [['apple','apple'],['cooked_porkchop','cooked_porkchop'],['golden_carrot','golden_carrot'],['cake_slice','cake']])
+   sources[id]='data:image/png;base64,'+(await readFile(resolve(itemDirectory,file+'.png'))).toString('base64');
+  await page.evaluate(sources=>r.setItemTextures(sources),sources);
+  manifest.foodArt='Explicit local vanilla/resource-pack PNGs; raw source files are excluded from evidence';
+ }
+ const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:11.1,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
+ if(selectedActions){for(const a of selectedActions)if(!(a in times))throw Error('Unknown capture action: '+a);for(const a of Object.keys(times))if(!selectedActions.includes(a))delete times[a];}
+ const extras=[['read',.4,'read-enter'],['read',1.6,'read-open'],['read',10.5,'read-preturn'],['read',10.85,'read-page-25'],['read',11.1,'read-page-50'],['read',11.35,'read-page-75'],['read',11.7,'read-regrip'],['read',21.1,'read-second-page'],['read',25.6,'read-close'],
+  ['jump',.16,'jump-crouch'],['jump',.82,'jump-land'],['eat',1.8,'eat-porkchop','cooked_porkchop'],['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],['eat',4.1,'eat-fade'],['drink',.7,'drink-raise'],['drink',2.6,'drink-empty'],['drink',3.6,'drink-lower']].filter(s=>!selectedActions||selectedActions.includes(s[0]));
  if(!onlyPerf&&!onlyClips){for(const model of ['classic','slim']){
   await page.evaluate(model=>r.setModelMode(model),model);
   for(const [label,yaw] of [['front',0],['left',-.785398],['right',.785398],['side',1.570796]]){
@@ -66,7 +75,7 @@ try{
   manifest.shots.push({file,model:'classic',view:'front',action,time,variant});
  }
  }
- if(!onlyClips)for(const action of ['idle','walk','read','drink','celebrate']){
+ if(!onlyClips)for(const action of ['idle','walk','read','drink','celebrate'].filter(a=>!selectedActions||selectedActions.includes(a))){
   const result=await page.evaluate(action=>{
    start(action);const update=[],render=[];
    for(let i=0;i<420;i++){
@@ -88,7 +97,7 @@ try{
    console.log(`Recording real-renderer clip: ${action} (${hz} Hz simulation / 30 Hz recording)`);
    const data=await page.evaluate(async({action,hz})=>{
     const special=action==='interrupt-mid-book'?'read':action==='interrupt-mid-drink'?'drink':action==='walk-stop'?'walk':action==='stand-up'?'sit':null;
-    start(special||action);if(special)seek(special==='read'?4.9:special==='drink'?1.7:.8);
+    start(special||action);if(special)seek(special==='read'?10.9:special==='drink'?1.7:.8);
     if(action==='stand-up')c.request('idle');
     const canvas=document.querySelector('canvas'),stream=canvas.captureStream(0),track=stream.getVideoTracks()[0];
     const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:900000});

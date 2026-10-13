@@ -31,8 +31,8 @@ test('every seated interrupted transition reaches the queued request safely',()=
   assert.equal(c.request(action),true);
   step(c,.8);
   assert.equal(c.action,action);
-  assert.equal(c.sitPhase,'standing');
-  assert.equal(c.sitAmount,0);
+  assert.equal(c.sitPhase,action==='read'?'seated':'standing');
+  assert.equal(c.sitAmount,action==='read'?1:0);
  }
 });
 test('sitting interruption every 100ms never abandons latest intent',()=>{

@@ -49,7 +49,7 @@ export class BehaviorController{
   this.sitPhase='standing';this.sitAmount=0;this.queuedAction=null;this.queuedSource='manual';
   this.foodVariant='apple';this.foodIndex=-1;this.eventMask=0;this.eventSerial=0;
   sampleTimeline('idle',0,this.activity);
-  this.presentation={};this.recovery={};this.recoveryTime=Infinity;this.propDelay=0;
+  this.presentation={};this.recovery={};this.recoveryTime=Infinity;this.propDelay=0;this.propSuppressed=false;
   this.updatePresentation();
  }
  nextRandom(){this.rngState=(Math.imul(this.rngState,1664525)+1013904223)>>>0;return this.rngState/4294967296;}
@@ -95,12 +95,8 @@ export class BehaviorController{
  begin(action,source){
   // 1. Freeze what the viewer sees right now (position AND velocity).
   this.captureMotion();
-  const prop=this.presentation;
   this.propDelay=this.recoveryTime<.3?.3:0;
-  if((prop.action==='read'||prop.action==='eat'||prop.action==='drink')&&prop.visibility>.01){
-   for(const key in prop)this.recovery[key]=prop[key];
-   this.recoveryTime=0;this.propDelay=.3;
-  }
+  this.recoverProp();this.propSuppressed=false;
   if(action!==this.action)this.previous=this.action;
   this.action=action;this.source=source;this.elapsed=0;this.eventMask=0;
   if(action==='eat'){
@@ -108,17 +104,23 @@ export class BehaviorController{
    if(index===this.foodIndex)index=(index+1)%FOOD_VARIANTS.length;
    this.foodIndex=index;this.foodVariant=FOOD_VARIANTS[index].id;
   }
-  // 2. Sample the new action's raw pose and its velocity at t0 (short look-ahead).
   sampleTimeline(action,0,this.activity);
-  // 3. Offset makes output continuous; spring in update() eases it away.
   this.reconcileOffsets();
   this.updatePresentation();
+ }
+ recoverProp(){
+  const prop=this.presentation;
+  if((prop.action==='read'||prop.action==='eat'||prop.action==='drink')&&prop.visibility>.01){
+   for(const key in prop)this.recovery[key]=prop[key];
+   this.recoveryTime=0;this.propDelay=.3;
+  }
  }
  updatePresentation(){
   const p=this.presentation,old=this.recovery;
   if(this.recoveryTime<.3){
    const t=this.recoveryTime;
    for(const key in old)p[key]=old[key];
+   p.time=old.time+t;
    p.exit=smootherstep(t/.3);
    p.visibility=old.visibility*(1-smootherstep((t-.10)/.20));
    p.bookOpen=old.bookOpen*(1-smootherstep((t-.11)/.19));
@@ -129,10 +131,20 @@ export class BehaviorController{
    for(const key in this.activity)p[key]=this.activity[key];
    p.foodVariant=this.foodVariant;p.exit=0;
    if(this.propDelay)p.visibility*=smootherstep((this.elapsed-this.propDelay)/.22);
+   if(this.propSuppressed)p.visibility=0;
   }
  }
  request(action,{source='manual'}={}){
   if(!ACTIONS.includes(action))return false;
+  if(action==='read'){
+   // The existing seat state owns reading entry, reversals and standing exits.
+   if(source==='auto'&&this.sitPhase!=='standing')return false;
+   if(source!=='manual'&&PRIORITY.read<PRIORITY[this.action]&&DURATION[this.action])return false;
+   if(this.sitPhase==='standing')this.sitAmount=0;
+   this.begin('read',source);this.queuedAction=null;
+   this.setSeatPhase(this.sitAmount>=1?'seated':'sittingDown');
+   if(source==='manual')this.resetIdleCountdown();return true;
+  }
   if(action==='sit'){
    if(this.sitPhase==='standing'&&action!==this.action && PRIORITY[action]<PRIORITY[this.action]&&DURATION[this.action]&&source!=='manual')return false;
    if(this.sitPhase==='standing'){this.sitAmount=0;this.begin('sit',source);}
@@ -145,6 +157,7 @@ export class BehaviorController{
    // One latest intention is retained while rising, rather than dropped.
    if(source==='auto')return false;
    this.queuedAction=action;this.queuedSource=source;
+   if(this.action==='read'&&!this.propSuppressed){this.recoverProp();this.propSuppressed=true;this.updatePresentation();}
    this.setSeatPhase('standingUp');
    this.resetIdleCountdown();
    return true;
@@ -212,11 +225,12 @@ export class BehaviorController{
   const saccadeBlend=1-Math.exp(-saccadeDt*32);
   for(let axis=0;axis<2;axis++){
    this.eyeJitter[axis]+=(this.eyeJitterTarget[axis]-this.eyeJitter[axis])*saccadeBlend;
-   const activityAim=this.action==='read'?(axis===0?Math.sin(this.elapsed*.85)*.06:.20):0;
-   this.eyeGaze[axis]=clamp(this.gaze[axis]+(this.reducedMotion?0:this.eyeJitter[axis])+activityAim,-1,1);
+   const reading=this.action==='read'&&!this.propSuppressed;
+   const activityAim=reading?(axis===0?Math.sin(this.elapsed*.48+.3)*.04:-.28):0;
+   this.eyeGaze[axis]=clamp(this.gaze[axis]*(reading?.22:1)+(this.reducedMotion?0:this.eyeJitter[axis]*(reading?.5:1))+activityAim,-1,1);
   }
   if(this.sitPhase==='sittingDown'){
-   this.sitAmount=clamp(this.sitAmount+dt/.35,0,1);
+   this.sitAmount=clamp(this.sitAmount+dt/(this.action==='read'?.85:.35),0,1);
    if(this.sitAmount>=1)this.sitPhase='seated';
   }else if(this.sitPhase==='standingUp'){
    this.sitAmount=clamp(this.sitAmount-dt/.65,0,1);
@@ -227,7 +241,10 @@ export class BehaviorController{
    }
   }
   // Advance one-shot event counters only across thresholds, never from pose/render.
-  if(this.action==='read'&&before<4.6&&this.elapsed>=4.6&&!(this.eventMask&1)){this.eventMask|=1;this.eventSerial++;}
+  if(this.action==='read'){
+   if(before<10.6&&this.elapsed>=10.6&&!(this.eventMask&1)){this.eventMask|=1;this.eventSerial++;}
+   if(before<20.6&&this.elapsed>=20.6&&!(this.eventMask&32)){this.eventMask|=32;this.eventSerial++;}
+  }
   if(this.action==='celebrate'){
    if(before<.3&&this.elapsed>=.3&&!(this.eventMask&2)){this.eventMask|=2;this.eventSerial++;}
    if(before<1.15&&this.elapsed>=1.15&&!(this.eventMask&4)){this.eventMask|=4;this.eventSerial++;}
@@ -236,7 +253,7 @@ export class BehaviorController{
    if(before<1.55&&this.elapsed>=1.55&&!(this.eventMask&8)){this.eventMask|=8;this.eventSerial++;}
    if(before<2.7&&this.elapsed>=2.7&&!(this.eventMask&16)){this.eventMask|=16;this.eventSerial++;}
   }
-  if(DURATION[this.action]&&this.elapsed>=DURATION[this.action]&&this.sitPhase==='standing')
+  if(DURATION[this.action]&&this.elapsed>=DURATION[this.action]&&(this.sitPhase==='standing'||this.action==='read'&&this.sitPhase==='seated'))
    this.request('idle',{source:'system'});
   if(this.action==='idle'&&this.idleMode!=='off'&&dt>0){
    this.idleCountdown-=dt;
@@ -273,8 +290,8 @@ export class BehaviorController{
    p.headZ+=-.08*raise-Math.sin(e*13-.9)*.012*raise;   // head answers the hand a beat later
    p.bodyZ+=.03*raise;p.rootX+=.1*raise;
   }
-  if(a==='sit'){
-   const rate=this.sitPhase==='sittingDown'?1/.35:this.sitPhase==='standingUp'?-1/.65:0;
+  if(a==='sit'||a==='read'){
+   const rate=this.sitPhase==='sittingDown'?1/(a==='read'?.85:.35):this.sitPhase==='standingUp'?-1/.65:0;
    const w=smootherstep(this.sitAmount+rate*lead);
    p.armRX+=-.12*w;p.armLX+=-.12*w;
    // Floor sitting: pelvis and horizontal legs meet the standing foot plane.

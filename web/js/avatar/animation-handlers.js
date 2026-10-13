@@ -3,7 +3,7 @@ import {smootherstep,easeOutBack,easeInOutBack,clamp01} from './motion-polish.js
 /** Retain the one BehaviorController and rig; handlers are pure pose samplers only. */
 export const EXTRA_ANIMATIONS=Object.freeze({
  look:Object.freeze({duration:3.8,priority:1}),
- read:Object.freeze({duration:11.7,priority:2}),
+ read:Object.freeze({duration:26.4,priority:2}),
  eat:Object.freeze({duration:4.8,priority:2}),
  drink:Object.freeze({duration:4.4,priority:2}),
  inspect:Object.freeze({duration:4.2,priority:2}),
@@ -35,19 +35,18 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
   pose.headX+=Math.sin(elapsed*.78)*.09*w;
  }
  if(name==='read'){
-  pose.rootY-=.18*w;pose.rootZ+=.15*w;
-  pose.legRX=-.08*w;pose.legLX=-.08*w;
-  pose.armRX=-1.13*w;pose.armLX=-1.13*w;
-  pose.armRZ=.12*w;pose.armLZ=-.12*w;
-  pose.headX+=.23*w;
+  const hold=ease((elapsed-.45)/.65)*(1-ease((elapsed-25.45)/.85));
+  pose.armRX=-1.40*hold;pose.armLX=-1.40*hold;
+  pose.armRZ=.12*hold;pose.armLZ=-.12*hold;
+  pose.headX+=.52*hold;pose.bodyX+=.035*hold;
   if(phase==='readA'||phase==='readB'){
-   pose.headY+=Math.sin(elapsed*.79)*.057*w;
-   pose.headX+=Math.sin(elapsed*.53)*.016*w;
+   pose.headY+=Math.sin(elapsed*.48)*.040*hold;
+   pose.headX+=Math.sin(elapsed*.36)*.009*hold;
   }
   if(phase==='pageTurn'){
    const assist=Math.sin(activity.phaseProgress*Math.PI);
-   pose.armRX-=.055*assist*w;pose.armRZ+=.025*assist*w;
-   pose.headY+=.025*assist*w;
+   pose.armRX-=.040*assist*hold;pose.armRZ+=.020*assist*hold;
+   pose.headY+=.025*assist*hold;
   }
  }
  if(name==='eat'){

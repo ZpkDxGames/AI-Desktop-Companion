@@ -1,7 +1,7 @@
-import {smootherstep,arcPulse} from './motion-polish.js';
+import {smootherstep} from './motion-polish.js';
 /** Deterministic, authored activity clock. Sampling never allocates when out is supplied. */
 export const ACTIVITY_PHASES=Object.freeze({
- read:Object.freeze([['enter',.65],['open',1.5],['readA',4.6],['pageTurn',5.5],['readB',10.7],['close',11.7]]),
+ read:Object.freeze([['enter',.8],['open',1.6],['readA',10.6],['pageTurn',11.6],['readB',25.2],['close',26.4]]),
  eat:Object.freeze([['equip',.4],['raise',1],['bite1',1.55],['chew1',2.15],['bite2',2.7],['chew2',3.45],['finish',4.8]]),
  drink:Object.freeze([['equip',.4],['raise',1],['sip',2.4],['swallow',3.2],['lower',3.85],['putAway',4.4]]),
  look:Object.freeze([['start',.55],['explore',3.25],['return',3.8]]),
@@ -29,10 +29,17 @@ export function sampleTimeline(action,elapsed,out={}){
  out.bookOpen=0;out.pageAngle=0;out.visibility=0;
  out.bite=0;out.bottleTilt=0;
  out.mouthWeight=0;out.consume=0;out.exit=0;
+ out.pageIndex=0;out.foodOpacity=1;out.waterFill=1;
  if(action==='read'){
-  out.visibility=ease(time/.35)*ease((11.7-time)/.7);
-  out.bookOpen=ease((time-.65)/.85)*(1-ease((time-10.7)/1));
-  out.pageAngle=-Math.PI*ease((time-4.6)/.9);
+  // Sit first; then calmly read. The two turns begin exactly ten seconds apart.
+  out.visibility=smootherstep((time-.55)/.55)*(1-smootherstep((time-25.8)/.6));
+  out.bookOpen=smootherstep((time-.8)/.8)*(1-smootherstep((time-25.2)/1.0));
+  if(time>=10.6&&time<25.2){
+   const cycle=Math.floor((time-10.6)/10),age=time-10.6-cycle*10;
+   out.pageIndex=cycle+(age>=1?1:0);
+   if(age<1){out.phase='pageTurn';out.phaseIndex=3+cycle*2;out.phaseProgress=age;out.pageAngle=-Math.PI*smootherstep(age);}
+   else{out.phase='readB';out.phaseIndex=4+cycle*2;out.phaseProgress=(age-1)/9;out.pageAngle=-Math.PI;}
+  }else if(time>=25.2){out.phaseIndex=7;out.pageIndex=2;out.pageAngle=-Math.PI;}
  }
  if(action==='eat'){
   out.visibility=ease(time/.3)*ease((4.8-time)/.6);
@@ -40,12 +47,14 @@ export function sampleTimeline(action,elapsed,out={}){
   // Separate deliberate contacts, with the food held lower during chewing.
   out.mouthWeight=smootherstep((time-.65)/.5)*(1-smootherstep((time-1.55)/.45))
    +smootherstep((time-2.15)/.38)*(1-smootherstep((time-2.75)/.45));
-  out.consume=.20*smootherstep((time-1.51)/.14)+.22*smootherstep((time-2.66)/.14);
+  out.foodOpacity=1-smootherstep((time-3.55)/1.05);
+  out.consume=1-out.foodOpacity;
  }
  if(action==='drink'){
   out.visibility=ease(time/.3)*ease((4.4-time)/.45);
   out.bottleTilt=ease((time-1)/.42)*(1-ease((time-3.15)/.6))*.96;
   out.mouthWeight=smootherstep((time-.4)/.75)*(1-smootherstep((time-2.6)/.85));
+  out.waterFill=1-smootherstep((time-1.25)/1.15);
  }
  return out;
 }

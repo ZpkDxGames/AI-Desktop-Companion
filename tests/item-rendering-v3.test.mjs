@@ -49,8 +49,8 @@ test('prop rigs mount to existing skin joints; enlarged book faces camera and ha
  assert.equal(p.drink.parent,skin.rightArm);
  assert.ok(p.book.userData.displayWidth>=6.8,'book should be readable at character preview scale');
  assert.ok(p.turningPage?.rotation);
- const state=sampleTimeline('read',5.05,{});
- p.update('read',5.05,.05,state);
+ const state=sampleTimeline('read',11.1,{});
+ p.update('read',11.1,.05,state);
  assert.ok(Math.abs(p.turningPage.rotation.y)>1);
  assert.equal(p.foodVariants.length,4);
  p.update('eat',1.9,.05,sampleTimeline('eat',1.9,{}),'apple');
@@ -62,15 +62,15 @@ test('prop rigs mount to existing skin joints; enlarged book faces camera and ha
  assert.equal(skin.rightArm.children.length,0);
 });
 
-test('book uses standing posture and food/drink hands reach mouth without face-level overraise',()=>{
+test('book uses supported floor posture and food/drink hands reach mouth without face-level overraise',()=>{
  const c=new BehaviorController();
  for(const action of ['read','eat','drink']){
   c.request('idle');c.request(action);
   for(let n=0;n<36;n++)c.update(.05);
   const p=c.pose();
   if(action==='read'){
-   assert.ok(p.rootY>-.8,'reading should not fake unsupported seated floor');
-   assert.ok(p.legRX>-.30,'standing legs must remain planted');
+   assert.ok(p.rootY<-9,'reading pelvis should reach the floor seat');
+   assert.ok(p.legRX<-1.4,'seated legs should extend in front');
   }else{
    assert.ok(p.armRX< -1.3&&p.armRX> -2.05,'food and drink grip should align near mouth, not eyes');
   }

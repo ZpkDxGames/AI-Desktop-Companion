@@ -10,7 +10,7 @@ const advance=(c,seconds)=>{
 test('new activity actions are registered and all props use bounded durations',()=>{
  for(const a of ['look','read','eat','drink','inspect']){
   assert.ok(ACTIONS.includes(a),a);
-  assert.ok(DURATION[a]>2 && DURATION[a]<12,a);
+  assert.ok(DURATION[a]>2 && DURATION[a]<(a==='read'?28:12),a);
  }
 });
 test('calm auto-idle is bounded and deterministic with a fixed seed',()=>{
@@ -79,7 +79,7 @@ test('props mount once to canonical skin parts, change visibility, and release o
 });
 
 test('reading hands converge toward book; eating and drinking use inward arm roll',()=>{
- const read=new BehaviorController();read.request('read');advance(read,.6);
+ const read=new BehaviorController();read.request('read');advance(read,1.6);
  assert.ok(read.pose().armRZ>.1,'right arm must turn inward while reading');
  assert.ok(read.pose().armLZ<-.1,'left arm must turn inward while reading');
  const eat=new BehaviorController();eat.request('eat');advance(eat,.6);

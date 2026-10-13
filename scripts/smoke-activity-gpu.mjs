@@ -12,7 +12,7 @@ import {once} from 'node:events';
 
 await mkdir('smoke-artifacts',{recursive:true});
 await writeFile('smoke-artifacts/activity-probe-entry.js',
-  "export {AvatarRenderer} from '../web/js/engine/renderer.js';\nexport {BehaviorController} from '../web/js/avatar/animation.js';\n");
+  "export {AvatarRenderer} from '../web/js/engine/renderer.js';\nexport {BehaviorController} from '../web/js/avatar/animation.js';\nexport {readSelectedItemPngs} from '../web/js/engine/item-import.js';\n");
 await build({configFile:false,root:process.cwd(),logLevel:'error',build:{
  target:'es2020',outDir:'dist/activity-probe',emptyOutDir:false,sourcemap:false,
  lib:{entry:resolve('smoke-artifacts/activity-probe-entry.js'),formats:['es'],fileName:'activity'}
@@ -42,13 +42,13 @@ try{
  await page.goto('http://127.0.0.1:'+server.address().port+'/activity-probe/probe.html');
  const seed=(await readFile('web/assets/sample-skin.png')).toString('base64');
  await page.evaluate(async base64=>{
-   const {AvatarRenderer,BehaviorController}=await import('/activity-probe/activity.js');
+   const {AvatarRenderer,BehaviorController,readSelectedItemPngs}=await import('/activity-probe/activity.js');
    const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();
    const renderer=new AvatarRenderer(document.getElementById('activity-canvas'));
    await renderer.setSkin(image);
    window.activityRenderer=renderer;
    window.activityController=new BehaviorController();
-   window.BehaviorController=BehaviorController;
+   window.BehaviorController=BehaviorController;window.readSelectedItemPngs=readSelectedItemPngs;
  },seed);
  const canvas=page.locator('#activity-canvas');
  const screenshot=async filename=>canvas.screenshot({path:'smoke-artifacts/activity-fixed-'+filename+'.png'});
@@ -69,8 +69,8 @@ try{
 
  for(const action of ['read','eat','drink']){
    await page.evaluate(name=>{
-     const c=window.activityController;
-     c.request('idle');c.request(name);
+     const c=window.activityController=new window.BehaviorController();
+     c.request(name);
      for(let i=0;i<15;i++){c.update(.05);c.pose();}
      const renderer=window.activityRenderer;
      renderer.render(c.pose(),{action:name,actionElapsed:c.elapsed,dt:1});
@@ -92,9 +92,9 @@ try{
  // Authored time, never wall-clock screenshot timing: saved real WebGL frames
  // represent every requested action for visual diff and manual review.
  const sequence=[
-  ['read',.14,'read-enter'],['read',1.12,'read-open'],
-  ['read',4.7,'read-page-start'],['read',5.05,'read-page-half'],
-  ['read',5.52,'read-page-complete'],['read',11.4,'read-exit'],
+  ['read',.14,'read-enter'],['read',1.6,'read-open'],
+  ['read',10.7,'read-page-start'],['read',11.1,'read-page-half'],
+  ['read',11.62,'read-page-complete'],['read',25.6,'read-exit'],
   ['sit',.13,'sit-down'],['sit',.8,'sit-seated'],['stand',.35,'sit-standing-up'],
   ['think',1.1,'think-bubble'],['celebrate',.43,'celebrate-flight'],
   ['celebrate',1.02,'celebrate-burst'],['celebrate',2.3,'celebrate-fade'],
@@ -103,8 +103,8 @@ try{
   ['drink',1.1,'drink-raise'],['drink',1.9,'drink-sip'],
   ['look',.95,'look-steps'],['look',2.25,'look-scan'],
   ['inspect',1.5,'inspect-visual-preview'],
-  ['read',5.05,'read-quarter-left',null,-.785],
-  ['read',5.05,'read-quarter-right',null,.785],
+  ['read',11.1,'read-quarter-left',null,-.785],
+  ['read',11.1,'read-quarter-right',null,.785],
   ['drink',1.9,'drink-quarter',null,.785],
   ['think',1.1,'think-quarter',null,-.785],
   ['look',1.6,'look-quarter',null,.785],
@@ -151,6 +151,13 @@ try{
    if(changed<10)throw Error(label+' GPU effect is invisible: '+changed+' changed pixels');
    console.log('PASS fixed-pose GPU '+label+': '+changed+' effect pixels');
   }
+  if(label==='eat-apple'){
+   await page.evaluate(()=>{const r=window.activityRenderer;r.props.food.visible=true;r.effects.crumbs.count=0;r.viewer.render();});
+   const bare=await screenshot('eat-crumbs-off');
+   const changed=await diff(frame,bare);
+   if(changed<12)throw Error('Eating crumbs invisible in WebGL: '+changed);
+   console.log('PASS fixed-pose GPU eating crumbs: '+changed+' effect pixels');
+  }
  }
 
  // Confirm the user-controlled local texture can replace fallback without a second
@@ -168,6 +175,14 @@ try{
   renderer.render(c.pose(),{action:'eat',actionElapsed:c.elapsed,foodVariant:'apple',activity:c.activity,dt:.05});
  });
  const importFrame=await screenshot('v3-local-apple-imported');
+ // The same local-only path reads a selected client JAR; unrelated entries are ignored.
+ const importedArchive=await page.evaluate(async base64=>{
+  const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+  const result=await window.readSelectedItemPngs([new File([bytes],'client.jar',{type:'application/java-archive'})]);
+  if(result.count!==2||Object.keys(result.sprites).sort().join(',')!=='apple,cake_slice')throw Error('JAR selected the wrong assets');
+  await window.activityRenderer.setItemTextures(result.sprites);return result.count;
+ },"UEsDBBQAAAAIAFWoTV3KdgpZXQAAAGEAAAAoAAAAYXNzZXRzL21pbmVjcmFmdC90ZXh0dXJlcy9pdGVtL2FwcGxlLnBuZ+sM8HPn5ZLiYmBg4PX0cAkC0gIgzMEGJOU//08EUhqeLo4hFXOSEyQyDnScEax88W2+hG/+k/KDXw0DXzUFMrvxSsiw8dgwMLxRZJGwVzbIBOph8HT1c1nnlNAEAFBLAwQUAAAACABVqE1dynYKWV0AAABhAAAAJwAAAGFzc2V0cy9taW5lY3JhZnQvdGV4dHVyZXMvaXRlbS9jYWtlLnBuZ+sM8HPn5ZLiYmBg4PX0cAkC0gIgzMEGJOU//08EUhqeLo4hFXOSEyQyDnScEax88W2+hG/+k/KDXw0DXzUFMrvxSsiw8dgwMLxRZJGwVzbIBOph8HT1c1nnlNAEAFBLAwQUAAAACABVqE1dKdxC+Q4AAAAMAAAAFwAAAGlycmVsZXZhbnQvcGFzc3dvcmQudHh0y8svUShOzUlNLklNAQBQSwECFAMUAAAACABVqE1dynYKWV0AAABhAAAAKAAAAAAAAAAAAAAAgAEAAAAAYXNzZXRzL21pbmVjcmFmdC90ZXh0dXJlcy9pdGVtL2FwcGxlLnBuZ1BLAQIUAxQAAAAIAFWoTV3KdgpZXQAAAGEAAAAnAAAAAAAAAAAAAACAAaMAAABhc3NldHMvbWluZWNyYWZ0L3RleHR1cmVzL2l0ZW0vY2FrZS5wbmdQSwECFAMUAAAACABVqE1dKdxC+Q4AAAAMAAAAFwAAAAAAAAAAAAAAgAFFAQAAaXJyZWxldmFudC9wYXNzd29yZC50eHRQSwUGAAAAAAMAAwDwAAAAiAEAAAAA");
+ console.log('PASS browser local JAR decoding: '+importedArchive+' allowlisted PNGs; unrelated data excluded');
  await page.evaluate(async()=>{
   const renderer=window.activityRenderer;
   await renderer.setItemTextures({});
@@ -180,7 +195,7 @@ try{
  if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
  await page.evaluate(()=>window.activityRenderer.dispose());
  await page.close();
-}finally{
+}catch(error){console.error(error.stack||error);throw error;}finally{
  await browser?.close();
  await new Promise(resolve=>server.close(resolve));
 }

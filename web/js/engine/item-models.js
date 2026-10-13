@@ -97,9 +97,9 @@ export const FALLBACK_ITEMS=Object.freeze(rasters);
 /** No paths, traversal or unknown resources: only explicitly named local PNGs. */
 export function resolveItemId(name){
  if(typeof name!=='string'||name.includes('..')||name.includes('\\')||name.startsWith('/'))return null;
- const match=/(?:^|\/)\b(apple|cooked_porkchop|golden_carrot|cake_slice|water_potion|potion)\.png$/i.exec(name);
+ const match=/(?:^|\/)\b(apple|cooked_porkchop|golden_carrot|cake_slice|cake|water_potion|potion)\.png$/i.exec(name);
  if(!match)return null;
- return match[1].toLowerCase()==='potion'?'water_potion':match[1].toLowerCase();
+ const id=match[1].toLowerCase();return id==='potion'?'water_potion':id==='cake'?'cake_slice':id;
 }
 export function validateSpritePixels({width,height,data}){
  if(!Number.isInteger(width)||width!==height||![16,32,64,128].includes(width))throw Error('Unsupported item texture dimensions');
@@ -164,7 +164,7 @@ export function createExtrudedItem(id,pixels,{width=16,pixelSize=.235,depth=.31}
  const sideMaterial=new MeshLambertMaterial({color:0xffffff,vertexColors:true,side:DoubleSide});
  const depthMesh=new Mesh(sideGeo,sideMaterial);group.add(depthMesh);
  group.userData.displayWidth=length;
- return {group,front,back,depth:depthMesh,texture,dispose(){
+ return {group,front,back,depth:depthMesh,texture,pixels,dispose(){
   group.removeFromParent();frontGeometry.dispose();sideGeo.dispose();texture.dispose();
   faceMaterial.dispose();sideMaterial.dispose();
  }};

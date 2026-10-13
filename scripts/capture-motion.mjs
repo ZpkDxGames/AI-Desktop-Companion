@@ -65,11 +65,12 @@ try{
    start(action);const update=[],render=[];
    for(let i=0;i<420;i++){
     let t=performance.now();c.update(1/60);const p=c.pose();const u=performance.now()-t;
-    t=performance.now();r.render(p,{action:c.action,actionElapsed:c.elapsed,activity:c.activity,foodVariant:c.foodVariant,dt:1/60});
+    r.viewer.renderer.info.autoReset=false;r.viewer.renderer.info.reset();
+    t=performance.now();r.render(p,{action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,foodVariant:c.foodVariant,dt:1/60});
     if(i>=60){update.push(u);render.push(performance.now()-t);}
    }
    const quantile=rows=>{rows.sort((a,b)=>a-b);return {p50:rows[Math.floor(rows.length*.5)],p95:rows[Math.floor(rows.length*.95)],p99:rows[Math.floor(rows.length*.99)]};};
-   return {updatePoseMs:quantile(update),renderSubmissionMs:quantile(render),drawCalls:r.viewer.renderer.info.render.calls,
+   return {updatePoseMs:quantile(update),renderSubmissionMs:quantile(render),drawCallsAllPasses:r.viewer.renderer.info.render.calls,
     geometries:r.viewer.renderer.info.memory.geometries,textures:r.viewer.renderer.info.memory.textures};
   },action);manifest.performance.push({action,...result});
  }

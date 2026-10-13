@@ -96,14 +96,14 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
   pose.armRX+=-2.6*reach+Math.sin(elapsed*24)*.018*trembleGate;
   pose.armLX+=-2.6*reach-Math.sin(elapsed*24)*.018*trembleGate;
   pose.armRZ+=.08*reach;pose.armLZ-=.08*reach;
-  pose.rootY+=.35*reach;pose.bodyX+=-.1*reach;pose.headX+=-.14*reach;
+  pose.rootY+=.12*reach;pose.bodyX+=-.1*reach;pose.headX+=-.14*reach;
  }
  if(name==='bow'){
   // Bow from the waist: torso leads, head follows, hold, rise slightly early.
   const down=easeInOutBack(clamp01(elapsed/.6),.5)*ease((config.duration-elapsed)/.6);
   const head=easeInOutBack(clamp01((elapsed-.1)/.6),.5)*ease((config.duration-elapsed-.1)/.6);
   pose.bodyX+=.3*down;pose.headX+=.42*head;
-  pose.armRX+=.2*down;pose.armLX+=.2*down;pose.rootZ+=-.25*down;pose.rootY+=-.5*down;  // front camera: the dip is what reads as a bow
+  pose.armRX+=.2*down;pose.armLX+=.2*down;pose.rootZ+=-.25*down;pose.rootY+=-.08*down;
  }
  return true;
 }

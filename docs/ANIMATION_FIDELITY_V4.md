@@ -55,7 +55,66 @@ Candidate decisions to validate during implementation:
 - Reconstruct prop grips and exits inside the canonical renderer, preserving
   cached models, approved local sprites and disposal.
 
-## Acceptance status
+## Implemented milestone changes
 
-M0 baseline recorded. M1–M5 are in progress. No native certification or owner
-acceptance is implied. Main must not be merged without explicit acceptance.
+M1 replaces the fixed crossfade and numerical prototype with exact critically
+damped offsets preserving position and measured incoming velocity. Sampling is
+idempotent, explicit-time and allocation-free in the authored hot path. Blink
+and saccade deadlines agree across cadences without consuming decision RNG.
+Quiet joint motion supplies breathing; original geometry is never chest-scaled.
+
+M2 authors C1 jump preparation/impact, passing-phase walking, distinct running,
+floor-aligned sitting, continuous seat reversals and full-body gestures. The
+new rig coordinates original sibling joints about the waist so the neck and
+shoulders remain attached. Timed actions, priorities and sit intent are retained.
+
+M3 calibrates book cover corners against actual Classic/Slim palms, adds a
+cached curled sheet with separate printed sides, separates bites from chewing,
+keeps consumption continuous, and adds controlled bottle tilt and recovery.
+Items have a closed extruded back and modest depth; water side tint comes from
+the existing or imported sprite. No external game assets are introduced.
+Controller-owned prop recovery preserves the old prop on interruption, then
+closes/lowers it over 300 ms without delaying manual action acceptance.
+
+The first visual refinement failed: inward grips obscured food/potion and hands
+covered pages. Actual front/quarter/side captures exposed this despite green
+unit tests. Grip locations, book height and item depth/closed backs were revised.
+The existing GPU item visibility gates then passed without weaker thresholds.
+
+M4 preserves 60/20 scheduling, bounds cached resources and adds reproducible
+CPU/real-WebGL profiling plus a ten-minute wall-clock lifecycle soak. Tests
+cover 30/60/120/144 Hz, irregular dt, invalid/stall ticks, all accepted action
+pairs, seated reversals, original geometry/UVs, palm support and opaque prop
+pixels outside the original head/outer-mask volume at authored contact.
+
+M5 uses the existing exact-PR-head Windows NSIS workflow and leaves the PR draft.
+Run artifacts record commit, CI run and SHA-256. Source and build acceptance
+must be verified on that head before presenting its installer.
+
+## Reproduction
+
+```bash
+npm ci --no-audit --no-fund
+npm run check
+npm install --no-save --no-package-lock playwright@1.56.1
+npx playwright install chromium
+node scripts/smoke-browser.mjs
+node scripts/smoke-eye-gpu.mjs
+node scripts/smoke-activity-gpu.mjs
+node scripts/capture-motion.mjs ../motion-evidence/after --clips
+node scripts/soak-motion.mjs ../motion-evidence/soak.json
+# Point the benchmark at a clean original-base checkout:
+node --expose-gc scripts/bench-motion.mjs ../motion-baseline ../motion-evidence/cpu.json
+```
+
+## Acceptance status and remaining owner checks
+
+Implemented on the development branch; original and V4 automated tests and
+software-WebGL visual/resource checks provide development evidence. Native
+certification remains pending. Review the owner skin and masked/hat layers in
+Classic/Slim, both surfaces, 100/150/200% DPI, context recovery, minimize/restore,
+click-through/tray, startup and high-refresh display presentation. Collect actual
+RTX 3050 GPU telemetry and WebView2 frame percentiles before changing FPS defaults.
+Main must not be merged without explicit owner acceptance. The original block
+rig has no elbow or wrist articulation; temporary hand-side occlusion during
+mouth contact is a remaining rig constraint, not a claim of perfect visuals.

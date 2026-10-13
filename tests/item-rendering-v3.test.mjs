@@ -4,6 +4,8 @@ import {Group,NearestFilter} from 'three';
 import {FALLBACK_ITEMS,resolveItemId,validateSpritePixels,createExtrudedItem} from '../web/js/engine/item-models.js';
 import {AvatarProps} from '../web/js/engine/avatar-props.js';
 import {sampleTimeline} from '../web/js/avatar/activity-timelines.js';
+import {BehaviorController} from '../web/js/avatar/animation.js';
+import {sanitizeSavedItemTextures,isSafeItemDataUrl} from '../web/js/engine/item-import.js';
 
 test('food and potion have original, distinct 16x16 pixel silhouettes, never generic cubes',()=>{
  const ids=['apple','cooked_porkchop','golden_carrot','cake_slice','water_potion'];
@@ -58,4 +60,26 @@ test('prop rigs mount to existing skin joints; enlarged book faces camera and ha
  p.dispose();
  assert.equal(skin.body.children.length,0);
  assert.equal(skin.rightArm.children.length,0);
+});
+
+test('book uses standing posture and food/drink hands reach mouth without face-level overraise',()=>{
+ const c=new BehaviorController();
+ for(const action of ['read','eat','drink']){
+  c.request('idle');c.request(action);
+  for(let n=0;n<36;n++)c.update(.05);
+  const p=c.pose();
+  if(action==='read'){
+   assert.ok(p.rootY>-.8,'reading should not fake unsupported seated floor');
+   assert.ok(p.legRX>-.30,'standing legs must remain planted');
+  }else{
+   assert.ok(p.armRX< -1.3&&p.armRX> -2.05,'food and drink grip should align near mouth, not eyes');
+  }
+ }
+});
+test('locally persisted imports contain only bounded allowlisted data URLs',()=>{
+ const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB';
+ assert.ok(isSafeItemDataUrl(png));
+ const safe=sanitizeSavedItemTextures({apple:png,water_potion:png,evil:png,golden_carrot:'https://example.org/pixel.png'});
+ assert.deepEqual(Object.keys(safe).sort(),['apple','water_potion']);
+ assert.equal(isSafeItemDataUrl('javascript:alert(1)'),false);
 });

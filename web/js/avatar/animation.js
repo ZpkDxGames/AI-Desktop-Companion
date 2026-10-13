@@ -3,19 +3,39 @@ export const ACTIONS = Object.freeze(['idle','walk','run','wave','sit','jump','t
 export const PRIORITY = Object.freeze({idle:0,walk:1,run:1,sit:2,think:2,wave:3,jump:3,celebrate:3,...Object.fromEntries(Object.entries(EXTRA_ANIMATIONS).map(([id,spec])=>[id,spec.priority]))});
 export const DURATION = Object.freeze({wave:2.4,jump:0.95,think:3.2,celebrate:1.7,...Object.fromEntries(Object.entries(EXTRA_ANIMATIONS).map(([id,spec])=>[id,spec.duration]))});
 export const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+export const IDLE_MODES = Object.freeze(['off','calm','lively']);
+const IDLE_WINDOWS = Object.freeze({calm:[36,64],lively:[14,26]});
+const AUTO_ACTIONS = Object.freeze(['look','read','eat','drink','inspect','stretch','nod']);
 export const smooth = t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export const mix=(a,b,t)=>a+(b-a)*t;
 const POSE_KEYS=Object.freeze(['headX','headY','headZ','bodyZ','armRX','armLX','armRZ','armLZ','legRX','legLX','rootY','rootX','rootZ']);
 export class BehaviorController {
-  constructor(){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.gazeTarget=[0,0];this.headGaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};this.transitionFrom={...this.poseBuffer};this.blinkElapsed=-1;}
-  request(action) {
+  constructor({seed=0x5f3759df}={}){this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';this.blendTime=0;this.gaze=[0,0];this.gazeTarget=[0,0];this.headGaze=[0,0];this.blink=0;this.nextBlink=3.3;this.mood='neutral';this.poseBuffer={headX:0,headY:0,headZ:0,bodyZ:0,armRX:0,armLX:0,armRZ:0,armLZ:0,legRX:0,legLX:0,rootY:0,rootX:0,rootZ:0};this.transitionFrom={...this.poseBuffer};this.blinkElapsed=-1;this.source='system';this.idleMode='off';this.idleCountdown=Infinity;this.autoStarts=0;this.rngState=(Number.isFinite(seed)?seed:0x5f3759df)>>>0;}
+  nextRandom(){
+    this.rngState=(Math.imul(this.rngState,1664525)+1013904223)>>>0;
+    return this.rngState/4294967296;
+  }
+  resetIdleCountdown(){
+    const bounds=IDLE_WINDOWS[this.idleMode];
+    this.idleCountdown=bounds?bounds[0]+(bounds[1]-bounds[0])*this.nextRandom():Infinity;
+  }
+  setIdleMode(mode){
+    if(!IDLE_MODES.includes(mode))return false;
+    if(mode===this.idleMode)return true;
+    this.idleMode=mode;
+    if(mode==='off'&&this.source==='auto')this.request('idle',{source:'system'});
+    this.resetIdleCountdown();
+    return true;
+  }
+  request(action,{source='manual'}={}) {
     if(!ACTIONS.includes(action)) return false;
     if(action==='idle' || PRIORITY[action]>=PRIORITY[this.action] || !DURATION[this.action]){
       if(action!==this.action){
         const previousPose=this.pose();
         for(const key of POSE_KEYS)this.transitionFrom[key]=previousPose[key];
-        this.previous=this.action;this.action=action;this.elapsed=0;this.blendTime=0;
+        this.previous=this.action;this.action=action;this.source=source;this.elapsed=0;this.blendTime=0;
       }
+      if(source==='manual'||action==='idle')this.resetIdleCountdown();
       return true;
     }
     return false;
@@ -41,7 +61,15 @@ export class BehaviorController {
       else if(t<.23)this.blink=clamp(1-(t-.11)/.12,0,1);
       else{this.blink=0;this.blinkElapsed=-1;}
     }
-    if(DURATION[this.action]&&this.elapsed>DURATION[this.action])this.request('idle');
+    if(DURATION[this.action]&&this.elapsed>DURATION[this.action])this.request('idle',{source:'system'});
+    if(this.action==='idle'&&this.idleMode!=='off'&&dt>0){
+      this.idleCountdown-=dt;
+      if(this.idleCountdown<=0){
+        const action=AUTO_ACTIONS[Math.floor(this.nextRandom()*AUTO_ACTIONS.length)];
+        if(this.request(action,{source:'auto'}))this.autoStarts++;
+        this.resetIdleCountdown();
+      }
+    }
   }
   setGaze(x,y){this.gazeTarget[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gazeTarget[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
   gazeMoving(){return this.gaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004)||this.headGaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004);}

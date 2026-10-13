@@ -1,6 +1,7 @@
 import {SkinViewer} from 'skinview3d';
 import {detectFaceProfile} from '../avatar/face.js';
 import {EyeFaceMaterial} from './eye-face-material.js';
+import {AvatarProps} from './avatar-props.js';
 import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
 
 export class AvatarRenderer{
@@ -30,6 +31,7 @@ export class AvatarRenderer{
   this.viewer.cameraLight.intensity=.85;
   this.viewer.controls.enabled=false;
   this.faceMaterial=new EyeFaceMaterial(this.viewer.playerObject.skin.head);
+  this.props=new AvatarProps(this.viewer.playerObject.skin);
   this.faceProfile={supported:false,reason:'no-skin'};
  }
  imagePixels(image){
@@ -45,6 +47,7 @@ export class AvatarRenderer{
   this.modelMode=normalizeModelMode(model);
   await this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
   this.detectedModel=this.viewer.playerObject.skin.modelType;
+  if(this.props.skin!==this.viewer.playerObject.skin){this.props.dispose();this.props=new AvatarProps(this.viewer.playerObject.skin);}
   const detected=(image.naturalWidth===64&&image.naturalHeight===64)
    ?detectFaceProfile(this.imagePixels(image))
    :{supported:false,reason:'legacy-or-non-64x64-skin'};
@@ -69,7 +72,7 @@ export class AvatarRenderer{
   const height=Math.max(2,Math.floor((bounds?.height||0)-(this.overlay?52:0)));
   if(this.viewer.width!==width||this.viewer.height!==height)this.viewer.setSize(width,height);
  }
- render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0}={}){
+ render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0,action='idle',actionElapsed=0,dt=0}={}){
   if(!this.skin)return;
   this.resize();
   const player=this.viewer.playerObject;
@@ -84,6 +87,7 @@ export class AvatarRenderer{
   skin.rightLeg.rotation.set(pose.legRX||0,0,0);
   skin.leftLeg.rotation.set(pose.legLX||0,0,0);
   this.faceMaterial.update(gazeX,gazeY,blink);
+  this.props.update(action,actionElapsed,dt);
   const bounded=Math.max(.55,Math.min(1.5,Number.isFinite(scale)?scale:1));
   if(Math.abs(this.lastScale-bounded)>.001){
    this.lastScale=bounded;
@@ -92,5 +96,5 @@ export class AvatarRenderer{
   this.viewer.render();
  }
  get modelType(){return fromSkinViewModel(this.detectedModel);}
- dispose(){this.faceMaterial.dispose();this.viewer.dispose();}
+ dispose(){this.props.dispose();this.faceMaterial.dispose();this.viewer.dispose();}
 }

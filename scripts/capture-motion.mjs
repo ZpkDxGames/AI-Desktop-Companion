@@ -11,6 +11,9 @@ import {once} from 'node:events';
 import {execFileSync} from 'node:child_process';
 
 const out=resolve(process.argv[2]||'motion-evidence');
+const onlyPerf=process.argv.includes('--performance-only'),onlyClips=process.argv.includes('--clips-only');
+const clipRates=(process.argv.find(x=>x.startsWith('--clip-rates='))?.split('=')[1]||'60').split(',').map(Number);
+if(clipRates.some(hz=>![30,60,120,144].includes(hz)))throw Error('Unsupported simulation cadence');
 await mkdir(out,{recursive:true});await mkdir('dist/motion-probe',{recursive:true});
 await writeFile('dist/motion-entry.js',"export {AvatarRenderer} from '../web/js/engine/renderer.js';export {BehaviorController,ACTIONS,DURATION} from '../web/js/avatar/animation.js';");
 await build({configFile:false,root:process.cwd(),logLevel:'error',build:{target:'es2020',outDir:'dist/motion-probe',emptyOutDir:false,
@@ -43,7 +46,7 @@ try{
  const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:5.05,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
  const extras=[['read',.14,'read-enter'],['read',1.12,'read-open'],['read',4.7,'read-preturn'],['read',4.825,'read-page-25'],['read',5.05,'read-page-50'],['read',5.275,'read-page-75'],['read',5.6,'read-regrip'],['read',11.4,'read-close'],
   ['jump',.16,'jump-crouch'],['jump',.82,'jump-land'],['eat',1.8,'eat-porkchop','cooked_porkchop'],['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],['drink',.7,'drink-raise'],['drink',3.6,'drink-lower']];
- for(const model of ['classic','slim']){
+ if(!onlyPerf&&!onlyClips){for(const model of ['classic','slim']){
   await page.evaluate(model=>r.setModelMode(model),model);
   for(const [label,yaw] of [['front',0],['left',-.785398],['right',.785398],['side',1.570796]]){
    for(const [action,time] of Object.entries(times)){
@@ -60,10 +63,12 @@ try{
   const file=`detail-${label}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});
   manifest.shots.push({file,model:'classic',view:'front',action,time,variant});
  }
- for(const action of ['idle','walk','read','drink','celebrate']){
+ }
+ if(!onlyClips)for(const action of ['idle','walk','read','drink','celebrate']){
   const result=await page.evaluate(action=>{
    start(action);const update=[],render=[];
    for(let i=0;i<420;i++){
+    if(c.action==='idle'&&action!=='idle')c.request(action);
     let t=performance.now();c.update(1/60);const p=c.pose();const u=performance.now()-t;
     r.viewer.renderer.info.autoReset=false;r.viewer.renderer.info.reset();
     t=performance.now();r.render(p,{action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,foodVariant:c.foodVariant,dt:1/60});
@@ -74,22 +79,31 @@ try{
     geometries:r.viewer.renderer.info.memory.geometries,textures:r.viewer.renderer.info.memory.textures};
   },action);manifest.performance.push({action,...result});
  }
- if(process.argv.includes('--clips')){
-  await mkdir(resolve(out,'clips'),{recursive:true});
-  for(const action of Object.keys(times)){
-   console.log('Recording real-renderer clip: '+action);
-   const data=await page.evaluate(async action=>{
-    start(action);const canvas=document.querySelector('canvas'),stream=canvas.captureStream(0),track=stream.getVideoTracks()[0];
+ if(process.argv.includes('--clips')||onlyClips)for(const hz of clipRates){
+  const directory=hz===60?'clips':`clips-${hz}`;
+  await mkdir(resolve(out,directory),{recursive:true});
+  for(const action of [...Object.keys(times),'interrupt-mid-book','interrupt-mid-drink','walk-stop','stand-up']){
+   console.log(`Recording real-renderer clip: ${action} (${hz} Hz simulation / 30 Hz recording)`);
+   const data=await page.evaluate(async({action,hz})=>{
+    const special=action==='interrupt-mid-book'?'read':action==='interrupt-mid-drink'?'drink':action==='walk-stop'?'walk':action==='stand-up'?'sit':null;
+    start(special||action);if(special)seek(special==='read'?4.9:special==='drink'?1.7:.8);
+    if(action==='stand-up')c.request('idle');
+    const canvas=document.querySelector('canvas'),stream=canvas.captureStream(0),track=stream.getVideoTracks()[0];
     const recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:900000});
     const chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);
     const done=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
-    const duration=(mod.DURATION[action]||3.2)+.6,frames=Math.ceil(duration*30);
-    for(let i=0;i<frames;i++){c.update(1/60);c.update(1/60);draw(.35);track.requestFrame();await new Promise(resolve=>setTimeout(resolve,1000/30));}
+    const duration=special?2.4:(mod.DURATION[action]||3.2)+.6,frames=Math.ceil(duration*30);let simulationTime=0;
+    for(let i=0;i<frames;i++){
+     if((action.startsWith('interrupt-')&&i===6)||(action==='walk-stop'&&i===30))c.request(action==='walk-stop'?'idle':'wave');
+     const target=(i+1)/30;
+     while(simulationTime+1/hz<=target+1e-9){c.update(1/hz);simulationTime+=1/hz;}
+     draw(.35);track.requestFrame();await new Promise(resolve=>setTimeout(resolve,1000/30));
+    }
     recorder.stop();await done;track.stop();
     const bytes=new Uint8Array(await new Blob(chunks).arrayBuffer());let text='';for(const b of bytes)text+=String.fromCharCode(b);
     return btoa(text);
-   },action);
-   const file=`clips/${action}.webm`;await writeFile(resolve(out,file),Buffer.from(data,'base64'));manifest.clips.push({file,action,simulationHz:60,recordingHz:30,yaw:.35});
+   },{action,hz});
+   const file=`${directory}/${action}.webm`;await writeFile(resolve(out,file),Buffer.from(data,'base64'));manifest.clips.push({file,action,simulationHz:hz,recordingHz:30,yaw:.35});
   }
  }
  if(errors.length)throw Error(errors.join('\n'));await page.evaluate(()=>r.dispose());

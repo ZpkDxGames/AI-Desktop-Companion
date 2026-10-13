@@ -58,7 +58,7 @@ try{
   await page.evaluate(index=>c.request(mod.ACTIONS[index%mod.ACTIONS.length]),actionIndex++);
   await new Promise(resolve=>setTimeout(resolve,10000));
   await session.send('HeapProfiler.collectGarbage');
-  const heap=await session.send('Runtime.getHeapUsage'),resources=await page.evaluate(counts);
+  const heap=await session.send('Runtime.getHeapUsage'),resources=await page.evaluate(()=>counts());
   samples.push({elapsedMs:Date.now()-start,usedHeap:heap.usedSize,totalHeap:heap.totalSize,...resources});
   if(samples.length%6===0)console.log(`Wall-clock soak: ${Math.round((Date.now()-start)/1000)} seconds, geometries=${resources.geometries}, textures=${resources.textures}`);
  }

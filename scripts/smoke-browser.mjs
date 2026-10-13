@@ -150,7 +150,7 @@ try {
       const before=await surface.screenshot();
       checkpoint='Wave event';
       await page.locator(mode==='overlay'?'#overlay-wave':'[data-quick="wave"]').click();
-      if(mode==='workshop')await page.waitForFunction(()=>document.querySelector('#animation-status')?.textContent?.toLowerCase()==='wave',null,{timeout:10000});
+      if(mode==='workshop')await page.waitForFunction(()=>document.querySelector('[data-action="wave"]')?.classList.contains('active'),null,{timeout:10000});
       await page.waitForTimeout(450);
       checkpoint='animated avatar screenshot';
       const after=await surface.screenshot();

@@ -21,6 +21,7 @@ jobs:
           import zipfile,hashlib,os,io,json
           from pathlib import Path
           data=Path(os.environ['RUNNER_TEMP'],'review.zip').read_bytes()
+          assert hashlib.sha256(data).hexdigest()=='6294e0156664f5819bbd21e94c606228c6d0f0d5a6fc963cb38733ef5b3de6e5'
           print('ARTIFACT_SHA256='+hashlib.sha256(data).hexdigest())
           outer=zipfile.ZipFile(io.BytesIO(data));assert outer.testzip() is None
           print('FILES='+json.dumps(outer.namelist()))
@@ -31,7 +32,7 @@ jobs:
           package=next(n for n in outer.namelist() if n.endswith('-Reference-Review.zip'))
           inner=zipfile.ZipFile(io.BytesIO(outer.read(package)));assert inner.testzip() is None
           print('INNER_REVIEW_SHA256='+hashlib.sha256(outer.read(package)).hexdigest())
-          gallery=next(n for n in inner.namelist() if n.endswith('/data/gallery-check.json'))
+          gallery=next(n for n in inner.namelist() if n.endswith('data/gallery-check.json'))
           print('GALLERY_CHECK='+inner.read(gallery).decode())
           print('PASS published ZIP CRC and exact-tested installer SHA256')
           PY

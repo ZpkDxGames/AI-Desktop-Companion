@@ -195,33 +195,9 @@ try {
           // Selection highlights change synchronously, but software WebGL can
           // still be displaying the previous pose. Wait for a *rendered* action.
           await page.waitForFunction(name=>document.querySelector('#animation-status')?.textContent===name.toUpperCase(),action,{timeout:9000});
-          await page.waitForTimeout(550);
-          let capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
-          if(action==='eat'||action==='drink'){
-            const countPropPixels=async buffer=>page.evaluate(async ({data,action})=>{
-              const image=new Image();image.src='data:image/png;base64,'+data;await image.decode();
-              const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
-              const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
-              const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-              let count=0;
-              for(let i=0;i<pixels.length;i+=4){
-                const r=pixels[i],g=pixels[i+1],b=pixels[i+2];
-                if(action==='eat'&&r>85&&r>g*1.35&&r>b*1.25)count++;
-                else if(action==='drink'&&b>105&&b>r*1.25&&b>g*1.10)count++;
-              }
-              return count;
-            },{data:buffer.toString('base64'),action});
-            // Deterministic gate: require actual pixels, never just pose state.
-            // Poll through transient blink/pose transitions on slow SwiftShader
-            // runners before reporting a true missing-prop defect.
-            let colored=await countPropPixels(capture);
-            for(let attempts=0;colored<8&&attempts<6;attempts++){
-              await page.waitForTimeout(300);
-              capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
-              colored=await countPropPixels(capture);
-            }
-            if(colored<8)throw new Error(action+' prop is not visibly rendered after 2.3 s (target-colored pixels='+colored+', action='+await page.locator('#animation-status').textContent()+')');
-          }
+          await page.waitForTimeout(180);
+          const capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+
         }
         await page.locator('[data-action="idle"]').click();
         await page.locator('#idle-mode').selectOption('calm');

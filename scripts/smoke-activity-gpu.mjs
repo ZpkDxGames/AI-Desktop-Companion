@@ -1,0 +1,96 @@
+/**
+ * Deterministic, fixed-pose WebGL probe for book, food and drink.
+ * Unlike end-to-end controls, no wall-clock animation can expire during PNG
+ * capture. The test compares the exact same pose with/without its prop.
+ */
+import {build} from 'vite';
+import {chromium} from 'playwright';
+import {createServer} from 'node:http';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve,extname,sep} from 'node:path';
+import {once} from 'node:events';
+
+await mkdir('smoke-artifacts',{recursive:true});
+await writeFile('smoke-artifacts/activity-probe-entry.js',
+  "export {AvatarRenderer} from '../web/js/engine/renderer.js';\nexport {BehaviorController} from '../web/js/avatar/animation.js';\n");
+await build({configFile:false,root:process.cwd(),logLevel:'error',build:{
+ target:'es2020',outDir:'dist/activity-probe',emptyOutDir:false,sourcemap:false,
+ lib:{entry:resolve('smoke-artifacts/activity-probe-entry.js'),formats:['es'],fileName:'activity'}
+}});
+await writeFile('dist/activity-probe/probe.html',
+ '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0"><div style="width:500px;height:500px"><canvas id="activity-canvas"></canvas></div></body></html>');
+
+const mime={'.html':'text/html','.js':'text/javascript','.png':'image/png'};
+const root=resolve('dist');
+const server=createServer(async(req,res)=>{
+ try{
+  const path=resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));
+  if(!path.startsWith(root+sep)){res.writeHead(403).end();return;}
+  const bytes=await readFile(path);
+  res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream','Cache-Control':'no-store'}).end(bytes);
+ }catch{res.writeHead(404).end('not found');}
+});
+server.listen(0,'127.0.0.1');await once(server,'listening');
+
+let browser;
+try{
+ browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ const page=await browser.newPage({viewport:{width:500,height:500}});
+ const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.goto('http://127.0.0.1:'+server.address().port+'/activity-probe/probe.html');
+ const seed=(await readFile('web/assets/sample-skin.png')).toString('base64');
+ await page.evaluate(async base64=>{
+   const {AvatarRenderer,BehaviorController}=await import('/activity-probe/activity.js');
+   const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();
+   const renderer=new AvatarRenderer(document.getElementById('activity-canvas'));
+   await renderer.setSkin(image);
+   window.activityRenderer=renderer;
+   window.activityController=new BehaviorController();
+ },seed);
+ const canvas=page.locator('#activity-canvas');
+ const screenshot=async filename=>canvas.screenshot({path:'smoke-artifacts/activity-fixed-'+filename+'.png'});
+ const diff=async(a,b)=>page.evaluate(async ([first,second])=>{
+   const decode=async base64=>{
+     const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();
+     const c=document.createElement('canvas');c.width=image.width;c.height=image.height;
+     const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+     return ctx.getImageData(0,0,c.width,c.height);
+   };
+   const a=await decode(first),b=await decode(second);
+   if(a.width!==b.width||a.height!==b.height)throw Error('Prop frame sizes differ');
+   let count=0;
+   for(let i=0;i<a.data.length;i+=4)
+     if(Math.abs(a.data[i]-b.data[i])+Math.abs(a.data[i+1]-b.data[i+1])+Math.abs(a.data[i+2]-b.data[i+2])>32)count++;
+   return count;
+ },[a.toString('base64'),b.toString('base64')]);
+
+ for(const action of ['read','eat','drink']){
+   await page.evaluate(name=>{
+     const c=window.activityController;
+     c.request('idle');c.request(name);
+     for(let i=0;i<15;i++){c.update(.05);c.pose();}
+     const renderer=window.activityRenderer;
+     renderer.render(c.pose(),{action:name,actionElapsed:c.elapsed,dt:1});
+     const prop=name==='read'?'book':name==='eat'?'food':'drink';
+     if(!renderer.props[prop].visible)throw Error('Prop visibility off for '+name);
+   },action);
+   const withProp=await screenshot(action);
+   await page.evaluate(name=>{
+     const r=window.activityRenderer;
+     r.props[name==='read'?'book':name==='eat'?'food':'drink'].visible=false;
+     r.viewer.render();
+   },action);
+   const withoutProp=await screenshot(action+'-no-prop');
+   const changed=await diff(withProp,withoutProp);
+   if(changed<12)throw Error(action+' has invisible geometry in fixed-pose WebGL: '+changed+' changed pixels');
+   console.log('PASS GPU prop visible '+action+': '+changed+' changed pixels with identical body/eye pose');
+ }
+ if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
+ await page.evaluate(()=>window.activityRenderer.dispose());
+ await page.close();
+}finally{
+ await browser?.close();
+ await new Promise(resolve=>server.close(resolve));
+}

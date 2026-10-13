@@ -1,4 +1,5 @@
 import {BoxGeometry,Group,Mesh,MeshLambertMaterial} from 'three';
+const PROP_KEYS=Object.freeze(['book','food','drink']);
 
 /**
  * Owned static props attached to canonical skinview3d joints.
@@ -63,7 +64,7 @@ export class AvatarProps{
   this.levels.book+=(targetBook-this.levels.book)*rate;
   this.levels.food+=(targetFood-this.levels.food)*rate;
   this.levels.drink+=(targetDrink-this.levels.drink)*rate;
-  for(const key of ['book','food','drink']){
+  for(const key of PROP_KEYS){
    const group=this[key],level=this.levels[key];
    group.visible=level>.015;
    group.scale.setScalar(.80+.20*level);

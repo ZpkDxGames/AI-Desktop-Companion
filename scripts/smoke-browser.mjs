@@ -174,6 +174,23 @@ try {
           const clipped=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);
           if(clipped)throw new Error('Horizontal page overflow at '+viewport.width+'×'+viewport.height);
         }
+        checkpoint='daily activity controls and persistence';
+        await page.locator('[data-nav="behavior"]').click();
+        await page.locator('#idle-mode').selectOption('off');
+        await page.reload({waitUntil:'load'});
+        await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+        await page.locator('[data-nav="behavior"]').click();
+        if(await page.locator('#idle-mode').inputValue()!=='off')throw new Error('Idle frequency did not survive reload');
+        for(const action of ['read','eat','drink','look','inspect']){
+          await page.locator('[data-action="idle"]').click();
+          await page.locator('[data-action="'+action+'"]').click();
+          await page.waitForFunction(name=>document.querySelector('[data-action="'+name+'"]')?.classList.contains('active'),action,{timeout:3000});
+          await page.waitForTimeout(480);
+          await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+        }
+        await page.locator('[data-action="idle"]').click();
+        await page.locator('#idle-mode').selectOption('calm');
+        console.log('PASS five daily activities, manual interruptions, UI state and persisted idle settings');
       }
       checkpoint='synthetic supported-face shader and rendered gaze pixel gate';
       await facePixelGate(page,mode,surface);

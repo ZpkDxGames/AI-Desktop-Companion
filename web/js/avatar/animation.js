@@ -72,7 +72,7 @@ export class BehaviorController {
     }
   }
   setGaze(x,y){this.gazeTarget[0]=clamp(Number.isFinite(x)?x:0,-1,1);this.gazeTarget[1]=clamp(Number.isFinite(y)?y:0,-1,1);}
-  gazeMoving(){return this.gaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004)||this.headGaze.some((v,i)=>Math.abs(v-this.gazeTarget[i])>.004);}
+  gazeMoving(){return Math.abs(this.gaze[0]-this.gazeTarget[0])>.004||Math.abs(this.gaze[1]-this.gazeTarget[1])>.004||Math.abs(this.headGaze[0]-this.gazeTarget[0])>.004||Math.abs(this.headGaze[1]-this.gazeTarget[1])>.004;}
   pose(){
     const t=this.time,e=this.elapsed,a=this.action;
     // Reuse the controller-owned pose object; reset every channel before layering actions.

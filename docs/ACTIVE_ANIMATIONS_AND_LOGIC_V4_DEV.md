@@ -42,8 +42,8 @@ dimensions onto the standing sole plane throughout sit/stand.
 | Think | Contemplative head/hand overlap, subtle ponder motion, existing bounded bubble |
 | Celebrate | Two asymmetric hops, staggered arm pumps, existing two behind-character bursts |
 | Look | Brief small steps, head-leading chest scan and return |
-| Read | Supported floor sitting, down-gaze, leather covers facing the reader, curled sheet, two turns ten seconds apart, close and stand recovery |
-| Eat | Thin item sprites, direct vanilla PNG/JAR/ZIP import, deliberate bites, bounded texture-colored crumbs and finishing opacity fade |
+| Read | Sit first, lift a closed left-hand book, right-hand opening/page assistance, free-hand rest, vanilla-style parchment/leather, two turns ten seconds apart, close and stand |
+| Eat | Solid stepped apple/chop/carrot/cake profiles, one exterior pixel mesh per food, optional local palette import, bites, bounded crumbs and opacity fade |
 | Drink | Block-shaped clear glass vessel, draining water volume with a level surface, neck-to-mouth tilt, empty bottle lowering/recovery |
 | Inspect | Visual attention/lean only; no desktop sensing or native window awareness |
 | Nod | Anticipatory lift, two decaying dips with subtle torso answer |
@@ -73,13 +73,13 @@ Periodic percentile diagnostics remain bounded, outside the per-frame hot path.
 OS reduced motion suppresses cosmetic drift/saccades, reduces large gesture
 amplitude and disables existing fireworks. Core UI, prop manipulation, eyes,
 manual blink and pointer response remain available. No graphics UI or native
-permissions are added. The renderer keeps nearest-filter original fallback art.
+permissions are added. The book keeps nearest-filter pixel parchment/leather; foods use flat voxel surfaces and discrete vertex colors.
 Exact vanilla food art is read through explicitly selected PNGs, a Minecraft
 client JAR or resource-pack ZIP; only allowlisted item entries are decoded.
 Archives have size/entry/decompression/CRC limits and never extract to disk or
 scan installations. `cake.png` maps to the legacy `cake_slice` settings key.
 No proprietary texture files or private skin are committed/bundled. Reset
-returns to the original fallback. Drinking replaces the obsolete flat potion
+returns to the default volumetric food palette. Drinking replaces the obsolete flat potion
 model with one cached glass/water rig; local water sprites tint its palette.
 
 The existing AvatarEffects owner also renders at most 16 crumb instances.

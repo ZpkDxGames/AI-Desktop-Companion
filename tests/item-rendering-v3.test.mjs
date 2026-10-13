@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Group,NearestFilter} from 'three';
-import {FALLBACK_ITEMS,resolveItemId,validateSpritePixels,createExtrudedItem} from '../web/js/engine/item-models.js';
+import {Group} from 'three';
+import {FALLBACK_ITEMS,resolveItemId,validateSpritePixels} from '../web/js/engine/item-models.js';
+import {createVoxelFood} from '../web/js/engine/voxel-foods.js';
 import {AvatarProps} from '../web/js/engine/avatar-props.js';
 import {sampleTimeline} from '../web/js/avatar/activity-timelines.js';
 import {BehaviorController} from '../web/js/avatar/animation.js';
@@ -32,19 +33,17 @@ test('import whitelist rejects unrelated paths, oversize or invalid images',()=>
  assert.throws(()=>validateSpritePixels({width:17,height:16,data:pixels}));
  assert.throws(()=>validateSpritePixels({width:2048,height:2048,data:pixels}));
 });
-test('pixel extrusions use cached nearest-filter alpha textures with a 3D contour',()=>{
- const mesh=createExtrudedItem('apple',FALLBACK_ITEMS.apple);
- assert.equal(mesh.texture.magFilter,NearestFilter);
- assert.equal(mesh.texture.minFilter,NearestFilter);
+test('volumetric foods use cached pixel-colored exterior geometry with a 3D contour',()=>{
+ const mesh=createVoxelFood('apple',FALLBACK_ITEMS.apple);
  assert.ok(mesh.depth.geometry.getAttribute('position').count>24);
- assert.ok(mesh.front.material.alphaTest>=.4);
- assert.ok(mesh.front.material.map===mesh.texture);
+ assert.ok(mesh.geometry.getAttribute('color').count>24);
+ assert.equal(mesh.group.children.length,1,'one draw for the entire voxel surface');
  mesh.dispose();
 });
-test('prop rigs mount to existing skin joints; enlarged book faces camera and has page hinge',()=>{
+test('prop rigs mount to existing skin joints; one-hand book has physical cover/page hinges',()=>{
  const skin={body:new Group(),rightArm:new Group(),leftArm:new Group()};
  const p=new AvatarProps(skin);
- assert.equal(p.book.parent,skin.body);
+ assert.equal(p.book.parent,skin.leftArm);
  assert.equal(p.food.parent,skin.rightArm);
  assert.equal(p.drink.parent,skin.rightArm);
  assert.ok(p.book.userData.displayWidth>=6.8,'book should be readable at character preview scale');
@@ -60,6 +59,7 @@ test('prop rigs mount to existing skin joints; enlarged book faces camera and ha
  p.dispose();
  assert.equal(skin.body.children.length,0);
  assert.equal(skin.rightArm.children.length,0);
+ assert.equal(skin.leftArm.children.length,0);
 });
 
 test('book uses supported floor posture and food/drink hands reach mouth without face-level overraise',()=>{

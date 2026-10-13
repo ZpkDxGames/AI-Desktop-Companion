@@ -32,9 +32,10 @@ const server=createServer(async(req,res)=>{try{
 server.listen(0,'127.0.0.1');await once(server,'listening');
 let browser;
 const manifest={commit:sourceCommit,sourceTree,skin:'repository sample-skin.png (synthetic)',
- backend:'Chromium 141 / ANGLE SwiftShader (software WebGL)',viewport:[320,400],deviceScaleFactor:1,shots:[],clips:[],performance:[]};
+ backend:'Chromium / ANGLE SwiftShader (software WebGL)',viewport:[320,400],deviceScaleFactor:1,shots:[],clips:[],performance:[]};
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ manifest.browserVersion=browser.version();
  const page=await browser.newPage({viewport:{width:320,height:400},deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.address().port+'/motion-probe/index.html');
@@ -53,9 +54,9 @@ try{
   await page.evaluate(sources=>r.setItemTextures(sources),sources);
   manifest.foodArt='Explicit local vanilla/resource-pack PNGs; raw source files are excluded from evidence';
  }
- const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:11.1,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
+ const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:5,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
  if(selectedActions){for(const a of selectedActions)if(!(a in times))throw Error('Unknown capture action: '+a);for(const a of Object.keys(times))if(!selectedActions.includes(a))delete times[a];}
- const extras=[['read',.4,'read-enter'],['read',1.6,'read-open'],['read',10.5,'read-preturn'],['read',10.85,'read-page-25'],['read',11.1,'read-page-50'],['read',11.35,'read-page-75'],['read',11.7,'read-regrip'],['read',21.1,'read-second-page'],['read',25.6,'read-close'],
+ const extras=[['read',.4,'read-enter'],['read',1.6,'read-closed-lift'],['read',2.25,'read-open'],['read',5,'read-calm'],['read',10.5,'read-preturn'],['read',10.85,'read-page-25'],['read',11.1,'read-page-50'],['read',11.35,'read-page-75'],['read',11.7,'read-regrip'],['read',21.1,'read-second-page'],['read',25.6,'read-close'],
   ['jump',.16,'jump-crouch'],['jump',.82,'jump-land'],['eat',1.8,'eat-porkchop','cooked_porkchop'],['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],['eat',4.1,'eat-fade'],['drink',.7,'drink-raise'],['drink',2.6,'drink-empty'],['drink',3.6,'drink-lower']].filter(s=>!selectedActions||selectedActions.includes(s[0]));
  if(!onlyPerf&&!onlyClips){for(const model of ['classic','slim']){
   await page.evaluate(model=>r.setModelMode(model),model);
@@ -73,6 +74,23 @@ try{
   await page.evaluate(({action,time,variant})=>{start(action);seek(time);if(variant){c.foodVariant=variant;c.updatePresentation?.();}draw();},{action,time,variant});
   const file=`detail-${label}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});
   manifest.shots.push({file,model:'classic',view:'front',action,time,variant});
+ }
+ if(process.argv.includes('--prop-details')){
+  // Isolate the very same renderer-owned mesh for reference inspection. No
+  // alternate item model/lighting or generated illustration is substituted.
+  for(const id of ['apple','cooked_porkchop','golden_carrot','cake_slice','book-open','book-closed'])for(const [view,yaw] of [['front',0],['quarter',-.7],['side',1.57]]){
+   await page.evaluate(({id,yaw})=>{
+    const book=id.startsWith('book');start(book?'read':'eat');seek(book?(id==='book-open'?5:1.6):1.45);draw();
+    window.detailObject=book?r.props.book:r.props.itemModels.get(id).group;
+    window.detailParent=detailObject.parent;window.detailPosition=detailObject.position.clone();window.detailQuaternion=detailObject.quaternion.clone();window.detailScale=detailObject.scale.clone();
+    window.detailCameraPosition=r.viewer.camera.position.clone();window.detailCameraQuaternion=r.viewer.camera.quaternion.clone();
+    r.viewer.playerObject.visible=false;r.effects.bubble.visible=false;r.effects.particles.visible=false;r.effects.crumbs.visible=false;
+    r.viewer.scene.add(detailObject);detailObject.visible=true;detailObject.position.set(0,0,0);detailObject.scale.setScalar(1);detailObject.rotation.set(book?-.62:0,yaw,0);
+    r.viewer.camera.position.set(0,3.5,book?16:14);r.viewer.camera.lookAt(0,0,0);r.viewer.camera.updateProjectionMatrix();r.viewer.renderer.render(r.viewer.scene,r.viewer.camera);
+   },{id,yaw});
+   const file=`prop-${id}-${view}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});manifest.shots.push({file,kind:'isolated production prop',id,view,yaw});
+   await page.evaluate(()=>{detailParent.add(detailObject);detailObject.position.copy(detailPosition);detailObject.quaternion.copy(detailQuaternion);detailObject.scale.copy(detailScale);r.viewer.playerObject.visible=true;r.viewer.camera.position.copy(detailCameraPosition);r.viewer.camera.quaternion.copy(detailCameraQuaternion);});
+  }
  }
  }
  if(!onlyClips)for(const action of ['idle','walk','read','drink','celebrate'].filter(a=>!selectedActions||selectedActions.includes(a))){

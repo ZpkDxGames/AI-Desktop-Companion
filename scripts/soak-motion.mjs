@@ -20,7 +20,7 @@ const server=createServer(async(req,res)=>{try{
 }catch{res.writeHead(404).end();}});server.listen(0,'127.0.0.1');await once(server,'listening');
 let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--js-flags=--expose-gc']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--js-flags=--expose-gc']});
  const page=await browser.newPage({viewport:{width:252,height:318}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:'+server.address().port+'/soak-probe/index.html');
  await page.evaluate(async skin=>{

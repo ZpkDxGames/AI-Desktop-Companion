@@ -12,7 +12,8 @@ const skin=()=>({body:new Group(),rightArm:new Group(),leftArm:new Group(),head:
 test('reading phases include opening, a physical page flip and closing',()=>{
  const state={};
  assert.equal(sampleTimeline('read',.05,state).phase,'enter');
- assert.equal(sampleTimeline('read',1,state).phase,'open');
+ assert.equal(sampleTimeline('read',1,state).phase,'raise');
+ assert.equal(sampleTimeline('read',2.2,state).phase,'open');
  const half=sampleTimeline('read',11.1,state);
  assert.equal(half.phase,'pageTurn');
  assert.ok(half.pageAngle<-.2 && half.pageAngle>-3,'page must rotate across book spine');

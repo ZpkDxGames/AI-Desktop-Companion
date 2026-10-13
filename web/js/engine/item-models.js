@@ -1,8 +1,3 @@
-import {
- BufferGeometry,DataTexture,DoubleSide,Float32BufferAttribute,Group,Mesh,
- MeshBasicMaterial,MeshLambertMaterial,NearestFilter,RGBAFormat,SRGBColorSpace,UnsignedByteType
-} from 'three';
-
 /**
  * Original authored pixel art. These are NOT Mojang textures.
  * A user may replace them locally with image data from an authorized resource pack.
@@ -105,67 +100,4 @@ export function validateSpritePixels({width,height,data}){
  if(!Number.isInteger(width)||width!==height||![16,32,64,128].includes(width))throw Error('Unsupported item texture dimensions');
  if(!data||data.length!==width*height*4)throw Error('Malformed item texture pixels');
  return true;
-}
-function spriteTexture(pixels,width){
- const ordered=new Uint8Array(pixels.length);
- for(let y=0;y<width;y++){
-  const source=(width-y-1)*width*4;
-  ordered.set(pixels.subarray(source,source+width*4),y*width*4);
- }
- const texture=new DataTexture(ordered,width,width,RGBAFormat,UnsignedByteType);
- texture.magFilter=NearestFilter;texture.minFilter=NearestFilter;
- texture.generateMipmaps=false;texture.colorSpace=SRGBColorSpace;
- texture.needsUpdate=true;return texture;
-}
-/** Build a real thin voxel silhouette: opaque front texture + extruded alpha contour sides. */
-export function createExtrudedItem(id,pixels,{width=16,pixelSize=.235,depth=.31}={}){
- validateSpritePixels({width,height:width,data:pixels});
- const group=new Group();group.userData.itemId=id;
- const texture=spriteTexture(pixels,width);
- const length=width*pixelSize;
- const frontGeometry=new BufferGeometry();
- frontGeometry.setAttribute('position',new Float32BufferAttribute([
- -length/2,-length/2,depth/2, length/2,-length/2,depth/2,
- length/2,length/2,depth/2, -length/2,length/2,depth/2
- ],3));
- frontGeometry.setAttribute('uv',new Float32BufferAttribute([0,0,1,0,1,1,0,1],2));
- frontGeometry.setIndex([0,1,2,0,2,3]);
- frontGeometry.computeVertexNormals();
- const faceMaterial=new MeshBasicMaterial({map:texture,alphaTest:.5,transparent:false,side:DoubleSide});
- const front=new Mesh(frontGeometry,faceMaterial);
- group.add(front);
- // Close the extrusion. A single far face viewed through an open back makes
- // tilted items disappear behind their own contour walls during bites/sips.
- const back=new Mesh(frontGeometry,faceMaterial);back.rotation.y=Math.PI;group.add(back);
- const sideVertices=[],sideColors=[];
- const opaque=(x,y)=>x>=0&&x<width&&y>=0&&y<width&&pixels[(y*width+x)*4+3]>=128;
- const triangle=(a,b,c,d,color)=>{
-  sideVertices.push(...a,...b,...c,...a,...c,...d);
-  for(let n=0;n<6;n++)sideColors.push(...color);
- };
- const at=(x,y,z)=>[(x-width/2)*pixelSize,(width/2-y)*pixelSize,z];
- for(let y=0;y<width;y++)for(let x=0;x<width;x++){
-  if(!opaque(x,y))continue;
-  const offset=(y*width+x)*4;
-  // A water-filled bottle has tinted volume, rather than a dark hollow rim.
-  // Use the imported sprite's own central liquid color; no bundled game art.
-  const liquid=(Math.min(y,Math.floor(width*.70))*width+Math.floor(width/2))*4;
-  const colorOffset=id==='water_potion'&&y>=width*.5&&pixels[liquid+3]>=128?liquid:offset;
-  const sideColor=[pixels[colorOffset]*.78/255,pixels[colorOffset+1]*.78/255,pixels[colorOffset+2]*.78/255];
-  if(!opaque(x-1,y))triangle(at(x,y,depth/2),at(x,y+1,depth/2),at(x,y+1,-depth/2),at(x,y,-depth/2),sideColor);
-  if(!opaque(x+1,y))triangle(at(x+1,y+1,depth/2),at(x+1,y,depth/2),at(x+1,y,-depth/2),at(x+1,y+1,-depth/2),sideColor);
-  if(!opaque(x,y-1))triangle(at(x+1,y,depth/2),at(x,y,depth/2),at(x,y,-depth/2),at(x+1,y,-depth/2),sideColor);
-  if(!opaque(x,y+1))triangle(at(x,y+1,depth/2),at(x+1,y+1,depth/2),at(x+1,y+1,-depth/2),at(x,y+1,-depth/2),sideColor);
- }
- const sideGeo=new BufferGeometry();
- sideGeo.setAttribute('position',new Float32BufferAttribute(sideVertices,3));
- sideGeo.setAttribute('color',new Float32BufferAttribute(sideColors,3));
- sideGeo.computeVertexNormals();
- const sideMaterial=new MeshLambertMaterial({color:0xffffff,vertexColors:true,side:DoubleSide});
- const depthMesh=new Mesh(sideGeo,sideMaterial);group.add(depthMesh);
- group.userData.displayWidth=length;
- return {group,front,back,depth:depthMesh,texture,pixels,dispose(){
-  group.removeFromParent();frontGeometry.dispose();sideGeo.dispose();texture.dispose();
-  faceMaterial.dispose();sideMaterial.dispose();
- }};
 }

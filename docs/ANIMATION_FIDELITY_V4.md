@@ -128,16 +128,39 @@ and a glass bottle with draining liquid. This intentionally supersedes the
 earlier standing reading pose and 11.7-second read fixture. Reading now lasts
 26.4 seconds, sits over 850 ms, turns at 10.6 and 20.6, closes at 25.2 and uses
 the existing 650 ms stand/queued-intent path. Book exit is suppressed after its
-single recovery so it cannot reappear while standing. Leather cover trim and
-cached page prints retain the original Minecraft proportions and scene owner.
+single recovery so it cannot reappear while standing.
 
-Food models retain their full sprite size with one-pixel thickness, unlit
-nearest-filter faces, deliberate bites and a finishing opacity fade. A bounded
-16-instance pool in AvatarEffects uses selected food pixel colors for crumbs.
-The first crumb render gate failed because the hand/item hid the particles;
-the authored outward/downward trajectories were corrected and the original
-12-pixel gate passed. No depth-test bypass or visibility threshold reduction
-was used. Reduced motion suppresses this effect.
+The later owner references supersede the symmetric two-palm grip and thin food
+sprites. Reading now completes sitting before the book equips (0.9 s), lifts a
+closed book in the left palm (0.95–1.55), raises the right hand (1.45–1.9), opens
+one hinged cover (1.8–2.6), and rests the free hand by 3.25. Page assistance
+anticipates each turn by 0.5 s, follows across the hinge, and lowers afterward.
+The book is mounted directly to skin.leftArm. Its local offset is solved from a
+cover-underside support point and the actual palm; counter-rotation preserves
+orientation through lift and recovery. Brown pixel leather, gold corner clips,
+and blank cream parchment replace the printed/gilt-strip style. Page textures
+and the curled sheet remain cached. Original avatar proportions are retained.
+
+Foods now use four original volumetric block profiles in voxel-foods.js: stepped
+apple with stem/leaf, curved cooked chop with bone, tapered golden carrot with
+stalks, and a frosted block cake with red topping. Each profile emits only its
+exterior pixel faces into one mesh with flat normals and discrete vertex colors.
+These are solid 3D food models, not camera-facing sprite slabs. The old extrusion
+builder is removed, rather than retained as an alternate active path. Default
+profiles/palettes ship in the app; no item import is required to see 3D foods.
+Optional locally selected PNGs supply body/pale-frost palette colors while the
+geometry and structural accents remain intact. Per-frame updates only change
+transforms, visibility and fade opacity. All food surface vertices are sampled
+against head/hat and jacket volumes through bites and interrupted recovery.
+
+A bounded 16-instance pool in AvatarEffects uses selected food pixel colors for
+crumbs. Deliberate bite/chew timing and the finishing opacity fade remain intact.
+Depth testing is retained; reduced motion suppresses crumbs. Food geometry has
+more triangles but needs one draw call per selected item, with no interior faces
+or individual cube objects. sRGB food palette values are explicitly decoded to
+linear vertex colors because the canonical skinview3d runtime disables global
+Three ColorManagement; the global skin/bottle pipeline remains unchanged.
+Import/reset/disposal remains owned by AvatarProps.
 
 The flat potion extrusion is removed from active props, replaced with a cached
 voxel glass vessel, water volume and level surface. World-horizontal clipping
@@ -149,7 +172,7 @@ Exact vanilla food pixels use the user's selected client JAR/resource-pack ZIP
 or PNGs through the existing local importer. The bounded ZIP reader selects
 only known item paths, limits expanded PNG sizes, checks CRC and does not
 extract files, enumerate installations or use runtime network access. `cake.png`
-aliases the legacy settings key. Original fallback art remains until import;
+aliases the legacy settings key. Reset restores the original 3D palette;
 no game texture files are committed or bundled in the public installer.
 Local-reference renderer review uses explicit vanilla PNGs, with raw source
 assets excluded from deliverables. This is not a claim of Mojang affiliation

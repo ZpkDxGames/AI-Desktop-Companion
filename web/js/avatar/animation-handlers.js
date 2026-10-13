@@ -35,18 +35,18 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
   pose.headX+=Math.sin(elapsed*.78)*.09*w;
  }
  if(name==='read'){
-  const hold=ease((elapsed-.45)/.65)*(1-ease((elapsed-25.45)/.85));
-  pose.armRX=-1.40*hold;pose.armLX=-1.40*hold;
-  pose.armRZ=.12*hold;pose.armLZ=-.12*hold;
-  pose.headX+=.52*hold;pose.bodyX+=.035*hold;
+  const hold=activity?.bookLift||0,assist=activity?.bookAssist||0;
+  pose.armLX=-1.40*hold;pose.armLZ=-.12*hold;
+  pose.armRX=-.45*hold-1.15*assist;pose.armRZ=.08*hold+.47*assist+.13*(activity?.bookHandSweep||0);
+  pose.headX+=.52*hold;pose.headY+=.075*hold;pose.bodyX+=.035*hold;
   if(phase==='readA'||phase==='readB'){
    pose.headY+=Math.sin(elapsed*.48)*.040*hold;
    pose.headX+=Math.sin(elapsed*.36)*.009*hold;
   }
   if(phase==='pageTurn'){
-   const assist=Math.sin(activity.phaseProgress*Math.PI);
-   pose.armRX-=.040*assist*hold;pose.armRZ+=.020*assist*hold;
-   pose.headY+=.025*assist*hold;
+   const turn=Math.sin(activity.phaseProgress*Math.PI);
+   pose.armRX-=.035*turn*hold;pose.armRZ+=.025*turn*hold;
+   pose.headY+=.020*turn*hold;
   }
  }
  if(name==='eat'){

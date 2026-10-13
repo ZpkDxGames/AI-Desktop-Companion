@@ -28,12 +28,12 @@ test('food finishes by fading its sprite and bottle water drains monotonically d
  for(let t=1;t<=3.2;t+=.01){const f=sampleTimeline('drink',t,{}).waterFill;assert.ok(Number.isFinite(f));assert.ok(f<=last+1e-8&&f>=0);last=f;}
  assert.ok(last<.001);
 });
-test('drink is a cached volumetric vessel with separately rendered water and foods keep thin item depth',()=>{
+test('drink remains a cached volumetric vessel and foods have substantial side volume',()=>{
  const p=new AvatarProps(new SkinObject());
  assert.ok(p.bottle?.liquid);assert.ok(p.bottle?.surface);assert.ok(p.bottle?.shell);
  p.itemModels.get('apple').depth.geometry.computeBoundingBox();
  const box=p.itemModels.get('apple').depth.geometry.boundingBox;
- assert.ok(box.max.z-box.min.z<=.35);
+ assert.ok(box.max.z-box.min.z>1.2);
  p.dispose();
 });
 test('volumetric bottle shell stays outside head/hat and jacket throughout sipping and interrupted recovery',()=>{

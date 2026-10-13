@@ -34,7 +34,7 @@ server.listen(0,'127.0.0.1');await once(server,'listening');
 
 let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:500,height:500}});
  const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
@@ -71,7 +71,7 @@ try{
    await page.evaluate(name=>{
      const c=window.activityController=new window.BehaviorController();
      c.request(name);
-     for(let i=0;i<15;i++){c.update(.05);c.pose();}
+     for(let i=0;i<(name==='read'?65:15);i++){c.update(.05);c.pose();}
      const renderer=window.activityRenderer;
      renderer.render(c.pose(),{action:name,actionElapsed:c.elapsed,dt:1});
      const prop=name==='read'?'book':name==='eat'?'food':'drink';
@@ -92,7 +92,7 @@ try{
  // Authored time, never wall-clock screenshot timing: saved real WebGL frames
  // represent every requested action for visual diff and manual review.
  const sequence=[
-  ['read',.14,'read-enter'],['read',1.6,'read-open'],
+  ['read',.8,'read-enter'],['read',1.6,'read-closed-lift'],['read',2.25,'read-open'],['read',5,'read-calm'],
   ['read',10.7,'read-page-start'],['read',11.1,'read-page-half'],
   ['read',11.62,'read-page-complete'],['read',25.6,'read-exit'],
   ['sit',.13,'sit-down'],['sit',.8,'sit-seated'],['stand',.35,'sit-standing-up'],
@@ -169,7 +169,7 @@ try{
   ctx.fillRect(3,3,10,10);ctx.clearRect(5,5,6,6);
   const count=await renderer.setItemTextures({apple:tex.toDataURL('image/png')});
   if(count!==1)throw Error('Local sprite import was not applied');
-  if(renderer.props.itemModels.get('apple').texture.magFilter!==1003)throw Error('Imported pixels lost nearest-neighbor filtering');
+  if(!renderer.props.itemModels.get('apple').group.userData.voxelFood)throw Error('Imported colors lost the volumetric food profile');
   const c=window.activityController;c.request('idle');c.request('eat');
   for(let i=0;i<25;i++)c.update(.05);
   renderer.render(c.pose(),{action:'eat',actionElapsed:c.elapsed,foodVariant:'apple',activity:c.activity,dt:.05});

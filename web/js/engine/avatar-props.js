@@ -5,7 +5,8 @@ import {
 import {FOOD_VARIANTS} from '../avatar/prop-manifest.js';
 import {sampleTimeline} from '../avatar/activity-timelines.js';
 import {smootherstep} from '../avatar/motion-polish.js';
-import {createExtrudedItem,FALLBACK_ITEMS,ITEM_IDS,validateSpritePixels} from './item-models.js';
+import {FALLBACK_ITEMS,ITEM_IDS,validateSpritePixels} from './item-models.js';
+import {createVoxelFood} from './voxel-foods.js';
 import {createWaterBottle} from './water-bottle.js';
 
 /**
@@ -21,10 +22,12 @@ export class AvatarProps{
   this.levels={book:0,food:0,drink:0};this.state={};
   this.gripEuler=new Euler();this.gripQuaternion=new Quaternion();
   this.gripOffset=new Vector3();this.inverseArm=new Quaternion();
+  this.bookAnchor=new Vector3(2.85,-1.82,-.12).applyEuler(new Euler(0,-.16,0));this.bookPalm=new Vector3(-.2,-10.25,2.35);
+  this.bookOffset=new Vector3();this.bookEuler=new Euler();this.bookQuaternion=new Quaternion();
   this.book=this.buildBook();
   this.food=this.buildHeld('food');
   this.drink=this.buildHeld('drink');
-  skin.body.add(this.book);
+  skin.leftArm.add(this.book);
   skin.rightArm.add(this.food,this.drink);
   this.foodVariants=[];
   for(const {id} of FOOD_VARIANTS){
@@ -49,11 +52,13 @@ export class AvatarProps{
   const width=32,height=48,pixels=new Uint8Array(width*height*4);
   const ink=(x,y,c)=>{const idx=(y*width+x)*4;pixels[idx]=c[0];pixels[idx+1]=c[1];pixels[idx+2]=c[2];pixels[idx+3]=255;};
   for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-   const border=x<2||x>29||y<2||y>45;
-   let c=border?[0x9e,0x8b,0x66]:[0xf2,0xe6,0xc5];
-   const lines=y>6&&y<40&&((y+seed)%7===0||(y+seed)%7===1);
-   if(lines&&x>=5&&x<26-((y*3+seed)%9))c=[0x67,0x56,0x42];
-   if(!border&&((x*19+y*11+seed*13)%47===0))c=[0xdd,0xc9,0xa7];
+   // Vanilla-style unlettered parchment: broad cream pixels, darker gutter
+   // and irregular pale patches, rather than modern printed black text.
+   const edge=x<2||x>29||y<2||y>45;
+   let c=edge?[0xc2,0xb9,0x8d]:[0xe8,0xdf,0xb2];
+   const patch=(Math.floor(x/4)*13+Math.floor(y/5)*7+seed)%11;
+   if(!edge&&patch<2)c=[0xcf,0xc6,0x9c];
+   if(!edge&&patch>8)c=[0xf4,0xeb,0xc6];
    ink(x,y,c);
   }
   const data=new Uint8Array(pixels.length);
@@ -72,20 +77,23 @@ export class AvatarProps{
  }
  buildBook(){
   const book=new Group();
-  book.position.set(0,2.9,7.7);
-  book.userData.grip='two palms / lower cover corners';
+  book.userData.grip='left palm / right cover underside';
+  book.userData.supportPoint=this.bookAnchor.toArray();book.userData.palmPoint=this.bookPalm.toArray();
   book.userData.displayWidth=7.5;
-  this.box(book,0x65442e,.42,4.6,.67,0,0,-.14); // spine: direct child for regression tests
+  this.box(book,0x694418,.32,4.6,.67,0,0,-.14);
   this.leftCover=new Group();this.rightCover=new Group();
   book.add(this.leftCover,this.rightCover);
   const leafWidth=3.45,pageX=leafWidth*.5;
-  this.box(this.leftCover,0x704327,leafWidth,4.65,.20,-pageX,0,-.15);
-  this.box(this.rightCover,0x704327,leafWidth,4.65,.20,pageX,0,-.15);
-  for(const [cover,side] of [[this.leftCover,-1],[this.rightCover,1]]){
-   this.box(cover,0x452b1d,.14,4.65,.25,side*3.39,0,-.16);
-   this.box(cover,0xb68b54,3.15,.12,.08,side*pageX,2.13,-.29);
-   this.box(cover,0xb68b54,3.15,.12,.08,side*pageX,-2.13,-.29);
+  const coverPixels=new Uint8Array(16*24*4);
+  for(let y=0;y<24;y++)for(let x=0;x<16;x++){
+   const corner=(x<3||x>12)&&(y<3||y>20),edge=x===0||x===15||y===0||y===23;
+   const tone=corner?((x+y)%3===0?0xf3c130:0xc28b13):edge?0x724619:((Math.floor(x/4)+Math.floor(y/4)*3)%5===0?0x986725:0x87571d);
+   const i=(y*16+x)*4;coverPixels[i]=tone>>16;coverPixels[i+1]=(tone>>8)&255;coverPixels[i+2]=tone&255;coverPixels[i+3]=255;
   }
+  const coverTexture=new DataTexture(coverPixels,16,24,RGBAFormat,UnsignedByteType);coverTexture.magFilter=NearestFilter;coverTexture.minFilter=NearestFilter;coverTexture.generateMipmaps=false;coverTexture.colorSpace=SRGBColorSpace;coverTexture.needsUpdate=true;this.ownedTextures.push(coverTexture);
+  const leather=new MeshLambertMaterial({map:coverTexture});this.materials.set('vanilla-style-leather',leather);
+  const coverGeometry=new BoxGeometry(leafWidth,4.65,.20);this.geometries.set('book-cover',coverGeometry);
+  for(const [cover,side] of [[this.leftCover,-1],[this.rightCover,1]]){const mesh=new Mesh(coverGeometry,leather);mesh.position.set(side*pageX,0,-.15);cover.add(mesh);}
   this.box(this.leftCover,0xe1d0ab,3.17,4.30,.20,-pageX,0,.065);
   this.box(this.rightCover,0xe1d0ab,3.17,4.30,.20,pageX,0,.065);
   this.leftPrint=this.printPage(this.leftCover,-pageX,2,.20);
@@ -105,8 +113,6 @@ export class AvatarProps{
   const back=new MeshBasicMaterial({map:backTexture,side:BackSide});
   this.materials.set('sheet-front',face);this.materials.set('sheet-back',back);
   this.turningPage.add(new Mesh(sheet,face),new Mesh(sheet,back));
-  // A thin exposed gilt binding frames the hinge without obscuring the page.
-  this.box(book,0xcaa363,.14,4.24,.40,0,0,.045);
   return book;
  }
  buildHeld(kind){
@@ -125,8 +131,7 @@ export class AvatarProps{
    this.bottle.setPixels(pixels===FALLBACK_ITEMS.water_potion?null:pixels,width);this.bottle.pixels=pixels;
    this.itemModels.set(id,this.bottle);return this.bottle;
   }
-  const thickness=5.35/16;
-  const model=createExtrudedItem(id,pixels,{width,pixelSize:5.35/width,depth:thickness});
+  const model=createVoxelFood(id,pixels);
   const parent=this.foodVariants[FOOD_VARIANTS.findIndex(v=>v.id===id)];
   const old=this.itemModels.get(id);
   if(old)old.dispose();
@@ -134,9 +139,6 @@ export class AvatarProps{
   // head or to an independent screen-space position.
   parent.add(model.group);
   model.group.position.set(.2,.15,.25);
-  for(const material of [model.front.material,model.depth.material]){
-   material.transparent=true;material.depthWrite=false;material.alphaTest=.01;
-  }
   this.itemModels.set(id,model);
   return model;
  }
@@ -156,15 +158,20 @@ export class AvatarProps{
   this.book.visible=isRead&&state.visibility>.01;
   this.food.visible=isFood&&state.visibility>.01;
   this.drink.visible=isDrink&&state.visibility>.01;
-  // Open book faces the viewer during a reading pose; tilt upward enough for
-  // both page surfaces to be visible, without clipping the face.
-  const visibility=state.visibility||0,exit=state.exit||0;
-  this.book.scale.setScalar(Math.max(.001,1.04*visibility));
-  this.book.position.set(0,2.9-exit*.4,7.7-exit*.6);
-  this.book.rotation.x=-1.12-.04*state.bookOpen+Math.sin(state.time*.47)*.005*(isRead?1:0);
-  this.book.rotation.y=Math.sin(state.time*.64)*.028*(isRead?1:0);
-  this.leftCover.rotation.y=(1-state.bookOpen)*1.30;
-  this.rightCover.rotation.y=-(1-state.bookOpen)*1.30;
+  // The left palm owns the book throughout equip/open/read/close/recovery.
+  // Counter-rotation preserves its orientation while the actual arm supplies
+  // the lift. Solve the local offset from one physical cover support point.
+  const visibility=state.visibility||0;
+  const open=state.bookOpen||0;
+  this.book.scale.setScalar(Math.max(.001,.98*visibility));
+  const orient=smootherstep(((state.bookLift||0)-.45)/.55);
+  this.bookQuaternion.setFromEuler(this.bookEuler.set(-.55-.50*open,1.35-1.45*orient,-.055));
+  this.book.quaternion.copy(this.skin.leftArm.quaternion).invert().multiply(this.bookQuaternion);
+  this.bookPalm.x=this.skin.modelType==='slim'?.3:-.2;this.book.userData.palmPoint[0]=this.bookPalm.x;
+  this.bookOffset.copy(this.bookAnchor).multiplyScalar(this.book.scale.x).applyQuaternion(this.book.quaternion);
+  this.book.position.copy(this.bookPalm).sub(this.bookOffset);
+  this.leftCover.rotation.y=.16+(1-open)*(Math.PI-.32);
+  this.rightCover.rotation.y=-.16;
   this.turningPage.rotation.y=state.pageAngle;
   this.turningPage.visible=isRead&&state.bookOpen>.05&&state.phase==='pageTurn';
   if(isRead){
@@ -183,21 +190,22 @@ export class AvatarProps{
   // outside the torso. The constraint is continuous in the actual joint angle.
   const approach=smootherstep((Math.abs(this.skin.rightArm.rotation.x)-.15)/.85);
   const gripX=-.65+((slim?2.25:2.40)+.65)*approach;
-  this.food.position.set(gripX,-10.5,3.1*(1-approach)+.15*approach);
+  this.food.position.set(gripX,-10.5,4.8*(1-approach)+.65*approach);
   this.drink.position.set(gripX,-10.5,4.1*(1-approach)+.75*approach);
   this.food.scale.setScalar(.95*Math.min(1,visibility*3));
-  // A counter-rotated hand grip keeps the thin item sprite facing outward;
+  // A counter-rotated hand grip keeps the volumetric food's main face outward;
   // body lean and shoulder pitch remain the sole action pose authority.
   const mouth=state.mouthWeight||0;
+  const foodDepth=this.itemModels.get(variant)?.group.userData.halfDepth||1.7;
   this.inverseArm.copy(this.skin.rightArm.quaternion).invert();
-  this.gripOffset.set(0,-1.35*mouth,.5*mouth).applyQuaternion(this.inverseArm);this.food.position.add(this.gripOffset);
+  this.gripOffset.set(0,-1.35*mouth,(.5+.95*foodDepth)*mouth).applyQuaternion(this.inverseArm);this.food.position.add(this.gripOffset);
   this.gripOffset.set(0,0,.8*mouth).applyQuaternion(this.inverseArm);this.drink.position.add(this.gripOffset);
   this.orientHeld(this.food,-.10-.25*mouth,.32,-.40+.12*mouth);
   for(let i=0;i<this.foodVariants.length;i++){
    this.foodVariants[i].visible=isFood&&FOOD_VARIANTS[i].id===variant;
    const model=this.itemModels.get(FOOD_VARIANTS[i].id);
    const opacity=(state.foodOpacity??1)*visibility;
-   model.front.material.opacity=opacity;model.depth.material.opacity=opacity;
+   model.front.material.opacity=opacity;model.front.material.depthWrite=opacity>.99;
   }
   this.drink.scale.setScalar(1.03*visibility);
   this.orientHeld(this.drink,-.18-1.80*state.bottleTilt,.10,.05);

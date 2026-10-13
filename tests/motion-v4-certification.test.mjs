@@ -93,16 +93,13 @@ test('original geometry/UVs and upper-body attachments survive all poses, model 
  rig.apply(skin,{});assert.deepEqual(skin.head.position.toArray(),[0,0,0]);assert.deepEqual(skin.body.position.toArray(),[0,-6,0]);
  assert.strictEqual(skin.head.innerLayer.geometry,geometry);assert.deepEqual(geometry.getAttribute('position').array,positions);assert.deepEqual(geometry.getAttribute('uv').array,uv);
 });
-test('reading cover corners stay within palm support reach in Classic and Slim',()=>{
+test('reading cover stays attached to the supporting palm in Classic and Slim',()=>{
  for(const mode of ['default','slim']){
   const skin=new SkinObject();skin.modelType=mode;const rig=new AvatarRig(),props=new AvatarProps(skin),c=new BehaviorController();
   c.request('read');tick(c,2);rig.apply(skin,c.pose());props.update('read',c.elapsed,1/60,c.presentation);skin.updateMatrixWorld(true);
-  for(const side of [-1,1]){
-   const arm=side<0?skin.rightArm:skin.leftArm;
-   const palm=new Vector3(side*(mode==='slim'?.5:1),-9.3,0).applyMatrix4(arm.matrixWorld);
-   const corner=new Vector3(side*3.4,-2.1,0).applyMatrix4(props.book.matrixWorld);
-   assert.ok(palm.distanceTo(corner)<2.05,mode+' book unsupported');
-  }
+  const palm=new Vector3().fromArray(props.book.userData.palmPoint).applyMatrix4(skin.leftArm.matrixWorld);
+  const corner=new Vector3().fromArray(props.book.userData.supportPoint).applyMatrix4(props.book.matrixWorld);
+  assert.ok(palm.distanceTo(corner)<1e-6,mode+' book unsupported');
   props.dispose();
  }
 });

@@ -53,7 +53,7 @@ export class BehaviorController{
  request(action,{source='manual'}={}){
   if(!ACTIONS.includes(action))return false;
   if(action==='sit'){
-   if(this.sitPhase==='standing'&&action!==this.action && PRIORITY[action]<PRIORITY[this.action]&&DURATION[this.action])return false;
+   if(this.sitPhase==='standing'&&action!==this.action && PRIORITY[action]<PRIORITY[this.action]&&DURATION[this.action]&&source!=='manual')return false;
    if(this.sitPhase==='standing'){this.sitAmount=0;this.begin('sit',source);}
    else if(this.action!=='sit')this.begin('sit',source);
    this.queuedAction=null;this.sitPhase=this.sitAmount>=1?'seated':'sittingDown';
@@ -68,7 +68,8 @@ export class BehaviorController{
    this.resetIdleCountdown();
    return true;
   }
-  if(action!=='idle'&&PRIORITY[action]<PRIORITY[this.action]&&DURATION[this.action])return false;
+  // Manual discrete actions may preempt; low-priority continuous walking/running may not.
+  if(action!=='idle'&&PRIORITY[action]<PRIORITY[this.action]&&DURATION[this.action]&&(source!=='manual'||action==='walk'||action==='run'))return false;
   if(action!==this.action||source==='manual'&&action!=='idle')this.begin(action,source);
   if(source==='manual'||action==='idle')this.resetIdleCountdown();
   return true;

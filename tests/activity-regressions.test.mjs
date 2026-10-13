@@ -73,3 +73,13 @@ test('reused renderer-owned geometries remain bounded across many activities',()
  assert.ok(effects.lastCount<=effects.capacity);
  props.dispose();effects.dispose();assert.equal(root.children.length,0);
 });
+
+test('manual celebrate-to-look is a safe preemption; passive locomotion cannot steal a gesture',()=>{
+ const c=new BehaviorController();
+ c.request('celebrate');step(c,.65);
+ assert.equal(c.request('walk'),false);
+ assert.equal(c.request('look'),true);
+ assert.equal(c.action,'look');
+ assert.equal(c.eventMask,0);
+ assert.ok(Math.abs(c.pose().rootX)<.5);
+});

@@ -192,6 +192,32 @@ try{
  const importChanged=await diff(importFrame,fallbackFrame);
  if(importChanged<25)throw Error('Imported asset not visually distinct from fallback: '+importChanged);
  console.log('PASS local opt-in item asset pixel gate: '+importChanged+' changed pixels after restoring original geometry');
+ // A merged flat face must not create a one-pixel crack at a T junction.
+ // Inspect the actual production meshes, with their canonical material/light.
+ const surfaces=await page.evaluate(()=>{
+  const r=window.activityRenderer,canvas=r.canvas;canvas.parentElement.style.width='320px';canvas.parentElement.style.height='400px';r.resize();
+  const cameraPosition=r.viewer.camera.position.clone(),cameraQuaternion=r.viewer.camera.quaternion.clone(),results=[];
+  r.viewer.playerObject.visible=false;
+  for(const id of ['apple','cooked_porkchop','golden_carrot','cake_slice']){
+   const model=r.props.itemModels.get(id),object=model.group,parent=object.parent,position=object.position.clone(),quaternion=object.quaternion.clone(),scale=object.scale.clone(),visible=object.visible,opacity=model.materials.map(m=>m.opacity);
+   r.viewer.scene.add(object);object.visible=true;object.position.set(0,0,0);object.scale.setScalar(1);for(const m of model.materials)m.opacity=1;
+   for(const [view,yaw] of [['front',0],['quarter',-.7],['side',1.57]]){
+    object.rotation.set(0,yaw,0);r.viewer.camera.position.set(0,3.5,14);r.viewer.camera.lookAt(0,0,0);r.viewer.camera.updateProjectionMatrix();r.viewer.renderer.render(r.viewer.scene,r.viewer.camera);
+    const gl=r.viewer.renderer.getContext(),width=gl.drawingBufferWidth,height=gl.drawingBufferHeight,pixels=new Uint8Array(width*height*4),visited=new Uint8Array(width*height),queue=[];
+    gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+    const add=i=>{if(i>=0&&i<visited.length&&!visited[i]&&pixels[i*4+3]===0){visited[i]=1;queue.push(i);}};
+    for(let x=0;x<width;x++){add(x);add((height-1)*width+x);}for(let y=0;y<height;y++){add(y*width);add(y*width+width-1);}
+    for(let cursor=0;cursor<queue.length;cursor++){const i=queue[cursor];if(i%width)add(i-1);if(i%width<width-1)add(i+1);add(i-width);add(i+width);}
+    let smallHoles=0;
+    for(let i=0;i<visited.length;i++)if(!visited[i]&&pixels[i*4+3]===0){queue.length=0;add(i);for(let cursor=0;cursor<queue.length;cursor++){const n=queue[cursor];if(n%width)add(n-1);if(n%width<width-1)add(n+1);add(n-width);add(n+width);}if(queue.length<=3)smallHoles+=queue.length;}
+    results.push({id,view,smallHoles});
+   }
+   parent.add(object);object.position.copy(position);object.quaternion.copy(quaternion);object.scale.copy(scale);object.visible=visible;model.materials.forEach((m,i)=>m.opacity=opacity[i]);
+  }
+  r.viewer.playerObject.visible=true;r.viewer.camera.position.copy(cameraPosition);r.viewer.camera.quaternion.copy(cameraQuaternion);return results;
+ });
+ for(const s of surfaces)if(s.smallHoles)throw Error(`Food surface crack: ${s.id}/${s.view} has ${s.smallHoles} enclosed missing pixels`);
+ console.log('PASS solid food surfaces: 12 views with no enclosed pixel cracks');
  if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
  await page.evaluate(()=>window.activityRenderer.dispose());
  await page.close();

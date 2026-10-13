@@ -161,13 +161,17 @@ crumbs. Deliberate bite/chew timing and the finishing opacity fade remain intact
 Depth testing is retained; reduced motion suppresses crumbs. Food geometry has
 one draw call per selected item, with no interior faces or individual cube
 objects. Matching coplanar exterior faces merge into rectangles while retaining
-every original colored surface cell. Mesh triangles fall from 1,380 to 320 for
-apple, 936 to 202 for cooked chop, 824 to 290 for carrot and 1,220 to 276 for
-cake. A spatial surface fingerprint from bb2727b verifies all cells, normals
+every original colored surface cell. Matching boundary vertices prevent cracks
+where a long edge meets shorter faces; constrained triangulation retains those
+vertices. Mesh triangles fall from 1,380 to 434 for apple, 936 to 280 for cooked
+chop, 824 to 398 for carrot and 1,220 to 416 for cake. A spatial surface fingerprint from bb2727b verifies all cells, normals
 and exact Float32 colors with default and imported palettes. sRGB food palette values are explicitly decoded to
 linear vertex colors because the canonical skinview3d runtime disables global
 Three ColorManagement; the global skin/bottle pipeline remains unchanged.
-Import/reset/disposal remains owned by AvatarProps.
+Import/reset/disposal remains owned by AvatarProps. The first corner-only merge
+passed mathematical coverage tests but produced enclosed missing pixels in
+actual software-WebGL images. The GPU regression reproduced that failure before
+the fix and now requires zero small enclosed pixel cracks in twelve food views.
 
 The flat potion extrusion is removed from active props, replaced with a cached
 voxel glass vessel, water volume and level surface. World-horizontal clipping

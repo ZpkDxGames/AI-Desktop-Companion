@@ -79,7 +79,7 @@ export function createVoxelFood(id,pixels){
   [0,0,-1,[[0,0,0],[0,1,0],[1,1,0],[1,0,0]]],
   [0,0,1,[[1,0,1],[1,1,1],[0,1,1],[0,0,1]]]
  ];
- const dimensions=[w,h,d],mask=new Int16Array(Math.max(w*h,w*d,h*d));
+ const dimensions=[w,h,d],mask=new Int16Array(Math.max(w*h,w*d,h*d)),quads=[];
  // Merge only coplanar exterior cells with identical color and normal. Pixel
  // boundaries, steps, silhouette and every original surface cell stay intact;
  // flat regions need one rectangle rather than one rectangle per voxel.
@@ -103,15 +103,50 @@ export function createVoxelFood(id,pixels){
     for(let row=0;row<height;row++)mask.fill(0,(v+row)*columns+u,(v+row)*columns+u+width);
     origin[axis]=slice;origin[uAxis]=u;origin[vAxis]=v;
     extent[axis]=1;extent[uAxis]=width;extent[vAxis]=height;
-    const tag=Math.floor((key-1)/3),shade=[1,1.12,.90][(key-1)%3];
+    quads.push({normal:[nx,ny,nz],key,corners:points.map(q=>q.map((n,a)=>origin[a]+n*extent[a]))});
+    u+=width;
+   }
+  }
+ }
+ // Every neighboring rectangle corner also splits the matching edge. Without
+ // these shared boundary segments, a long edge beside a shorter one can leave
+ // visible T-junction cracks in the real rasterizer. Interior flat cells stay
+ // merged; no overlap, face inflation or additional material pass is needed.
+ const lineKey=(p,axis)=>axis+':'+p[(axis+1)%3]+':'+p[(axis+2)%3],lines=new Map();
+ for(const quad of quads)for(const p of quad.corners)for(let axis=0;axis<3;axis++){
+  const key=lineKey(p,axis);if(!lines.has(key))lines.set(key,new Set());lines.get(key).add(p[axis]);
+ }
+ for(const [key,values] of lines)lines.set(key,[...values].sort((a,b)=>a-b));
+ for(const quad of quads){
+  const boundary=[];
+  for(let edge=0;edge<4;edge++){
+   const a=quad.corners[edge],b=quad.corners[(edge+1)%4],axis=a.findIndex((n,i)=>n!==b[i]);
+   const values=lines.get(lineKey(a,axis)).filter(n=>n>=Math.min(a[axis],b[axis])&&n<=Math.max(a[axis],b[axis]));
+   if(b[axis]<a[axis])values.reverse();
+   for(let i=0;i<values.length-1;i++){const p=a.slice();p[axis]=values[i];boundary.push(p);}
+  }
+  const [nx,ny,nz]=quad.normal,normalAxis=nx?0:ny?1:2,axes=[0,1,2].filter(n=>n!==normalAxis),[u,v]=axes;
+  const polygon=boundary.map((_,i)=>i),triangles=[];
+  let area=0;for(let i=0;i<boundary.length;i++){const a=boundary[i],b=boundary[(i+1)%boundary.length];area+=a[u]*b[v]-b[u]*a[v];}
+  const sign=Math.sign(area),cross=(a,b,p)=>sign*((b[u]-a[u])*(p[v]-a[v])-(b[v]-a[v])*(p[u]-a[u]));
+  // Keep collinear boundary vertices: dropping them would recreate the seam.
+  while(polygon.length>3){
+   let found=false;
+   for(let i=0;i<polygon.length;i++){
+    const a=polygon[(i+polygon.length-1)%polygon.length],b=polygon[i],d=polygon[(i+1)%polygon.length];
+    if(cross(boundary[a],boundary[b],boundary[d])<=0)continue;
+    let blocked=false;for(const p of polygon){if(p===a||p===b||p===d)continue;const q=boundary[p];if(cross(boundary[a],boundary[b],q)>=0&&cross(boundary[b],boundary[d],q)>=0&&cross(boundary[d],boundary[a],q)>=0){blocked=true;break;}}
+    if(blocked)continue;triangles.push(a,b,d);polygon.splice(i,1);found=true;break;
+   }
+   if(!found)throw Error('Food boundary cannot be triangulated');
+  }
+  triangles.push(...polygon);
+  const tag=Math.floor((quad.key-1)/3),shade=[1,1.12,.90][(quad.key-1)%3];
    // skinview3d deliberately disables Three's global ColorManagement. Vertex
    // colors still enter the linear lighting pipeline, so decode our sRGB art
    // explicitly without changing that global setting (or skin/bottle colors).
    const hex=palette[tag];c.setRGB((hex>>16&255)/255,(hex>>8&255)/255,(hex&255)/255,LinearSRGBColorSpace).convertSRGBToLinear().multiplyScalar(shade);
-    for(const i of [0,1,2,0,2,3]){const q=points[i];position.push((origin[0]+q[0]*extent[0]-w/2)*unit,(origin[1]+q[1]*extent[1]-h/2)*unit,(origin[2]+q[2]*extent[2]-d/2)*unit);normal.push(nx,ny,nz);color.push(c.r,c.g,c.b);}
-    u+=width;
-   }
-  }
+  for(const i of triangles){const q=boundary[i];position.push((q[0]-w/2)*unit,(q[1]-h/2)*unit,(q[2]-d/2)*unit);normal.push(nx,ny,nz);color.push(c.r,c.g,c.b);}
  }
  const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(position,3));geometry.setAttribute('normal',new Float32BufferAttribute(normal,3));geometry.setAttribute('color',new Float32BufferAttribute(color,3));geometry.computeBoundingBox();geometry.computeBoundingSphere();
  const material=new MeshLambertMaterial({vertexColors:true,transparent:true,depthWrite:true});

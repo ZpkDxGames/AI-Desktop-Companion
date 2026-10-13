@@ -77,7 +77,9 @@ permissions are added. The book keeps nearest-filter pixel parchment/leather;
 foods merge identical coplanar voxel faces with discrete vertex colors. Spatial
 surface fingerprints preserve original colored cells; whole-triangle clearance
 tests cover both body widths during bites and interrupted recovery. The meshes
-contain 320/202/290/276 triangles for apple/chop/carrot/cake respectively.
+contain 434/280/398/416 triangles for apple/chop/carrot/cake respectively.
+Shared edge vertices prevent T-junction cracks; twelve actual-renderer views
+check for enclosed missing pixels.
 Exact vanilla food art is read through explicitly selected PNGs, a Minecraft
 client JAR or resource-pack ZIP; only allowlisted item entries are decoded.
 Archives have size/entry/decompression/CRC limits and never extract to disk or

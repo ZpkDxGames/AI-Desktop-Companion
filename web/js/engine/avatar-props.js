@@ -68,7 +68,7 @@ export class AvatarProps{
  }
  buildBook(){
   const book=new Group();
-  book.position.set(0,2.0,10.35);
+  book.position.set(0,-1.25,10.35);
   book.userData.displayWidth=7.5;
   this.box(book,0x65442e,.42,4.6,.67,0,0,-.14); // spine: direct child for regression tests
   this.leftCover=new Group();this.rightCover=new Group();
@@ -93,7 +93,7 @@ export class AvatarProps{
   const group=new Group();
   // Calibrated on the canonical right-hand pivot; the arm supplies reach, the
   // local grip counter-rotates so the item remains legible to the camera.
-  group.position.set(1.8,-7.8,-2.15);
+  group.position.set(1.8,-9.25,-2.6);
   group.userData.grip='skin.rightArm/wrist';
   group.userData.kind=kind;
   return group;
@@ -101,14 +101,14 @@ export class AvatarProps{
  setItemPixels(id,pixels,width=16){
   if(!ITEM_IDS.includes(id))throw Error('Unknown local item id');
   validateSpritePixels({width,height:width,data:pixels});
-  const model=createExtrudedItem(id,pixels,{width,pixelSize:3.85/width,depth:.32});
+  const model=createExtrudedItem(id,pixels,{width,pixelSize:5.35/width,depth:.39});
   const parent=id==='water_potion'?this.drinkItem:this.foodVariants[FOOD_VARIANTS.findIndex(v=>v.id===id)];
   const old=this.itemModels.get(id);
   if(old)old.dispose();
   // Each sprite is vertically aligned to the actual hand grip, never to the
   // head or to an independent screen-space position.
   parent.add(model.group);
-  model.group.position.set(0,.35,.18);
+  model.group.position.set(0,.15,.22);
   this.itemModels.set(id,model);
   return model;
  }
@@ -141,8 +141,8 @@ export class AvatarProps{
    this.foodVariants[i].visible=isFood&&FOOD_VARIANTS[i].id===variant;
   }
   this.drink.scale.setScalar(.96+.04*state.visibility);
-  this.drink.rotation.x=1.65-state.bottleTilt*.66;
-  this.drink.rotation.y=.18;this.drink.rotation.z=-.12;
+  this.drink.rotation.x=1.72+state.bottleTilt*.28;
+  this.drink.rotation.y=.18;this.drink.rotation.z=-.12-state.bottleTilt*.36;
  }
  dispose(){
   for(const group of [this.book,this.food,this.drink])group.removeFromParent();

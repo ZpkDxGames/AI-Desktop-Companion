@@ -29,10 +29,10 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
   pose.headX+=Math.sin(elapsed*.78)*.09*w;
  }
  if(name==='read'){
-  pose.rootY-=3.35*w;pose.rootZ+=.68*w;
-  pose.legRX=-1.29*w;pose.legLX=-1.29*w;
+  pose.rootY-=.18*w;pose.rootZ+=.15*w;
+  pose.legRX=-.08*w;pose.legLX=-.08*w;
   pose.armRX=-1.05*w;pose.armLX=-1.05*w;
-  pose.armRZ=.34*w;pose.armLZ=-.34*w;
+  pose.armRZ=.39*w;pose.armLZ=-.39*w;
   pose.headX=.25*w;
   if(phase==='readA'||phase==='readB'){
    pose.headY+=Math.sin(elapsed*.79)*.057*w;

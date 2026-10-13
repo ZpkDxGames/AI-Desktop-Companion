@@ -2,6 +2,8 @@ import {SkinViewer} from 'skinview3d';
 import {detectFaceProfile} from '../avatar/face.js';
 import {EyeFaceMaterial} from './eye-face-material.js';
 import {AvatarProps} from './avatar-props.js';
+import {FALLBACK_ITEMS,ITEM_IDS} from './item-models.js';
+import {decodeSavedItemPngs,sanitizeSavedItemTextures} from './item-import.js';
 import {AvatarEffects} from './avatar-effects.js';
 import {normalizeModelMode,toSkinViewModel,fromSkinViewModel} from '../avatar/model-policy.js';
 
@@ -13,6 +15,7 @@ export class AvatarRenderer{
   this.detectedModel='default';
   this.skin=null;
   this.facesEnabled=false;
+  this.localSpriteSources={};
   this.baseYaw=overlay?.08:.18;
   this.baseZoom=overlay?.64:.73;
   this.lastScale=0;
@@ -49,7 +52,10 @@ export class AvatarRenderer{
   this.modelMode=normalizeModelMode(model);
   await this.viewer.loadSkin(image,{model:toSkinViewModel(this.modelMode)});
   this.detectedModel=this.viewer.playerObject.skin.modelType;
-  if(this.props.skin!==this.viewer.playerObject.skin){this.props.dispose();this.props=new AvatarProps(this.viewer.playerObject.skin);}
+  if(this.props.skin!==this.viewer.playerObject.skin){
+   this.props.dispose();this.props=new AvatarProps(this.viewer.playerObject.skin);
+   await this.applyImportedItems();
+  }
   const detected=(image.naturalWidth===64&&image.naturalHeight===64)
    ?detectFaceProfile(this.imagePixels(image))
    :{supported:false,reason:'legacy-or-non-64x64-skin'};
@@ -62,6 +68,16 @@ export class AvatarRenderer{
   this.modelMode=normalizeModelMode(mode);
   if(this.skin)return this.setSkin(this.skin,{model:this.modelMode});
   return {supported:false,reason:'no-skin',modelType:fromSkinViewModel(this.detectedModel),modelMode:this.modelMode};
+ }
+ async applyImportedItems(){
+  await decodeSavedItemPngs(this.localSpriteSources,(id,pixels,width)=>this.props.setItemPixels(id,pixels,width));
+ }
+ async setItemTextures(sources){
+  this.localSpriteSources=sanitizeSavedItemTextures(sources);
+  // Explicit user change or reset: replace each model once, never in the frame loop.
+  for(const id of ITEM_IDS)this.props.setItemPixels(id,FALLBACK_ITEMS[id],16);
+  await this.applyImportedItems();
+  return Object.keys(this.localSpriteSources).length;
  }
  createRig(slim){return this.setModelMode(slim?'slim':'classic');}
  setFacesEnabled(enabled){this.facesEnabled=!!enabled;this.faceMaterial.setEnabled(this.facesEnabled);}

@@ -79,6 +79,13 @@
               <div class="button-row compact"><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset scale</button></div>
             </div>
             <div class="settings-group">
+              <div class="group-heading"><h3>Held Minecraft items</h3><span>LOCAL TEXTURES</span></div>
+              <div class="upload-block"><div class="upload-label"><strong>Import your own authorized item sprites</strong><small>Extract PNGs from your own resource pack. No network access or automatic game scanning.</small></div><label class="upload-button" for="item-sprite-import">Import PNGs</label><input id="item-sprite-import" type="file" accept="image/png" multiple hidden /></div>
+              <div class="metric-row"><span>Custom art</span><strong id="custom-items-status">0 / 5 custom item sprites</strong></div>
+              <div class="button-row compact"><button id="item-sprite-reset" class="button-secondary" type="button">Restore fallback art</button></div>
+              <p class="small-note">Accepted filenames: apple.png, cooked_porkchop.png, golden_carrot.png, cake_slice.png, potion.png or water_potion.png. Each PNG must be 16–128 px square and no larger than 160 KB. Imported textures are stored only in this application's local settings. ZIP import is not yet supported. Vanilla potion artwork may require your own correctly colored water-potion texture.</p>
+            </div>
+            <div class="settings-group">
               <div class="group-heading"><h3>Facial behavior</h3><span>OPT-IN EXPERIMENT</span></div>
               <div class="setting-line"><div><strong>Experimental 3D eyes</strong><small>Vanilla artwork is preserved when disabled.</small></div><label class="switch"><input id="expressions-enabled" type="checkbox" aria-label="Experimental 3D eyes"/><span></span></label></div>
               <div class="metric-row"><span>Eye-marker support</span><strong id="face-marker-status">Checking...</strong></div>

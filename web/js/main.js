@@ -1,4 +1,5 @@
 import {AvatarRenderer} from './engine/renderer.js';
+import {readSelectedItemPngs,sanitizeSavedItemTextures} from './engine/item-import.js';
 import sampleSkinUrl from '../assets/sample-skin.png';
 import {RuntimeJournal} from './runtime/diagnostics.js';
 import {FramePacer} from './runtime/frame-pacing.js';
@@ -11,7 +12,7 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin'};
+const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{}};
 const STORE='zpkdx-avatar-v0.1';
 
 function stored(){
@@ -22,6 +23,7 @@ function stored(){
   if(!clean.modelMode&&typeof clean.slim==='boolean')clean.modelMode=clean.slim?'slim':'classic';
   delete clean.slim;delete clean.eyes;
   clean.modelMode=normalizeModelMode(clean.modelMode);
+  clean.itemTextures=sanitizeSavedItemTextures(clean.itemTextures);
   clean.idleMode=['off','calm','lively'].includes(clean.idleMode)?clean.idleMode:DEFAULT.idleMode;
   return {...DEFAULT,...clean};
  }catch{return structuredClone(DEFAULT);}
@@ -79,6 +81,7 @@ function syncUi(){
  $('expressions-enabled').checked=state.expressions;
  $('idle-mode').value=state.idleMode;
  $('current-skin-label').textContent=state.skinName.toUpperCase();
+ const itemLabel=$('custom-items-status');if(itemLabel)itemLabel.textContent=Object.keys(state.itemTextures||{}).length+' / 5 custom item sprites';
 }
 function updateStatus(result){
  if(overlay)return;
@@ -107,6 +110,7 @@ async function reloadFromStorage(){
  }
  if(!image)image=await decodeImage(sampleSkinUrl);
  const result=await setSkin(image);
+ await renderer.setItemTextures(state.itemTextures);
  stage('SKIN_READY','Texture uploaded; model '+result.modelType);
  syncUi();
 }
@@ -216,6 +220,21 @@ function bindWorkspaceNavigation(){
 }
 function connectWorkshop(){
  bindWorkspaceNavigation();
+ $('item-sprite-import').addEventListener('change',async event=>{
+  const files=event.target.files;if(!files?.length)return;
+  try{
+   const {sprites,count}=await readSelectedItemPngs(files);
+   const updated={...state.itemTextures,...sprites};
+   await renderer.setItemTextures(updated);
+   state.itemTextures=updated;save();syncUi();wake();
+   toast(count+' local item texture(s) imported. The files remain on this device.');
+  }catch(error){toast(error.message||String(error));}
+  finally{event.target.value='';}
+ });
+ $('item-sprite-reset').addEventListener('click',async()=>{
+  await renderer.setItemTextures({});state.itemTextures={};save();syncUi();wake();
+  toast('Restored original built-in item art.');
+ });
  $('skin-upload').addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file)return;
   try{

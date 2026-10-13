@@ -1,0 +1,37 @@
+name: V4 published reference report
+on:
+  push:
+    branches: [dev/animation-reference-report-bb2727b]
+    paths: ['.github/workflows/reference-report.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read completed review artifact and verify installer again
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --allow-escape-sequences repos/ZpkDxGames/AI-Desktop-Companion/actions/artifacts/11848685784/zip > "$RUNNER_TEMP/review.zip"
+          python3 - <<'PY'
+          import zipfile,hashlib,os,io,json
+          from pathlib import Path
+          data=Path(os.environ['RUNNER_TEMP'],'review.zip').read_bytes()
+          print('ARTIFACT_SHA256='+hashlib.sha256(data).hexdigest())
+          outer=zipfile.ZipFile(io.BytesIO(data));assert outer.testzip() is None
+          print('FILES='+json.dumps(outer.namelist()))
+          setup=next(n for n in outer.namelist() if n.endswith('.exe'))
+          assert hashlib.sha256(outer.read(setup)).hexdigest()=='91a806c948d8b7669ff85f9e1794b18c05224591e9ef05279b78409eb527389e'
+          report=next(n for n in outer.namelist() if n.endswith('-Reference-Verification.md'))
+          print('REPORT_BEGIN');print(outer.read(report).decode());print('REPORT_END')
+          package=next(n for n in outer.namelist() if n.endswith('-Reference-Review.zip'))
+          inner=zipfile.ZipFile(io.BytesIO(outer.read(package)));assert inner.testzip() is None
+          print('INNER_REVIEW_SHA256='+hashlib.sha256(outer.read(package)).hexdigest())
+          gallery=next(n for n in inner.namelist() if n.endswith('/data/gallery-check.json'))
+          print('GALLERY_CHECK='+inner.read(gallery).decode())
+          print('PASS published ZIP CRC and exact-tested installer SHA256')
+          PY

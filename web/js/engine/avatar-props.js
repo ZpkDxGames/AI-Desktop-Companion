@@ -1,5 +1,5 @@
 import {
- BoxGeometry,DataTexture,DoubleSide,FrontSide,BackSide,Group,Mesh,MeshBasicMaterial,
+ BoxGeometry,DataTexture,DoubleSide,FrontSide,BackSide,Group,Mesh,MeshBasicMaterial,Euler,Quaternion,
  MeshLambertMaterial,NearestFilter,PlaneGeometry,RGBAFormat,SRGBColorSpace,UnsignedByteType
 } from 'three';
 import {FOOD_VARIANTS} from '../avatar/prop-manifest.js';
@@ -18,6 +18,7 @@ export class AvatarProps{
   this.geometries=new Map();this.materials=new Map();
   this.ownedTextures=[];this.itemModels=new Map();
   this.levels={book:0,food:0,drink:0};this.state={};
+  this.gripEuler=new Euler();this.gripQuaternion=new Quaternion();
   this.book=this.buildBook();
   this.food=this.buildHeld('food');
   this.drink=this.buildHeld('drink');
@@ -124,6 +125,12 @@ export class AvatarProps{
   this.itemModels.set(id,model);
   return model;
  }
+ orientHeld(group,pitch,yaw,roll){
+  // Counter-rotate the full shoulder quaternion, rather than subtracting Euler
+  // X angles through a rotated Z/Y basis. This preserves the actual bottle axis.
+  this.gripQuaternion.setFromEuler(this.gripEuler.set(pitch,yaw,roll));
+  group.quaternion.copy(this.skin.rightArm.quaternion).invert().multiply(this.gripQuaternion);
+ }
  update(action,elapsed,dt,activity,variant='apple'){
   const state=activity||sampleTimeline(action,elapsed,this.state);
   action=state.action||action;
@@ -154,21 +161,19 @@ export class AvatarProps{
   // The inside face of both canonical hands is x=+1 in shoulder-local space.
   // The item overlaps that face as a grip while its silhouette remains exposed.
   const slim=this.skin.modelType==='slim';
-  this.food.position.set(slim?2.25:2.40,-9.7,-.80);
+  this.food.position.set(slim?2.25:2.40,-10.5,-.80);
   this.drink.position.set(slim?2.25:2.40,-10.5,-.05);
   const foodScale=.86*(1-(state.consume??(state.bite===0?0:state.bite===1?.20:.42)))*visibility;
   this.food.scale.setScalar(foodScale);
   // A counter-rotated hand grip keeps the thin item sprite facing outward;
   // body lean and shoulder pitch remain the sole action pose authority.
   const mouth=state.mouthWeight||0;
-  this.food.rotation.x=(-.24-1.62*mouth)-this.skin.rightArm.rotation.x;
-  this.food.rotation.y=.12;this.food.rotation.z=.12+.12*mouth;
+  this.orientHeld(this.food,-.24-1.62*mouth,.12,.12+.12*mouth);
   for(let i=0;i<this.foodVariants.length;i++){
    this.foodVariants[i].visible=isFood&&FOOD_VARIANTS[i].id===variant;
   }
   this.drink.scale.setScalar(1.30*visibility);
-  this.drink.rotation.x=(-.18-1.80*state.bottleTilt)-this.skin.rightArm.rotation.x;
-  this.drink.rotation.y=.10;this.drink.rotation.z=.16+state.bottleTilt*.24;
+  this.orientHeld(this.drink,-.18-1.80*state.bottleTilt,.10,.05);
  }
  dispose(){
   for(const group of [this.book,this.food,this.drink])group.removeFromParent();

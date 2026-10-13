@@ -23,6 +23,8 @@ the existing opt-in face material, vanilla fallback and pupil/blink compositor.
 changes the requested action immediately while the prior prop closes/lowers
 and withdraws for 300 ms. New props wait for that recovery before appearing.
 The renderer does not run an independent transition or behavior clock.
+Held props counter-rotate the complete shoulder quaternion using cached scratch
+objects, preserving authored mouth/tilt axes through chest, shoulder yaw and roll.
 
 ## Activities
 

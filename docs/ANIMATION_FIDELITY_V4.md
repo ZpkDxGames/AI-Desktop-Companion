@@ -80,6 +80,9 @@ The first visual refinement failed: inward grips obscured food/potion and hands
 covered pages. Actual front/quarter/side captures exposed this despite green
 unit tests. Grip locations, book height and item depth/closed backs were revised.
 The existing GPU item visibility gates then passed without weaker thresholds.
+The final axis review also replaced Euler subtraction in held grips with cached
+full-quaternion compensation. A neck-direction regression verifies that yaw
+and roll cannot change the authored bottle pouring axis.
 
 M4 preserves 60/20 scheduling, bounds cached resources and adds reproducible
 CPU/real-WebGL profiling plus a ten-minute wall-clock lifecycle soak. Tests

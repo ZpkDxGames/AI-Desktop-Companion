@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SkinObject} from 'skinview3d';
-import {Vector3,Matrix4} from 'three';
+import {Vector3,Matrix4,Quaternion} from 'three';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
 import {AvatarRig} from '../web/js/engine/avatar-rig.js';
 import {AvatarProps} from '../web/js/engine/avatar-props.js';
@@ -119,4 +119,15 @@ test('opaque food and bottle pixels avoid the original head and outer mask at mo
   }
   props.dispose();
  }
+});
+
+test('the bottle neck keeps its intended pouring axis through shoulder yaw and roll',()=>{
+ const skin=new SkinObject(),props=new AvatarProps(skin);
+ for(const [x,y,z] of [[-2,.0,.4],[-1.4,.2,-.25],[-2.1,-.18,.32]]){
+  skin.rightArm.rotation.set(x,y,z);props.update('drink',1.9,1/60);
+  const world=new Quaternion().multiplyQuaternions(skin.rightArm.quaternion,props.drink.quaternion);
+  const neck=new Vector3(0,1,0).applyQuaternion(world);
+  assert.ok(neck.z<-.85&&neck.y<-.20&&Math.abs(neck.x)<.15,'bottle rotation used the wrong local axis');
+ }
+ props.dispose();
 });

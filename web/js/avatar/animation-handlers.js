@@ -24,18 +24,18 @@ export function applyExtraAnimation(name,pose,elapsed){
   pose.rootY-=3.55*w;pose.rootZ+=.7*w;
   pose.legRX=-1.34*w;pose.legLX=-1.34*w;
   pose.armRX=-1.08*w;pose.armLX=-1.08*w;
-  pose.armRZ=-.30*w;pose.armLZ=.30*w;
+  pose.armRZ=.43*w;pose.armLZ=-.43*w;
   pose.headX=.22*w;pose.headY+=Math.sin(elapsed*1.2)*.025*w;
  }
  if(name==='eat'){
   pose.armRX=(-2.22+.11*Math.sin(elapsed*7))*w;
-  pose.armRZ=-.17*w;pose.headX=.06*w;pose.headZ=-.045*w;
+  pose.armRZ=.18*w;pose.headX=.06*w;pose.headZ=-.045*w;
  }
  if(name==='drink'){
-  pose.armRX=-2.36*w;pose.armRZ=-.11*w;pose.headX=-.14*w;
+  pose.armRX=-2.30*w;pose.armRZ=.16*w;pose.headX=-.14*w;
  }
  if(name==='inspect'){
-  pose.armRX=-1.25*w;pose.armRZ=-.24*w;
+  pose.armRX=-1.25*w;pose.armRZ=.19*w;
   pose.headX=.14*w;pose.headY+=.16*w;
  }
  if(name==='nod'){pose.headX=-.25*w +Math.sin(elapsed*10)*.13*w;}

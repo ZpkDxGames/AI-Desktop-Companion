@@ -77,3 +77,13 @@ test('props mount once to canonical skin parts, change visibility, and release o
  assert.ok(groups.every(group=>!group.parent));
  assert.equal(geo?.getAttribute('position').count>0,true);
 });
+
+test('reading hands converge toward book; eating and drinking use inward arm roll',()=>{
+ const read=new BehaviorController();read.request('read');advance(read,.6);
+ assert.ok(read.pose().armRZ>.1,'right arm must turn inward while reading');
+ assert.ok(read.pose().armLZ<-.1,'left arm must turn inward while reading');
+ const eat=new BehaviorController();eat.request('eat');advance(eat,.6);
+ assert.ok(eat.pose().armRZ>0,'eating right arm should turn inward');
+ const drink=new BehaviorController();drink.request('drink');advance(drink,.6);
+ assert.ok(drink.pose().armRZ>0,'drinking right arm should turn inward');
+});

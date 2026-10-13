@@ -182,9 +182,16 @@ try {
         await page.locator('[data-nav="behavior"]').click();
         if(await page.locator('#idle-mode').inputValue()!=='off')throw new Error('Idle frequency did not survive reload');
         for(const action of ['read','eat','drink','look','inspect']){
-          await page.locator('[data-action="idle"]').click();
-          await page.locator('[data-action="'+action+'"]').click();
-          await page.waitForFunction(name=>document.querySelector('[data-action="'+name+'"]')?.classList.contains('active'),action,{timeout:3000});
+          // One browser task for cancel + select avoids cross-process
+          // automation delays that could let short gestures expire between
+          // separate Playwright clicks on stressed software WebGL runners.
+          await page.evaluate(name=>{
+            document.querySelector('[data-action="idle"]').click();
+            const chosen=document.querySelector('[data-action="'+name+'"]');
+            chosen.click();
+            if(!chosen.classList.contains('active'))
+              throw new Error('Gesture was not accepted by the UI: '+name);
+          },action);
           // Selection highlights change synchronously, but software WebGL can
           // still be displaying the previous pose. Wait for a *rendered* action.
           await page.waitForFunction(name=>document.querySelector('#animation-status')?.textContent===name.toUpperCase(),action,{timeout:9000});

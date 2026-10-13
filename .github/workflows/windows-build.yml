@@ -19,8 +19,10 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
-      - name: Checkout source
+      - name: Checkout exact development source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -61,8 +63,8 @@ jobs:
           "$sha  $($installer.Name)" | Set-Content -Path 'dist/windows-alpha/SHA256SUMS.txt' -Encoding utf8
           @(
             "repository=${{ github.repository }}"
-            "commit=${{ github.sha }}"
-            "ref=${{ github.ref }}"
+            "commit=${{ github.event.pull_request.head.sha || github.sha }}"
+            "ref=${{ github.head_ref || github.ref }}"
             "run_id=${{ github.run_id }}"
             "run_attempt=${{ github.run_attempt }}"
             "runner=windows-2022"

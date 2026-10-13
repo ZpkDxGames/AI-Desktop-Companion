@@ -48,6 +48,7 @@ try{
    await renderer.setSkin(image);
    window.activityRenderer=renderer;
    window.activityController=new BehaviorController();
+   window.BehaviorController=BehaviorController;
  },seed);
  const canvas=page.locator('#activity-canvas');
  const screenshot=async filename=>canvas.screenshot({path:'smoke-artifacts/activity-fixed-'+filename+'.png'});
@@ -87,6 +88,57 @@ try{
    if(changed<12)throw Error(action+' has invisible geometry in fixed-pose WebGL: '+changed+' changed pixels');
    console.log('PASS GPU prop visible '+action+': '+changed+' changed pixels with identical body/eye pose');
  }
+
+ // Authored time, never wall-clock screenshot timing: saved real WebGL frames
+ // represent every requested action for visual diff and manual review.
+ const sequence=[
+  ['read',.14,'read-enter'],['read',1.12,'read-open'],
+  ['read',4.7,'read-page-start'],['read',5.05,'read-page-half'],
+  ['read',5.52,'read-page-complete'],['read',11.4,'read-exit'],
+  ['sit',.13,'sit-down'],['sit',.8,'sit-seated'],['stand',.35,'sit-standing-up'],
+  ['think',1.1,'think-bubble'],['celebrate',.43,'celebrate-flight'],
+  ['celebrate',.82,'celebrate-burst'],['celebrate',2.3,'celebrate-fade'],
+  ['eat',1.45,'eat-apple','apple'],['eat',1.8,'eat-porkchop','cooked_porkchop'],
+  ['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],
+  ['drink',1.1,'drink-raise'],['drink',1.9,'drink-sip'],
+  ['look',.95,'look-steps'],['look',2.25,'look-scan'],
+  ['inspect',1.5,'inspect-visual-preview'],
+  ['read',5.05,'read-quarter-left',null,-.785],
+  ['read',5.05,'read-quarter-right',null,.785],
+  ['drink',1.9,'drink-quarter',null,.785],
+  ['think',1.1,'think-quarter',null,-.785]
+ ];
+ for(const [requested,seconds,label,variant,yaw] of sequence){
+  await page.evaluate(({requested,seconds,variant,yaw})=>{
+   const controller=new window.BehaviorController({seed:2026});
+   if(requested==='stand'){
+    controller.request('sit');
+    for(let i=0;i<20;i++)controller.update(.05);
+    controller.request('idle');
+   }else controller.request(requested);
+   for(let i=0;i<Math.round(seconds/.05);i++)controller.update(.05);
+   if(variant)controller.foodVariant=variant;
+   const renderer=window.activityRenderer;
+   renderer.render(controller.pose(),{
+    action:controller.action,actionElapsed:controller.elapsed,activity:controller.activity,
+    foodVariant:controller.foodVariant,rotation:yaw||0,dt:.05
+   });
+  },{requested,seconds,variant,yaw});
+  const frame=await screenshot(label);
+  if(['think-bubble','celebrate-burst','celebrate-flight'].includes(label)){
+   await page.evaluate(()=>{
+    const renderer=window.activityRenderer;
+    renderer.effects.bubble.visible=false;
+    renderer.effects.particles.count=0;
+    renderer.viewer.render();
+   });
+   const bare=await screenshot(label+'-no-effects');
+   const changed=await diff(frame,bare);
+   if(changed<10)throw Error(label+' GPU effect is invisible: '+changed+' changed pixels');
+   console.log('PASS fixed-pose GPU '+label+': '+changed+' effect pixels');
+  }
+ }
+
  if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
  await page.evaluate(()=>window.activityRenderer.dispose());
  await page.close();

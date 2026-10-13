@@ -60,8 +60,8 @@ test('rate changes and nonfinite delta cannot create an idle action immediately'
 test('props mount once to canonical skin parts, change visibility, and release owned resources',()=>{
  const skin={body:new Group(),rightArm:new Group(),leftArm:new Group()};
  const props=new AvatarProps(skin);
- assert.ok(skin.body.children.length>0);
- assert.ok(skin.rightArm.children.length>0);
+ assert.equal(skin.body.children.length,3);
+ assert.equal(skin.rightArm.children.length,0);
  const groups=[...skin.body.children,...skin.rightArm.children,...skin.leftArm.children];
  props.update('read',2,.05);
  assert.equal(props.book.visible,true);

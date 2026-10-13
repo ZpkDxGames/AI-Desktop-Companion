@@ -186,7 +186,19 @@ try {
           await page.locator('[data-action="'+action+'"]').click();
           await page.waitForFunction(name=>document.querySelector('[data-action="'+name+'"]')?.classList.contains('active'),action,{timeout:3000});
           await page.waitForTimeout(480);
-          await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+          const capture=await surface.screenshot({path:'smoke-artifacts/activity-'+action+'-workspace.png'});
+          if(action==='eat'){
+            const red=await page.evaluate(async data=>{
+              const image=new Image();image.src='data:image/png;base64,'+data;await image.decode();
+              const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+              const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+              const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+              let count=0;
+              for(let i=0;i<pixels.length;i+=4)if(pixels[i]>85&&pixels[i]>pixels[i+1]*1.35&&pixels[i]>pixels[i+2]*1.25)count++;
+              return count;
+            },capture.toString('base64'));
+            if(red<8)throw new Error('Eating prop is not visibly rendered (red pixels='+red+')');
+          }
         }
         await page.locator('[data-action="idle"]').click();
         await page.locator('#idle-mode').selectOption('calm');

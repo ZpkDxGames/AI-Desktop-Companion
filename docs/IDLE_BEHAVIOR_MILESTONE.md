@@ -11,7 +11,7 @@
 - Adds a user-selectable automatic idle policy: **Off** (none), **Calm** (36–64 idle seconds), **Lively** (14–26 idle seconds). Scheduling is deterministic for a given seed; only executes while `action==='idle'`. Timers do not advance in hidden windows because the frame pump pauses.
 - Auto actions enter through `request(action, {source:'auto'})` and obey the same transition and priority rules. Manual selection resets the countdown; selecting Idle preempts. Disabling autonomous mode interrupts an active auto action.
 - Reuses the actual 3D eye gaze/blink while the character reads or eats; no facial mesh or UV changes.
-- Attaches **cached geometry** for a blocky open book (body), apple-like food (right hand), and a bottle (right hand). One construction at renderer startup, no per-frame mesh allocation, explicit dispose on renderer shutdown.
+- Attaches **cached geometry** for a blocky open book, apple-like food, and bottle (all mounted at stable torso-relative positions adjacent to hand poses to avoid occlusion). One construction at renderer startup, no per-frame mesh allocation, explicit dispose on renderer shutdown.
 - The Behavior Workspace exposes these actions and persistent frequency preferences for Workspace and overlay; diagnostics report active action/source and total local idle events.
 - No desktop physics, screen observation, AI inference, model downloads, external assets, network calls or privileged native permissions.
 

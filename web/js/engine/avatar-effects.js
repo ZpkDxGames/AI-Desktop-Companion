@@ -67,7 +67,7 @@ export class AvatarEffects{
   this.bulb.scale.setScalar(w*(this.reducedMotion?1:1+.06*Math.sin(Math.min(1,enter)*Math.PI)));
   // Camera-facing voxel icons above/alongside the actual head, including sitting.
   // Quaternion/vector scratch objects are reused and occlusion remains depth-tested.
-  this.root.updateWorldMatrix(true,true);
+  if(this.bubble.visible||this.bulb.visible){
   const head=this.root.skin?.head;
   if(head){this.anchor.set(0,4,0);head.localToWorld(this.anchor);this.root.worldToLocal(this.anchor);}
   else this.anchor.set(0,12,0);
@@ -80,6 +80,7 @@ export class AvatarEffects{
   this.bubble.position.y+=6.7+(this.reducedMotion?0:Math.sin(this.effectTime*1.6)*.10);
   this.bubble.position.x+=6.3;this.bubble.position.z+=2;
   this.bulb.position.copy(this.anchor);this.bulb.position.y+=7.8+.35*(1-enter);this.bulb.position.z+=2;
+  }
   if(action!=='celebrate'||this.reducedMotion){
    this.particles.count=0;this.lastCount=0;return;
   }

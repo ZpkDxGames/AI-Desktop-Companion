@@ -58,15 +58,15 @@ Each window retains its existing scene/controller; only Workspace owns conversat
 
 ## Evidence and limits
 
-Linux container: Node v24.19.0, software WebGL Chromium 141 (SwiftShader). **154/154 Node tests** at the implementation gate, production build passes. Exact CI head runs the same suite again. Failing tests were written for reaction/coordinator and dual-model contracts before implementation.
+Linux container: Node v24.19.0, software WebGL Chromium 141 (SwiftShader). **155/155 Node tests** at the implementation gate, production build passes. Exact CI head runs the same suite again. Failing tests were written for reaction/coordinator and dual-model contracts before implementation.
 
 Passed local gates: production Workspace/overlay startup; 840×650 and 1120×780 overflow checks; native-boundary mock conversation, capabilities, fallback, manual Wave priority, Clear/Cancel, settings privacy/persistence, allowlisted overlay events; deliberate WebGL context loss/restoration with stable event subscriber count. Actual eye pixel gate: H=464, V=393, blink=754, neutral enabled/off diff=0, disabled gaze diff=0. Activity GPU gates cover read/eat/drink props, five foods, scene effects and voxel surfaces. Expressive gate captures agree/shrug/shake, 30/120-second bubbles, bulb, drowsy/wake, seated bubble, front/quarter/side, overlay 252×370, DPI 100/150/200%, reduced motion, 100 pooled toggles and final effect cleanup. These use a **representative synthetic masked/hatted skin fixture**; owner's private exact skin is not present.
 
 60-minute fake-clock simulation, 50 mock reaction replies, 100 cancels, geometry/material disposal, continuity and cancellation races pass. Container CPU microbenchmark (5,000 samples; timer/runtime limited, not native GPU): coordinator p50 0.000501 / p95 0.001352 / p99 0.001993 ms; effect update p50 0.001522 / p95 0.002724 / p99 0.003826 ms. No comparison to RTX performance is claimed. Raw measurements live in CI/local evidence outputs.
 
-Windows CI Rust tests, installer run, artifact hash: **pending exact-head CI at report creation**. The review handoff/PR records final run IDs/results and installer SHA-256 after artifacts exist. Installer is unsigned and development-only. Rust toolchain unavailable locally; native compile/unit gates run on Windows CI. Cargo dependencies currently resolve on CI (repository baseline does not commit Cargo.lock); BUILD_INFO identifies exact source, not a reproducible dependency lock.
+The first exact-head Windows-hosted browser CI passed (run `38505827404`, source `daba51aa0a04b1d0e847f56f632c90fdcdb7e2a9`). Follow-up hardening adds UTF-8 history budget coverage, idle effect transform optimization, and an installed NSIS/WebView2 smoke. Windows CI Rust tests, installed-app runtime and artifact hash: **pending final exact-head CI at report update**. The review handoff/PR records final run IDs/results and installer SHA-256 after artifacts exist. Installer is unsigned and development-only. Rust toolchain unavailable locally; native compile/unit gates run on Windows CI. Cargo dependencies resolve on CI (repository baseline does not commit Cargo.lock); the generated Cargo.lock is included with installer provenance. BUILD_INFO identifies exact source; the artifact lock records resolved dependencies.
 
-**NOT RUN / REQUIRES OWNER HARDWARE:** installed Ollama version, real Qwen/Llama structured-output reliability, actual 4096 context/processor/VRAM residence, cold/warm inference latency, RTX frame p50/p95/p99 versus V6.1, ≤10% comparable render-cost gate, real installer execution/uninstall, WebView2 transparency/tray/click-through/native cancellation, exact private skin fidelity, prolonged native GPU leak test. Tests and mock replies do not establish those results. No blanket completion or production certification is claimed.
+**NOT RUN / REQUIRES OWNER HARDWARE:** installed Ollama version, real Qwen/Llama structured-output reliability, actual 4096 context/processor/VRAM residence, cold/warm inference latency, RTX frame p50/p95/p99 versus V6.1, ≤10% comparable render-cost gate, owner installer execution/uninstall, WebView2 transparency/tray/click-through and real-model native cancellation, exact private skin fidelity, prolonged native GPU leak test. Tests and mock replies do not establish those results. No blanket completion or production certification is claimed.
 
 M4 manually selected image trial is formally deferred because prerequisite native/GPU gates cannot be certified here. See [V7 separately consented vision design](V7_OPT_IN_DESKTOP_VISION_ARCHITECTURE.md). No continuous desktop monitoring is implemented.
 
@@ -90,6 +90,8 @@ Raw captures are real Chromium WebGL pixels, not image generation. Full matrix a
 | V6.1 baseline Workspace | V6.2 development Workspace |
 |---|---|
 | ![Baseline](evidence/v6-2/baseline-workspace.png) | ![Development](evidence/v6-2/development-workspace.png) |
+
+Windows installed-app smoke uses actual NSIS installation, launch and silent uninstall on the disposable runner. Its deterministic HTTP fixture exercises the real Rust bridge (metadata, text, fallback, cancellation, overlay window-label denial); it does not execute Qwen/Llama weights.
 
 These two app captures document build/UI provenance, not synchronized-pose performance measurements.
 
@@ -154,3 +156,5 @@ These two app captures document build/UI provenance, not synchronized-pose perfo
 - `web/js/engine/eye-shader.js`
 - `web/js/engine/renderer.js`
 - `web/js/main.js`
+
+Follow-up verification sources: `scripts/smoke-windows-installed.ps1`, `scripts/smoke-windows-installed.mjs`; no application capture privilege is added.

@@ -38,3 +38,10 @@ test('remote aliases cannot route even when locally listed',async()=>{
  c.listModels=async()=>[primary];assert.equal((await c.inspectModels())[0].local,false);
  await assert.rejects(c.send('hi',{model:primary,installed:[primary]}),/installed|local/);
 });
+test('multibyte history is bounded below the native byte cap',async()=>{
+ const c=new LocalConversation({fetchImpl:async(_,opts)=>{
+  const body=JSON.parse(opts.body);assert.ok(body.messages.reduce((n,m)=>n+Buffer.byteLength(m.content),0)<=24000);
+  return json({message:{content:JSON.stringify({reply:'文'.repeat(2000),reaction:'neutral'})}});
+ }});
+ for(let i=0;i<12;i++)await c.send('文'.repeat(2400),{model:primary});
+});

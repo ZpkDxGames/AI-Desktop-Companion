@@ -110,7 +110,10 @@ export class LocalConversation{
   let timedOut=false;
   const timer=setTimeout(()=>{timedOut=true;this.cancel();},120000);
   const history=this.history.slice(-MAX_HISTORY);
-  while(history.length&&history.reduce((n,m)=>n+m.content.length,0)+prompt.length+baseSystem.content.length>11000)history.splice(0,2);
+  const encoder=new TextEncoder();
+  const length=()=>history.reduce((n,m)=>n+m.content.length,0)+prompt.length+baseSystem.content.length;
+  const bytes=()=>history.reduce((n,m)=>n+encoder.encode(m.content).length,0)+encoder.encode(prompt).length+encoder.encode(baseSystem.content).length;
+  while(history.length&&(length()>11000||bytes()>24000))history.splice(0,2);
   const messages=[baseSystem,...history,{role:'user',content:prompt}];
   const aborted=()=>own.signal.aborted||generation!==this.counter;
   const infer=async chosen=>{

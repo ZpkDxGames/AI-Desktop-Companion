@@ -98,6 +98,7 @@ function updateAiControls(){
  stop.disabled=!chatBusy;
  $('ai-gesture-enabled').checked=state.ai.gestures;
  $('ai-connection-status').textContent=chatBusy?'Responding locally…':aiConnected?'Local provider connected':'Disconnected (on-demand only)';
+ const label=$('model-connection-badge');if(label)label.textContent=aiConnected?'LOCAL AI CONNECTED':'AI OPTIONAL';
 }
 function appendConversation(role,content){
  const root=$('chat-history');
@@ -311,6 +312,8 @@ function showPage(page){
  $('page-eyebrow').textContent=eyebrow;
  $('page-title').textContent=title;
  $('page-subtitle').textContent=subtitle;
+ // Avoid stale scroll offsets hiding page headings after switching panels.
+ document.querySelector('.settings')?.scrollTo({top:0,behavior:'instant'});
  wake();
 }
 function bindWorkspaceNavigation(){

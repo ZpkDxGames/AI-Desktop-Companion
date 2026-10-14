@@ -176,6 +176,23 @@ try {
         }
         checkpoint='daily activity controls and persistence';
         await page.locator('[data-nav="behavior"]').click();
+        checkpoint='V5 local personality settings';
+        await page.locator('#personality-style').selectOption('curious');
+        await page.locator('#personality-enabled').uncheck();
+        if(!((await page.locator('#behavior-personality-status').innerText()).includes('Classic')))
+          throw new Error('Disabling V5 should restore seeded V4 behavior');
+        await page.reload({waitUntil:'load'});
+        await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+        await page.locator('[data-nav="behavior"]').click();
+        if(await page.locator('#personality-style').inputValue()!=='curious')
+          throw new Error('Personality preference did not persist');
+        if(await page.locator('#personality-enabled').isChecked())
+          throw new Error('Disabling local personality did not persist');
+        await page.locator('#personality-enabled').check();
+        if(!((await page.locator('#behavior-personality-status').innerText()).includes('curious')))
+          throw new Error('Enabling local style did not activate V5');
+        await page.screenshot({path:'smoke-artifacts/v5-personality-behavior-settings.png'});
+        checkpoint='daily activity controls and persistence';
         await page.locator('#idle-mode').selectOption('off');
         await page.reload({waitUntil:'load'});
         await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});

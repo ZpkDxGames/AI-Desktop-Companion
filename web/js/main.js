@@ -4,6 +4,7 @@ import sampleSkinUrl from '../assets/sample-skin.png';
 import {RuntimeJournal} from './runtime/diagnostics.js';
 import {FramePacer} from './runtime/frame-pacing.js';
 import {BehaviorController} from './avatar/animation.js';
+import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
 
@@ -12,7 +13,7 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{}};
+const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{},personality:{enabled:true,style:'balanced'}};
 const STORE='zpkdx-avatar-v0.1';
 
 function stored(){
@@ -24,12 +25,16 @@ function stored(){
   delete clean.slim;delete clean.eyes;
   clean.modelMode=normalizeModelMode(clean.modelMode);
   clean.itemTextures=sanitizeSavedItemTextures(clean.itemTextures);
+  clean.personality=clean.personality===undefined?{...DEFAULT.personality}:sanitizeBehaviorPreferences(clean.personality);
   clean.idleMode=['off','calm','lively'].includes(clean.idleMode)?clean.idleMode:DEFAULT.idleMode;
   return {...DEFAULT,...clean};
  }catch{return structuredClone(DEFAULT);}
 }
 const state=stored();
-const controller=new BehaviorController({seed:Date.now()});
+const seed=Date.now();
+const controller=new BehaviorController({seed});
+const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
+controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 controller.setReducedMotion(motionPreference.matches);
 motionPreference.addEventListener('change',event=>{
@@ -43,6 +48,7 @@ let bindingsReady=false,eventsReady=false,contextLost=false,starting=false,bootR
 let rafId=0,idleTimer=0,frameSamples=new Float32Array(120),sampleCount=0,sampleCursor=0,contextLosses=0;
 let renderer=null,lastTime=0,renderT=0,renderCount=0,lastReport=performance.now();
 let cursor=[0,0],tracking=false,dragging=false,rotStart=0,angle=0,lastPointerEvent=-Infinity;
+let lastAttentionEvent=-Infinity;
 const canvas=$(overlay?'overlay-canvas':'avatar-canvas');
 const toast=message=>{const node=$('toast');node.textContent=message;node.hidden=false;clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>node.hidden=true,4100);};
 const save=()=>{try{
@@ -54,7 +60,9 @@ const stage=(name,message)=>{journal.record(name,message);const node=statusNode(
 const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.0',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
-  idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts});
+  idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
+  personalityEnabled:state.personality.enabled,personalityStyle:state.personality.style,
+  behaviorTone:state.personality.enabled?personalityPolicy.mood:'classic',behaviorDecisions:personalityPolicy.decisions});
 const copyReport=async()=>{
  const text=report();
  try{await navigator.clipboard.writeText(text);toast('Diagnostics copied.');}
@@ -85,8 +93,18 @@ function syncUi(){
  $('follow-pointer').checked=state.follow;
  $('expressions-enabled').checked=state.expressions;
  $('idle-mode').value=state.idleMode;
+ $('personality-enabled').checked=state.personality.enabled;
+ $('personality-style').value=state.personality.style;
+ updateBehaviorUi();
  $('current-skin-label').textContent=state.skinName.toUpperCase();
  const itemLabel=$('custom-items-status');if(itemLabel)itemLabel.textContent=Object.keys(state.itemTextures||{}).length+' / 5 custom item sprites';
+}
+function updateBehaviorUi(){
+ if(overlay)return;
+ const label=$('behavior-personality-status');
+ if(label)label.textContent=state.idleMode==='off'?'Automatic actions disabled':state.personality.enabled
+   ?'Local rules · '+state.personality.style+' · '+personalityPolicy.mood
+   :'Classic seeded activity selection';
 }
 function updateStatus(result){
  if(overlay)return;
@@ -104,6 +122,8 @@ async function setSkin(image){
 async function reloadFromStorage(){
  Object.assign(state,stored());
  controller.setIdleMode(state.idleMode);
+ personalityPolicy.setStyle(state.personality.style);
+ controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
  stage('ASSETS',state.skin?'Loading saved skin':'Loading bundled sample texture');
  let image;
  if(state.skin){
@@ -260,10 +280,20 @@ function connectWorkshop(){
  $('follow-pointer').addEventListener('change',e=>{state.follow=e.target.checked;save();});
  $('expressions-enabled').addEventListener('change',e=>{state.expressions=e.target.checked;renderer.setFacesEnabled(state.expressions);save();wake();});
  $('blink-now').addEventListener('click',()=>{controller.triggerBlink();wake();});
+ $('personality-enabled').addEventListener('change',event=>{
+  state.personality.enabled=event.target.checked;
+  controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
+  updateBehaviorUi();save();wake();
+ });
+ $('personality-style').addEventListener('change',event=>{
+  if(!personalityPolicy.setStyle(event.target.value))return;
+  state.personality.style=personalityPolicy.style;
+  updateBehaviorUi();save();wake();
+ });
  $('idle-mode').addEventListener('change',event=>{
   state.idleMode=event.target.value;
   if(!controller.setIdleMode(state.idleMode))return;
-  save();wake();
+  updateBehaviorUi();save();wake();
  });
  $('action-row').addEventListener('click',e=>{
   const action=e.target.closest('[data-action]')?.dataset.action;
@@ -287,6 +317,9 @@ function attachPointer(element){
   cursor[0]=Math.max(-1,Math.min(1,(event.clientX-headX)/Math.max(180,b.width*.40)));
   cursor[1]=Math.max(-1,Math.min(1,(headY-event.clientY)/Math.max(150,b.height*.38)));
   tracking=true;lastPointerEvent=performance.now();
+  if(state.personality.enabled&&lastPointerEvent-lastAttentionEvent>=2000){
+   lastAttentionEvent=lastPointerEvent;personalityPolicy.noteInteraction('pointer',controller.time);
+  }
   if(dragging)angle=Math.max(-2,Math.min(2,rotStart+(event.clientX-(element.dragAnchor??event.clientX))*.012));
   wake();
  },{passive:true});
@@ -333,6 +366,7 @@ function frame(time){
   renderCount++;
   if(!overlay){statusNode('animation-status').textContent=controller.action.toUpperCase();setActiveAction(controller.action);}
   if(time-lastReport>=1250){
+   updateBehaviorUi();
    const fps=Math.round(renderCount*1000/(time-lastReport));
    renderCount=0;lastReport=time;
    if(!overlay)statusNode('render-fps').textContent=fps+' FPS';

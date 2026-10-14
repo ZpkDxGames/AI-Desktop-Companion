@@ -197,3 +197,19 @@ html.overlay,body.mode-overlay{width:100%;height:100%;min-height:0;background:tr
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
+
+
+/* V6 conversation: bounded, responsive, no chat-message HTML injection */
+.chat-history{min-height:180px;max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px;background:#141a1e;border:1px solid var(--border);border-radius:11px}
+.chat-message{max-width:95%;min-width:0;align-self:flex-start;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#242c31}
+.chat-message.from-user{align-self:flex-end;background:#263b35;border-color:#456b5b}
+.chat-message.from-system{background:#1d2428;color:#b0bfbc}
+.chat-message strong{font-size:10px;color:var(--mint);font-weight:650}
+.chat-message p{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;color:#dce6e2;margin:5px 0 0;line-height:1.55}
+.chat-compose{display:flex;flex-direction:column;gap:10px}
+.chat-compose label{font-size:11px;color:var(--subtext)}
+.chat-compose textarea{width:100%;min-height:72px;max-height:155px;resize:vertical;background:#181f23;border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:12px;font:inherit;font-size:12px;line-height:1.5}
+.chat-compose textarea:focus{outline:2px solid #609c8a;outline-offset:1px}
+.chat-actions{display:flex;flex-wrap:wrap;gap:8px}
+.chat-actions button:disabled,#ai-connect:disabled{opacity:.45;cursor:not-allowed}
+#ai-model{max-width:70%;min-width:115px}

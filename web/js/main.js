@@ -5,6 +5,7 @@ import {RuntimeJournal} from './runtime/diagnostics.js';
 import {FramePacer} from './runtime/frame-pacing.js';
 import {BehaviorController} from './avatar/animation.js';
 import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
+import {LocalConversation,sanitizeAiSettings,formatChatError,OLLAMA_BASE} from './ai/local-conversation.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
 
@@ -13,7 +14,7 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{},personality:{enabled:true,style:'balanced'}};
+const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{},personality:{enabled:true,style:'balanced'},ai:{model:'',gestures:false}};
 const STORE='zpkdx-avatar-v0.1';
 
 function stored(){
@@ -26,6 +27,7 @@ function stored(){
   clean.modelMode=normalizeModelMode(clean.modelMode);
   clean.itemTextures=sanitizeSavedItemTextures(clean.itemTextures);
   clean.personality=clean.personality===undefined?{...DEFAULT.personality}:sanitizeBehaviorPreferences(clean.personality);
+  clean.ai=sanitizeAiSettings(clean.ai);
   clean.idleMode=['off','calm','lively'].includes(clean.idleMode)?clean.idleMode:DEFAULT.idleMode;
   return {...DEFAULT,...clean};
  }catch{return structuredClone(DEFAULT);}
@@ -34,6 +36,8 @@ const state=stored();
 const seed=Date.now();
 const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
+const conversation=new LocalConversation();
+let aiConnected=false,chatBusy=false,conversationGeneration=0;
 controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 controller.setReducedMotion(motionPreference.matches);
@@ -85,6 +89,88 @@ function wake(){
  if(!rafId)rafId=requestAnimationFrame(frame);
 }
 
+function updateAiControls(){
+ if(overlay)return;
+ const model=$('ai-model'),connect=$('ai-connect'),send=$('ai-send'),stop=$('ai-stop');
+ model.disabled=!aiConnected||chatBusy;
+ connect.disabled=chatBusy;
+ send.disabled=!aiConnected||chatBusy||!model.value;
+ stop.disabled=!chatBusy;
+ $('ai-gesture-enabled').checked=state.ai.gestures;
+ $('ai-connection-status').textContent=chatBusy?'Responding locally…':aiConnected?'Local provider connected':'Disconnected (on-demand only)';
+}
+function appendConversation(role,content){
+ const root=$('chat-history');
+ const article=document.createElement('div');
+ article.className='chat-message '+(role==='user'?'from-user':role==='assistant'?'from-model':'from-system');
+ const label=document.createElement('strong');
+ label.textContent=role==='user'?'You':role==='assistant'?'Companion':'System';
+ const text=document.createElement('p');text.textContent=content;
+ article.append(label,text);root.append(article);
+ while(root.children.length>30)root.firstElementChild.remove();
+ root.scrollTop=root.scrollHeight;
+}
+async function connectLocalAi(){
+ if(overlay||chatBusy)return;
+ $('ai-connect').disabled=true;
+ $('ai-connection-status').textContent='Checking local Ollama…';
+ try{
+  const models=await conversation.listModels();
+  aiConnected=true;
+  const chooser=$('ai-model');chooser.replaceChildren();
+  for(const name of models){
+   const option=document.createElement('option');
+   option.value=name;option.textContent=name;chooser.append(option);
+  }
+  if(models.includes(state.ai.model))chooser.value=state.ai.model;
+  else{state.ai.model=models[0]||'';save();}
+  if(!models.length)appendConversation('system','Ollama is running but has no models. Install a local model first.');
+  else appendConversation('system','Connected to local Ollama. Messages are sent only when you press Send.');
+ }catch(error){
+  aiConnected=false;
+  $('ai-model').replaceChildren();
+  appendConversation('system',formatChatError(error));
+ }finally{updateAiControls();}
+}
+async function sendLocalChat(){
+ if(overlay||!aiConnected||chatBusy)return;
+ const field=$('chat-input'),input=field.value.trim(),model=$('ai-model').value;
+ if(!input)return;
+ if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
+ const generation=++conversationGeneration;
+ chatBusy=true;field.disabled=true;updateAiControls();
+ appendConversation('user',input);field.value='';
+ try{
+  const response=await conversation.send(input,{model,gestures:state.ai.gestures});
+  if(generation!==conversationGeneration)return;
+  appendConversation('assistant',response.reply);
+  // A model cannot command tools or take priority over an active manual activity.
+  if(state.ai.gestures&&response.gesture&&controller.action==='idle'){
+   controller.request(response.gesture,{source:'auto'});wake();
+  }
+ }catch(error){
+  if(generation===conversationGeneration)appendConversation('system',formatChatError(error));
+ }finally{
+  if(generation===conversationGeneration){chatBusy=false;field.disabled=false;updateAiControls();field.focus();}
+ }
+}
+function bindLocalChat(){
+ if(overlay)return;
+ $('ai-connect').addEventListener('click',connectLocalAi);
+ $('ai-model').addEventListener('change',event=>{state.ai.model=event.target.value;conversation.clear();save();updateAiControls();});
+ $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;save();});
+ $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
+ $('ai-stop').addEventListener('click',()=>conversation.cancel());
+ $('ai-clear').addEventListener('click',()=>{
+  conversationGeneration++;conversation.clear();chatBusy=false;
+  $('chat-input').disabled=false;
+  $('chat-history').replaceChildren();
+  updateAiControls();
+  appendConversation('system','Local conversation cleared from memory.');
+ });
+ $('ai-endpoint').textContent=OLLAMA_BASE;
+ updateAiControls();
+}
 function syncUi(){
  if(overlay)return;
  $('model-type').value=state.modelMode;
@@ -96,6 +182,7 @@ function syncUi(){
  $('personality-enabled').checked=state.personality.enabled;
  $('personality-style').value=state.personality.style;
  updateBehaviorUi();
+ updateAiControls();
  $('current-skin-label').textContent=state.skinName.toUpperCase();
  const itemLabel=$('custom-items-status');if(itemLabel)itemLabel.textContent=Object.keys(state.itemTextures||{}).length+' / 5 custom item sprites';
 }
@@ -205,8 +292,8 @@ const PAGES=Object.freeze({
  studio:['CHARACTER / STUDIO','Avatar Studio','Skin identity, proportions and expressions.'],
  behavior:['MOTION / BEHAVIOR','Behavior & Animations','Test local animation poses and transitions.'],
  desktop:['ENVIRONMENT / DESKTOP','Desktop World','Native desktop geometry and interaction capabilities.'],
- conversation:['ASSISTANT / CHAT','Conversation','On-demand local conversation configuration.'],
- models:['ASSISTANT / MODELS','AI & Models','Local provider and resource management.'],
+ conversation:['ASSISTANT / CHAT','Conversation','On-demand text chat with a user-installed local model.'],
+ models:['ASSISTANT / MODELS','AI & Models','Connect manually to installed local Ollama models.'],
  privacy:['SECURITY / CONSENT','Privacy','Controls and present permission scope.'],
  activity:['HISTORY / ACTIVITY','Activity','Local activity and history availability.'],
  diagnostics:['SYSTEM / DIAGNOSTICS','Diagnostics','Actual runtime and renderer measurements.'],
@@ -245,6 +332,7 @@ function bindWorkspaceNavigation(){
 }
 function connectWorkshop(){
  bindWorkspaceNavigation();
+ bindLocalChat();
  $('item-sprite-import').addEventListener('change',async event=>{
   const files=event.target.files;if(!files?.length)return;
   try{

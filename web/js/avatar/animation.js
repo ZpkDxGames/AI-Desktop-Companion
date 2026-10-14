@@ -48,9 +48,14 @@ export class BehaviorController{
   this.blinkState=this.microState^0x85ebca6b;
   this.sitPhase='standing';this.sitAmount=0;this.queuedAction=null;this.queuedSource='manual';
   this.foodVariant='apple';this.foodIndex=-1;this.eventMask=0;this.eventSerial=0;
+  this.behaviorPolicy=null;
   sampleTimeline('idle',0,this.activity);
   this.presentation={};this.recovery={};this.recoveryTime=Infinity;this.propDelay=0;this.propSuppressed=false;
   this.updatePresentation();
+ }
+ setBehaviorPolicy(policy){
+  if(policy!==null&&(typeof policy?.choose!=='function'||typeof policy?.tick!=='function'||typeof policy?.noteAction!=='function'))return false;
+  this.behaviorPolicy=policy;return true;
  }
  nextRandom(){this.rngState=(Math.imul(this.rngState,1664525)+1013904223)>>>0;return this.rngState/4294967296;}
  microRandom(){this.microState=(Math.imul(this.microState,1664525)+1013904223)>>>0;return this.microState/4294967296;}
@@ -99,6 +104,7 @@ export class BehaviorController{
   this.recoverProp();this.propSuppressed=false;
   if(action!==this.action)this.previous=this.action;
   this.action=action;this.source=source;this.elapsed=0;this.eventMask=0;
+  this.behaviorPolicy?.noteAction(action,source,this.time);
   if(action==='eat'){
    let index=Math.floor(this.nextRandom()*FOOD_VARIANTS.length);
    if(index===this.foodIndex)index=(index+1)%FOOD_VARIANTS.length;
@@ -255,11 +261,13 @@ export class BehaviorController{
   }
   if(DURATION[this.action]&&this.elapsed>=DURATION[this.action]&&(this.sitPhase==='standing'||this.action==='read'&&this.sitPhase==='seated'))
    this.request('idle',{source:'system'});
+  // V5 supplies decisions only: timing and requests still belong to this sole controller.
+  this.behaviorPolicy?.tick(dt,this);
   if(this.action==='idle'&&this.idleMode!=='off'&&dt>0){
    this.idleCountdown-=dt;
    if(this.idleCountdown<=0){
-    const next=AUTO_ACTIONS[Math.floor(this.nextRandom()*AUTO_ACTIONS.length)];
-    if(this.request(next,{source:'auto'}))this.autoStarts++;
+    const next=this.behaviorPolicy?this.behaviorPolicy.choose(this):AUTO_ACTIONS[Math.floor(this.nextRandom()*AUTO_ACTIONS.length)];
+    if(next&&this.request(next,{source:'auto'}))this.autoStarts++;
     this.resetIdleCountdown();
    }
   }

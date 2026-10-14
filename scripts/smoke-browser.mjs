@@ -224,6 +224,18 @@ try {
           throw new Error('HTML from local model was interpreted as markup');
         if(await page.evaluate(()=>window.__v6LocalCalls.length)!==3)throw new Error('V6 expected exactly one model list, one capability request and one chat request');
         await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
+        checkpoint='V6.2.1 native-free direct command in production bundle';
+        // The explicit action runs without inference even when model-suggested gestures are off.
+        await page.locator('#ai-gesture-enabled').uncheck();
+        await page.locator('#chat-input').fill('Can you shake your head?');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>Array.from(document.querySelectorAll('.chat-message.from-model')).some(n=>n.textContent?.includes('Okay — shaking my head.')),null,{timeout:9000});
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==3)
+          throw new Error('Explicit head-shake command unexpectedly contacted Ollama');
+        if(!(await page.locator('#ai-route-status').innerText()).includes('no AI inference'))
+          throw new Error('Direct animation route did not identify the local-only action');
+        await page.screenshot({path:'smoke-artifacts/v621-direct-head-shake.png'});
+        console.log('PASS V6.2.1 direct avatar command without model inference');
         await page.locator('#ai-clear').click();
         if(await page.locator('.chat-message.from-model').count()!==0)
           throw new Error('Local chat clear did not remove conversation');

@@ -90,6 +90,9 @@ export class LocalConversation{
    this.history.push({role:'user',content:prompt},{role:'assistant',content:answer.reply});
    if(this.history.length>MAX_HISTORY)this.history.splice(0,this.history.length-MAX_HISTORY);
    return answer;
+  }catch(error){
+   if(error instanceof TypeError)throw new Error(formatChatError(error));
+   throw error;
   }finally{
    clearTimeout(timer);
    if(this.pending===own)this.pending=null;

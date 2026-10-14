@@ -101,6 +101,10 @@
               <div class="group-heading"><h3>Automatic idle activities</h3><span>LOCAL · NO AI</span></div>
               <div class="setting-line"><div><strong>Activity frequency</strong><small>Only when resting. Pauses while the window is hidden.</small></div><select id="idle-mode" aria-label="Idle activity frequency"><option value="off">Off</option><option value="calm" selected>Calm</option><option value="lively">Lively</option></select></div>
               <p class="small-note">Calm: roughly every 36–64 seconds. Lively: every 14–26 seconds of idle time. Reading, eating and drinking use lightweight, reusable 3D props. Selecting Idle interrupts any activity.</p>
+              <div class="setting-line"><div><strong>Local personality behavior</strong><small>Optional deterministic activity selection. No AI model, screen access or network traffic.</small></div><label class="switch"><input id="personality-enabled" type="checkbox" checked aria-label="Enable local personality behavior"/><span></span></label></div>
+              <div class="setting-line"><label for="personality-style">Behavior style</label><select id="personality-style" aria-label="Local behavior style"><option value="balanced">Balanced</option><option value="curious">Curious</option><option value="playful">Playful</option><option value="restful">Restful</option></select></div>
+              <div class="metric-row"><span>Behavior state</span><strong id="behavior-personality-status">Local rules · balanced</strong></div>
+              <p class="small-note">Personalities change which existing activities are selected and how frequently similar actions repeat; they do not enable autonomous AI, external integrations, or desktop observation. Turning this off restores classic seeded choices. Selecting Off above disables all automatic activities.</p>
             </div>
             <div class="action-row" id="action-row">
               <div class="action-family"><div class="group-heading"><h3>Idle & movement</h3><span>CORE</span></div><div class="action-grid">

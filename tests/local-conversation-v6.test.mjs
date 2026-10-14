@@ -87,7 +87,7 @@ test('native Windows transport lists models and chats without WebView fetch or b
  });
  assert.deepEqual(await conn.listModels(),['llama3.2:3b']);
  const out=await conn.send('Hello',{model:'llama3.2:3b',gestures:true});
- assert.deepEqual(out,{reply:'Native local response',gesture:'wave',reaction:'neutral'});
+ assert.deepEqual(out,{reply:'Native local response',gesture:'wave',reaction:'neutral',model:'llama3.2:3b',fallbackUsed:false});
  assert.deepEqual(actions.map(x=>x.command),['ollama_list_models','ollama_chat']);
  assert.equal(actions[1].args.model,'llama3.2:3b');
  assert.ok(/^v6-[a-z0-9-]+$/.test(actions[1].args.requestId));

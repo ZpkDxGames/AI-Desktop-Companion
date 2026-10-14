@@ -137,6 +137,7 @@ try {
           window.__v6LocalCalls.push({url:target,method:options.method});
           const body=target.endsWith('/api/tags')
             ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
+            :target.endsWith('/api/show')?JSON.stringify({capabilities:['completion']})
             :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
           return Promise.resolve(new Response(body,{status:200,headers:{'Content-Type':'application/json'}}));
         };
@@ -221,7 +222,7 @@ try {
         await page.waitForFunction(()=>document.querySelector('.chat-message.from-model')?.textContent?.includes('Safe local conversation'),null,{timeout:9000});
         if(await page.locator('.chat-message.from-model b').count()!==0)
           throw new Error('HTML from local model was interpreted as markup');
-        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==2)throw new Error('V6 expected exactly one model list and one chat request');
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==3)throw new Error('V6 expected exactly one model list, one capability request and one chat request');
         await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
         await page.locator('#ai-clear').click();
         if(await page.locator('.chat-message.from-model').count()!==0)

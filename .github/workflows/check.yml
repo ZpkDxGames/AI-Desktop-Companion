@@ -29,6 +29,8 @@ jobs:
         run: node scripts/smoke-eye-gpu.mjs
       - name: Verify activity props in fixed-pose WebGL pixels
         run: node scripts/smoke-activity-gpu.mjs
+      - name: Verify V6.2 expressive effects and pooled resources in WebGL
+        run: node scripts/smoke-expressive-gpu.mjs
       - name: Preserve browser failure screenshots
         if: always()
         uses: actions/upload-artifact@v4

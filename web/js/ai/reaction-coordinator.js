@@ -15,7 +15,7 @@ export class ConversationReactionCoordinator{
  constructor({clock=()=>performance.now(),request=()=>false}={}){
   this.clock=clock;this.request=request;this.state='idle';this.id=0;this.expires=0;this.suppressed=false;this.hidden=false;
   this.preferences={gestures:false,effects:true,sleepy:false,quietSeconds:120};
-  this.lastActivity=clock();this.wakeAt=-Infinity;this.wakeFrom=0;this.previewUntil=0;this.bulbAt=-Infinity;
+  this.lastActivity=clock();this.wakeAt=-Infinity;this.wakeFrom=0;this.previewUntil=0;this.previewBulbUntil=0;this.bulbAt=-Infinity;
   this.cooldowns=Object.create(null);this.lastReaction=null;this.lastCue=new Map();
   this.output={thinking:false,bulbAge:Infinity,drowsiness:0};
  }
@@ -24,7 +24,7 @@ export class ConversationReactionCoordinator{
    quietSeconds:[90,120,180].includes(p.quietSeconds)?p.quietSeconds:120};
  }
  activity(){
-  const now=this.clock();this.wakeFrom=this.sample().drowsiness;this.wakeAt=now;this.lastActivity=now;this.previewUntil=0;
+  const now=this.clock();if(now-this.wakeAt>=1800){this.wakeFrom=this.sample().drowsiness;this.wakeAt=now;}this.lastActivity=now;this.previewUntil=0;
  }
  event(kind,{requestId=this.id,reaction='neutral',ttlMs=120000}={}){
   if(kind==='activity'){this.activity();return true;}
@@ -47,7 +47,7 @@ export class ConversationReactionCoordinator{
    return true;
   }
   if(['clear','model-change','window-hidden','window-closed'].includes(kind)){
-   this.state='idle';this.bulbAt=-Infinity;this.previewUntil=0;
+   this.state='idle';this.bulbAt=-Infinity;this.previewUntil=0;this.previewBulbUntil=0;
    if(kind.startsWith('window-'))this.hidden=true;
    this.activity();this.wakeFrom=0;return true;
   }
@@ -57,8 +57,8 @@ export class ConversationReactionCoordinator{
  preview(kind){
   this.event('manual');const now=this.clock();
   if(kind==='bubble'){this.state='preview';this.expires=now+8000;}
-  if(kind==='bulb')this.bulbAt=now;
-  if(kind==='sleepy')this.previewUntil=now+8000;
+  if(kind==='bulb'){this.bulbAt=now;this.previewBulbUntil=now+2100;}
+  if(kind==='sleepy'){this.previewUntil=now+8000;this.wakeAt=now;}
  }
  receive(raw,wallNow=Date.now()){
   const cue=validateCue(raw,wallNow);if(!cue)return false;
@@ -71,8 +71,8 @@ export class ConversationReactionCoordinator{
  sample(){
   const now=this.clock(),p=this.preferences,o=this.output;
   if((this.state==='generating'||this.state==='preview')&&now>=this.expires)this.state='idle';
-  o.thinking=!this.hidden&&p.effects&&(this.state==='generating'||this.state==='preview')&&!this.suppressed;
-  o.bulbAge=!this.hidden&&p.effects?(now-this.bulbAt)/1000:Infinity;
+  o.thinking=!this.hidden&&(this.state==='preview'||p.effects&&this.state==='generating'&&!this.suppressed);
+  o.bulbAge=!this.hidden&&(p.effects||now<this.previewBulbUntil)?(now-this.bulbAt)/1000:Infinity;
   if(o.bulbAge>2.1)o.bulbAge=Infinity;
   const quiet=(now-this.lastActivity)/1000;
   const sleepy=p.sleepy&&this.state==='idle'&&!this.hidden?.8*ease((quiet-p.quietSeconds)/240):0;

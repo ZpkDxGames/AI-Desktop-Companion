@@ -1,7 +1,7 @@
 //! Explicit, Windows-WebView-independent local Ollama transport.
 //! Fixed 127.0.0.1 destination; no URL, host, path, credential or tool forwarding.
 //! No request occurs until a user invokes Connect or Send in the Workspace.
-use std::{collections::HashMap, sync::Mutex, time::Duration};
+use std::{collections::{HashMap, VecDeque}, sync::Mutex, time::Duration};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{State, WebviewWindow};
@@ -13,9 +13,33 @@ const MAX_MESSAGES: usize = 14;
 const MAX_USER_INPUT: usize = 2400;
 
 #[derive(Default)]
-pub(crate) struct PendingRequests(pub Mutex<HashMap<String, oneshot::Sender<()>>>);
+pub(crate) struct PendingRequests(pub Mutex<RequestState>);
+#[derive(Default)]
+pub(crate) struct RequestState {
+    active: HashMap<String, oneshot::Sender<()>>,
+    cancelled: VecDeque<String>,
+}
+impl RequestState {
+    fn register(&mut self, id: &str, sender: oneshot::Sender<()>) -> Result<(), String> {
+        if self.cancelled.iter().any(|s| s == id) { return Err("Local request cancelled".into()); }
+        if !self.active.is_empty() { return Err("Another local request is already running".into()); }
+        self.active.insert(id.to_owned(), sender); Ok(())
+    }
+    fn cancel(&mut self, id: String) -> bool {
+        if !self.cancelled.contains(&id) {
+            if self.cancelled.len() == 16 { self.cancelled.pop_front(); }
+            self.cancelled.push_back(id.clone());
+        }
+        // Keep the slot until the cancelled request's async task actually exits.
+        if let Some(sender) = self.active.get_mut(&id) {
+            let (dummy, _) = oneshot::channel();
+            let _ = std::mem::replace(sender, dummy).send(()); true
+        } else { false }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ChatMessage {
     role: String,
     content: String,
@@ -117,6 +141,35 @@ pub(crate) async fn ollama_list_models(window: WebviewWindow) -> Result<Vec<Stri
     Ok(models)
 }
 
+// Metadata is read only after explicit Connect/Send. Never returns templates or prompts.
+fn local_metadata(data: &Value) -> bool {
+    data.get("remote_model").is_none_or(|v| v.is_null() || v.as_str() == Some(""))
+        && data.get("remote_host").is_none_or(|v| v.is_null() || v.as_str() == Some(""))
+}
+async fn show_model(http: &reqwest::Client, model: &str) -> Result<Value, String> {
+    read_json(http.post(format!("{BASE}/api/show")).json(&json!({"model":model}))
+        .send().await.map_err(transport_error)?).await
+}
+async fn require_local_model(http: &reqwest::Client, model: &str) -> Result<(), String> {
+    let data = show_model(http, model).await?;
+    if !local_metadata(&data) { return Err("Remote/cloud models are unsupported".into()); }
+    if !data.get("capabilities").and_then(Value::as_array)
+        .is_some_and(|values| values.iter().any(|v| v.as_str() == Some("completion"))) {
+        return Err("Installed model does not advertise completion capability".into());
+    }
+    Ok(())
+}
+#[tauri::command]
+pub(crate) async fn ollama_model_info(window: WebviewWindow, model: String) -> Result<Value, String> {
+    workshop_only(&window)?;
+    if !valid_model(&model) { return Err("Invalid local model".into()); }
+    let data = show_model(&client(9)?, &model).await?;
+    let capabilities: Vec<&str> = data.get("capabilities").and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str)
+            .filter(|s| ["completion","vision","thinking"].contains(s)).collect()).unwrap_or_default();
+    Ok(json!({"capabilities":capabilities,"local":local_metadata(&data)}))
+}
+
 #[tauri::command]
 pub(crate) async fn ollama_chat(
     window: WebviewWindow,
@@ -132,15 +185,14 @@ pub(crate) async fn ollama_chat(
     let (tx, rx) = oneshot::channel();
     {
         let mut pending_requests = pending.0.lock().map_err(|_| "Request state unavailable")?;
-        if pending_requests.contains_key(&request_id) {
-            return Err("Duplicate local request".into());
-        }
-        pending_requests.insert(request_id.clone(), tx);
+        pending_requests.register(&request_id, tx)?;
     }
     let result = tokio::select! {
         _ = rx => Err("Local request cancelled".into()),
         result = async {
-            let response = client(120)?
+            let http = client(120)?;
+            require_local_model(&http, &model).await?;
+            let response = http
                 .post(format!("{BASE}/api/chat"))
                 .json(&json!({
                     "model": model,
@@ -150,13 +202,13 @@ pub(crate) async fn ollama_chat(
                         "type": "object",
                         "properties": {
                             "reply": {"type": "string", "maxLength": 1600},
-                            "gesture": {"type": "string", "enum": ["none","wave","nod","think","celebrate","look"]}
+                            "reaction": {"type": "string", "enum": ["neutral","agree","disagree","uncertain","thinking","insight","celebrate","reassure","surprised"]}
                         },
-                        "required": ["reply","gesture"],
+                        "required": ["reply","reaction"],
                         "additionalProperties": false
                     },
-                    "options": {"num_predict": 450, "temperature": 0.7},
-                    "keep_alive": "30s",
+                    "options": {"num_predict": 450, "num_ctx": 4096, "temperature": 0.7},
+                    "keep_alive": 0,
                     "messages": messages
                 }))
                 .send().await.map_err(transport_error)?;
@@ -166,7 +218,7 @@ pub(crate) async fn ollama_chat(
                 .ok_or_else(|| "Ollama response missing assistant text".into())
         } => result,
     };
-    pending.0.lock().map_err(|_| "Request state unavailable")?.remove(&request_id);
+    pending.0.lock().map_err(|_| "Request state unavailable")?.active.remove(&request_id);
     result
 }
 
@@ -179,10 +231,7 @@ pub(crate) fn ollama_cancel(
     workshop_only(&window)?;
     if !valid_id(&request_id) { return Err("Invalid cancellation identifier".into()); }
     let mut requests = pending.0.lock().map_err(|_| "Request state unavailable")?;
-    if let Some(sender) = requests.remove(&request_id) {
-        let _ = sender.send(());
-        Ok(true)
-    } else { Ok(false) }
+    Ok(requests.cancel(request_id))
 }
 
 #[cfg(test)]
@@ -204,4 +253,26 @@ mod tests {
         assert!(!valid_id("../../../"));
         assert!(valid_id("v6-2a38e"));
     }
+    #[test]
+    fn cloud_aliases_are_rejected_by_actual_metadata() {
+        assert!(local_metadata(&json!({"capabilities":["completion","vision"]})));
+        assert!(!local_metadata(&json!({"remote_model":"qwen", "remote_host":"https://ollama.com"})));
+        assert!(!valid_model("qwen:cloud"));
+        assert!(serde_json::from_value::<ChatMessage>(json!({"role":"user","content":"hi","images":["x"]})).is_err());
+    }
+    #[test]
+    fn cancellation_before_registration_and_active_overlap_are_bounded() {
+        let mut state = RequestState::default();
+        state.cancel("v6-before".into());
+        assert!(state.register("v6-before", oneshot::channel().0).is_err());
+        assert!(state.register("v6-first", oneshot::channel().0).is_ok());
+        assert!(state.register("v6-second", oneshot::channel().0).is_err());
+        assert!(state.cancel("v6-first".into()));
+        assert!(state.register("v6-second", oneshot::channel().0).is_err());
+        state.active.remove("v6-first");
+        assert!(state.register("v6-second", oneshot::channel().0).is_ok());
+        for i in 0..100 { state.cancel(format!("cancel-{i}")); }
+        assert_eq!(state.cancelled.len(), 16);
+    }
+
 }

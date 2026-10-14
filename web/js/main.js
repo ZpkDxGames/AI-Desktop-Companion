@@ -6,6 +6,7 @@ import {FramePacer} from './runtime/frame-pacing.js';
 import {BehaviorController} from './avatar/animation.js';
 import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
 import {LocalConversation,sanitizeAiSettings,formatChatError,OLLAMA_BASE} from './ai/local-conversation.js';
+import {ConversationReactionCoordinator} from './ai/reaction-coordinator.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
 
@@ -14,7 +15,7 @@ if(overlay){document.documentElement.classList.add('overlay');document.body.clas
 const $=id=>document.getElementById(id);
 const native=!!window.__TAURI__?.core?.invoke;
 const invoke=(command,args={})=>native?window.__TAURI__.core.invoke(command,args):Promise.resolve(null);
-const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{},personality:{enabled:true,style:'balanced'},ai:{model:'',gestures:false}};
+const DEFAULT={modelMode:'auto',scale:100,follow:true,expressions:false,idleMode:'calm',skin:null,skinName:'Sample skin',itemTextures:{},personality:{enabled:true,style:'balanced'},ai:sanitizeAiSettings({})};
 const STORE='zpkdx-avatar-v0.1';
 
 function stored(){
@@ -37,12 +38,32 @@ const seed=Date.now();
 const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
 const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
-let aiConnected=false,chatBusy=false,conversationGeneration=0;
+let aiConnected=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
+const reactions=new ConversationReactionCoordinator({request:action=>{
+ if(controller.source==='manual'&&controller.action!=='idle')return false;
+ return controller.request(action,{source:'conversation'});
+}});
+reactions.configure(state.ai);
+let cueSequence=0;const nativeUnlisten=[];
+function cue(kind,data={}){
+ reactions.event(kind,data);wake();
+ if(!overlay&&native){
+  const payload={version:1,source:sessionId,seq:++cueSequence,kind,requestId:data.requestId??reactions.id,
+   issuedAt:Date.now(),ttlMs:kind==='request-start'?120000:5000};
+  if(data.reaction)payload.reaction=data.reaction;
+  window.__TAURI__?.event?.emitTo?.('avatar','zpkdx:reaction',payload).catch(()=>{});
+ }
+}
+function manualInteraction(){reactions.event('manual');wake();}
+function configureReactions(){reactions.configure({...state.ai,sleepy:state.ai.sleepy&&state.idleMode!=='off'});}
+function cancelChat(kind='cancel'){
+ conversation.cancel();cue(kind,{requestId:reactions.id});
+}
 controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 controller.setReducedMotion(motionPreference.matches);
 motionPreference.addEventListener('change',event=>{
- controller.setReducedMotion(event.matches);renderer?.effects.setReducedMotion(event.matches);wake();
+ const reduced=event.matches||$('motion-preview')?.checked;controller.setReducedMotion(reduced);renderer?.effects.setReducedMotion(reduced);wake();
 });
 controller.setIdleMode(state.idleMode);
 const journal=new RuntimeJournal();
@@ -61,7 +82,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.1',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
@@ -93,6 +114,11 @@ function updateAiControls(){
  if(overlay)return;
  const model=$('ai-model'),connect=$('ai-connect'),send=$('ai-send'),stop=$('ai-stop');
  model.disabled=!aiConnected||chatBusy;
+ $('ai-fallback').disabled=!aiConnected||chatBusy;
+ $('ai-effects-enabled').checked=state.ai.effects;
+ $('sleepy-enabled').checked=state.ai.sleepy;
+ $('quiet-threshold').value=String(state.ai.quietSeconds);
+ $('ai-route-status').textContent=routeStatus||'No inference until Send';
  connect.disabled=chatBusy;
  send.disabled=!aiConnected||chatBusy||!model.value;
  stop.disabled=!chatBusy;
@@ -116,20 +142,30 @@ async function connectLocalAi(){
  $('ai-connect').disabled=true;
  $('ai-connection-status').textContent='Checking local Ollama…';
  try{
-  const models=await conversation.listModels();
+  const catalog=await conversation.inspectModels();
+  installedModels=catalog.filter(m=>m.status==='Installed').map(m=>m.model);
+  const models=installedModels;
   aiConnected=true;
   const chooser=$('ai-model');chooser.replaceChildren();
   for(const name of models){
    const option=document.createElement('option');
-   option.value=name;option.textContent=name;chooser.append(option);
+   option.value=name;option.textContent=name+(catalog.find(m=>m.model===name)?.capabilities.includes('vision')?' · text + vision capable':' · text');chooser.append(option);
   }
   if(models.includes(state.ai.model))chooser.value=state.ai.model;
+  else if(models.includes('qwen3.5:4b')){state.ai.model='qwen3.5:4b';chooser.value=state.ai.model;save();}
   else{state.ai.model=models[0]||'';save();}
-  if(!models.length)appendConversation('system','Ollama is running but has no models. Install a local model first.');
+  const fallback=$('ai-fallback');fallback.replaceChildren(new Option('Disabled',''));
+  for(const name of models)fallback.add(new Option(name,name));
+  if(models.includes(state.ai.fallback)&&state.ai.fallback!==state.ai.model)fallback.value=state.ai.fallback;
+  else fallback.value='';
+  const summary=$('model-catalog');summary.replaceChildren();
+  for(const item of catalog){const row=document.createElement('div'),name=document.createElement('span'),value=document.createElement('strong');name.textContent=item.model;value.textContent=item.status+' · '+(item.capabilities.join(' / ')||'capabilities unavailable');row.append(name,value);summary.append(row);}
+  if(!catalog.length)summary.textContent='Unavailable · no installed models';
+  if(!models.length)appendConversation('system','No supported local completion models available. Inspect AI & Models for installed capabilities.');
   else appendConversation('system','Connected to local Ollama. Messages are sent only when you press Send.');
  }catch(error){
   aiConnected=false;
-  $('ai-model').replaceChildren();
+  installedModels=[];$('ai-model').replaceChildren();$('ai-fallback').replaceChildren();$('model-catalog').textContent='Ollama offline or metadata unavailable';
   appendConversation('system',formatChatError(error));
  }finally{updateAiControls();}
 }
@@ -139,31 +175,40 @@ async function sendLocalChat(){
  if(!input)return;
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
  const generation=++conversationGeneration;
+ reactions.event('activity');cue('request-start',{requestId:generation});routeStatus='Loading primary model…';
  chatBusy=true;field.disabled=true;updateAiControls();
  appendConversation('user',input);field.value='';
  try{
-  const response=await conversation.send(input,{model,gestures:state.ai.gestures});
+  const response=await conversation.send(input,{model,fallback:$('ai-fallback').value,installed:installedModels,gestures:state.ai.gestures,onStatus:status=>{
+   routeStatus=(status.kind==='fallback'?'Fallback used · ':'Responding · ')+status.model;
+   cue('model-loading',{requestId:generation});updateAiControls();
+  }});
   if(generation!==conversationGeneration)return;
   appendConversation('assistant',response.reply);
-  // A model cannot command tools or take priority over an active manual activity.
-  if(state.ai.gestures&&response.gesture&&controller.action==='idle'){
-   controller.request(response.gesture,{source:'auto'});wake();
-  }
+  routeStatus=(response.fallbackUsed?'Fallback used · ':'Answered · ')+response.model;
+  const reaction=response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction;
+  cue('answer',{requestId:generation,reaction});
  }catch(error){
-  if(generation===conversationGeneration)appendConversation('system',formatChatError(error));
+  if(generation===conversationGeneration){cue('error',{requestId:generation});routeStatus='Request ended · '+formatChatError(error);appendConversation('system',formatChatError(error));}
  }finally{
-  if(generation===conversationGeneration){chatBusy=false;field.disabled=false;updateAiControls();field.focus();}
+  if(!conversation.pending){chatBusy=false;field.disabled=false;updateAiControls();if(!document.hidden)field.focus();}
  }
 }
 function bindLocalChat(){
  if(overlay)return;
  $('ai-connect').addEventListener('click',connectLocalAi);
- $('ai-model').addEventListener('change',event=>{state.ai.model=event.target.value;conversation.clear();save();updateAiControls();});
- $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;save();});
+ $('ai-model').addEventListener('change',event=>{state.ai.model=event.target.value;conversation.clear();cue('model-change');save();updateAiControls();});
+ $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
  $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
- $('ai-stop').addEventListener('click',()=>conversation.cancel());
+ $('ai-stop').addEventListener('click',()=>cancelChat());
+ $('ai-fallback').addEventListener('change',e=>{state.ai.fallback=e.target.value;conversation.clear();cue('model-change');save();});
+ for(const [id,key] of [['ai-effects-enabled','effects'],['sleepy-enabled','sleepy']])$(id).addEventListener('change',e=>{state.ai[key]=e.target.checked;configureReactions();save();wake();});
+ $('quiet-threshold').addEventListener('change',e=>{state.ai.quietSeconds=Number(e.target.value);configureReactions();save();});
+ $('models-open-chat').addEventListener('click',()=>showPage('conversation'));
  $('ai-clear').addEventListener('click',()=>{
-  conversationGeneration++;conversation.clear();chatBusy=false;
+  conversationGeneration++;conversation.clear();cue('clear');routeStatus='Session cleared';
+  // Keep Send disabled until native cancellation has actually settled.
+  chatBusy=!!conversation.pending;
   $('chat-input').disabled=false;
   $('chat-history').replaceChildren();
   updateAiControls();
@@ -208,10 +253,16 @@ async function setSkin(image){
  return result;
 }
 async function reloadFromStorage(){
- Object.assign(state,stored());
+ const previousSkin=state.skin,previousMode=state.modelMode,previousItems=JSON.stringify(state.itemTextures);
+ Object.assign(state,stored());configureReactions();
  controller.setIdleMode(state.idleMode);
  personalityPolicy.setStyle(state.personality.style);
  controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
+ if(renderer.skin&&previousSkin===state.skin&&previousMode===state.modelMode){
+  renderer.setFacesEnabled(state.expressions);
+  if(previousItems!==JSON.stringify(state.itemTextures))await renderer.setItemTextures(state.itemTextures);
+  syncUi();return;
+ }
  stage('ASSETS',state.skin?'Loading saved skin':'Loading bundled sample texture');
  let image;
  if(state.skin){
@@ -231,29 +282,42 @@ async function subscribeNative(){
  if(!native||!window.__TAURI__?.event?.listen||eventsReady)return;
  eventsReady=true;
  try{
-  await window.__TAURI__.event.listen('zpkdx:settings-changed',event=>{
+  nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:settings-changed',event=>{
    if(event.payload?.source===sessionId)return;
    reloadFromStorage().then(wake).catch(showFailure);
-  });
-  await window.__TAURI__.event.listen('zpkdx:wave',()=>{
-   controller.request('wave');wake();
-  });
+  }));
+  nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:wave',()=>{
+   manualInteraction();controller.request('wave');wake();
+  }));
+  nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:reaction',event=>{
+   if(overlay&&reactions.receive(event.payload))wake();
+  }));
+  nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:workspace-visible',event=>{
+   if(overlay)return;
+   if(event.payload===false)cancelChat('window-hidden');
+   else if(event.payload===true)cue('visibility-resume');
+  }));
  }catch(error){journal.record(journal.stage,'Native events unavailable: '+error);}
 }
 function bindRecovery(){
+ window.addEventListener('beforeunload',()=>{
+  cancelChat('window-closed');reactions.dispose();
+  for(const off of nativeUnlisten)off();nativeUnlisten.length=0;
+  clearTimeout(idleTimer);cancelAnimationFrame(rafId);renderer?.dispose();
+ });
  const retry=statusNode('runtime-retry');if(retry)retry.addEventListener('click',()=>boot());
  const copy=statusNode('runtime-copy');if(copy)copy.addEventListener('click',copyReport);
  const reportButton=statusNode('diagnostics-copy');
  if(reportButton)reportButton.addEventListener('click',copyReport);
  document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){clearTimeout(idleTimer);cancelAnimationFrame(rafId);idleTimer=0;rafId=0;lastTime=0;framePacer.reset();}
-  else wake();
+  if(document.hidden){cancelChat('window-hidden');clearTimeout(idleTimer);cancelAnimationFrame(rafId);idleTimer=0;rafId=0;lastTime=0;framePacer.reset();}
+  else {cue('visibility-resume');wake();}
  });
  window.addEventListener('resize',wake,{passive:true});
  window.addEventListener('error',event=>journal.record(journal.stage,'Window error: '+(event.message||'unknown')));
  window.addEventListener('unhandledrejection',event=>journal.record(journal.stage,'Unhandled promise rejection: '+(event.reason?.message||'unknown')));
  canvas.addEventListener('webglcontextlost',event=>{
-  event.preventDefault();contextLost=true;contextLosses++;
+  event.preventDefault();cancelChat('clear');contextLost=true;contextLosses++;
   clearTimeout(idleTimer);cancelAnimationFrame(rafId);idleTimer=0;rafId=0;
   showFailure(new Error('WebGL graphics context lost. Waiting for restoration.'));
  });
@@ -325,7 +389,7 @@ function bindWorkspaceNavigation(){
   const button=event.target.closest('[data-quick]');
   if(!button)return;
   switch(button.dataset.quick){
-   case 'wave':if(controller.request('wave'))setActiveAction('wave');wake();break;
+   case 'wave':manualInteraction();if(controller.request('wave'))setActiveAction('wave');wake();break;
    case 'studio':showPage('studio');break;
    case 'reset-view':angle=0;cursor[0]=0;cursor[1]=0;tracking=false;wake();break;
    case 'reset-scale':state.scale=100;save();syncUi();wake();break;
@@ -382,14 +446,16 @@ function connectWorkshop(){
   updateBehaviorUi();save();wake();
  });
  $('idle-mode').addEventListener('change',event=>{
-  state.idleMode=event.target.value;
+  state.idleMode=event.target.value;configureReactions();
   if(!controller.setIdleMode(state.idleMode))return;
   updateBehaviorUi();save();wake();
  });
+ for(const button of document.querySelectorAll('[data-effect]'))button.addEventListener('click',()=>{reactions.preview(button.dataset.effect);wake();});
+ $('motion-preview').addEventListener('change',e=>{const reduced=e.target.checked||motionPreference.matches;controller.setReducedMotion(reduced);renderer.effects.setReducedMotion(reduced);wake();});
  $('action-row').addEventListener('click',e=>{
   const action=e.target.closest('[data-action]')?.dataset.action;
   if(!action)return;
-  if(controller.request(action))setActiveAction(action);
+  manualInteraction();if(controller.request(action))setActiveAction(action);
   wake();
  });
  attachPointer($('stage'));
@@ -402,7 +468,10 @@ function attachPointer(element){
   tracking=false;cursor[0]=0;cursor[1]=0;lastPointerEvent=-Infinity;
   dragging=false;controller.setGaze(0,0);wake();
  };
+ document.addEventListener('pointerdown',manualInteraction,{passive:true});
+ document.addEventListener('keydown',()=>{reactions.event('activity');wake();});
  document.addEventListener('pointermove',event=>{
+  reactions.event('activity');
   const b=canvas.getBoundingClientRect();
   const headX=b.left+b.width*.5,headY=b.top+b.height*.27;
   cursor[0]=Math.max(-1,Math.min(1,(event.clientX-headX)/Math.max(180,b.width*.40)));
@@ -428,8 +497,8 @@ function attachPointer(element){
 }
 function connectOverlay(){
  attachPointer($('overlay-view'));
- $('overlay-wave').addEventListener('click',()=>{controller.request('wave');wake();});
- $('overlay-idle').addEventListener('click',()=>{controller.request('idle');wake();});
+ $('overlay-wave').addEventListener('click',()=>{manualInteraction();controller.request('wave');wake();});
+ $('overlay-idle').addEventListener('click',()=>{manualInteraction();controller.request('idle');wake();});
  $('overlay-pass').addEventListener('click',async()=>{try{await invoke('set_passthrough',{enabled:true});toast('Click-through on. Use the tray icon to restore interaction.');}catch(e){toast(String(e));}});
  $('overlay-settings').addEventListener('click',()=>invoke('open_workshop').catch(e=>toast(String(e))));
  document.querySelector('[data-drag]').addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;invoke('begin_drag').catch(()=>{});});
@@ -443,11 +512,12 @@ function frame(time){
  const dt=lastTime?Math.min((time-lastTime)/1000,.05):0;
  lastTime=time;
  try{
+  const cues=reactions.sample();controller.setDrowsiness(cues.drowsiness);
   controller.update(dt);
   active=active||controller.action!=='idle'||controller.blink>0||controller.gazeMoving();
   const blink=controller.blink;
   const started=performance.now();
-  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.eyeGaze[0],gazeY:controller.eyeGaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt,activity:controller.activity,presentation:controller.presentation,foodVariant:controller.foodVariant});
+  renderer.render(controller.pose(),{scale:state.scale/100,rotation:angle,gazeX:controller.eyeGaze[0],gazeY:controller.eyeGaze[1],blink,action:controller.action,actionElapsed:controller.elapsed,dt,activity:controller.activity,presentation:controller.presentation,foodVariant:controller.foodVariant,cues});
   const cost=performance.now()-started;
   frameSamples[sampleCursor]=cost;
   sampleCursor=(sampleCursor+1)%frameSamples.length;

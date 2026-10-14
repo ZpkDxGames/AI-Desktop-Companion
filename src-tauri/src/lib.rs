@@ -30,6 +30,7 @@ fn begin_drag(window: tauri::WebviewWindow) -> Result<(), String> {
 fn open_workshop(app: tauri::AppHandle) -> Result<(), String> {
     let window = app.get_webview_window("workshop").ok_or("Workshop window missing")?;
     window.show().map_err(|e| e.to_string())?;
+    let _ = window.emit("zpkdx:workspace-visible", true);
     window.set_focus().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -38,7 +39,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Passthrough(Mutex::new(false)))
         .manage(ollama::PendingRequests::default())
-        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_chat, ollama::ollama_cancel])
+        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_model_info, ollama::ollama_chat, ollama::ollama_cancel])
         .setup(|app| {
             let menu = MenuBuilder::new(app)
                 .text("workshop", "Open animation workshop")
@@ -56,6 +57,7 @@ pub fn run() {
                     "workshop" => {
                         if let Some(window) = app.get_webview_window("workshop") {
                             let _ = window.show();
+                            let _ = window.emit("zpkdx:workspace-visible", true);
                             let _ = window.set_focus();
                         }
                     }
@@ -74,6 +76,7 @@ pub fn run() {
             if window.label() == "workshop" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
+                    let _ = window.emit("zpkdx:workspace-visible", false);
                     let _ = window.hide();
                 }
             }

@@ -45,6 +45,9 @@ jobs:
       - name: Run source tests
         run: npm run check
 
+      - name: Test native local-only bridge
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
       - name: Build Tauri Windows NSIS installer
         run: npm run tauri:build -- --bundles nsis
 
@@ -68,6 +71,8 @@ jobs:
             "run_id=${{ github.run_id }}"
             "run_attempt=${{ github.run_attempt }}"
             "runner=windows-2022"
+            "version=0.1.0-alpha.6.2"
+            "known_gaps=owner RTX3050/WebView2/skin/model acceptance pending; manual vision deferred"
             "build=unsigned development alpha (NOT production-certified)"
           ) | Set-Content -Path 'dist/windows-alpha/BUILD_INFO.txt' -Encoding utf8
           Write-Host "Installer: $($installer.Name)"

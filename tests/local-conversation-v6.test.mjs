@@ -73,3 +73,57 @@ test('abort cancels in-flight work and prevents history commitment',async()=>{
  await assert.rejects(pending,/abort/i);
  assert.deepEqual(conn.history,[]);
 });
+
+test('native Windows transport lists models and chats without WebView fetch or browser CORS',async()=>{
+ const actions=[];
+ const conn=new LocalConversation({
+  fetchImpl:()=>{throw new Error('WebView fetch must never be used by a native bridge');},
+  nativeInvoke:async (command,args)=>{
+   actions.push({command,args});
+   if(command==='ollama_list_models')return ['llama3.2:3b','bad name','llama3.2:3b'];
+   if(command==='ollama_chat')return '{"reply":"Native local response","gesture":"wave"}';
+   throw new Error('Unexpected native command');
+  }
+ });
+ assert.deepEqual(await conn.listModels(),['llama3.2:3b']);
+ const out=await conn.send('Hello',{model:'llama3.2:3b',gestures:true});
+ assert.deepEqual(out,{reply:'Native local response',gesture:'wave'});
+ assert.deepEqual(actions.map(x=>x.command),['ollama_list_models','ollama_chat']);
+ assert.equal(actions[1].args.model,'llama3.2:3b');
+ assert.ok(/^v6-[a-z0-9-]+$/.test(actions[1].args.requestId));
+ assert.equal(actions[1].args.messages[0].role,'system');
+ assert.equal(actions[1].args.messages.at(-1).content,'Hello');
+ assert.equal(conn.history.length,2);
+});
+test('native request cancellation targets only current request and never commits late model text',async()=>{
+ let resolvePending;
+ const commands=[];
+ const conn=new LocalConversation({
+  fetchImpl:()=>{throw new Error('No browser request allowed');},
+  nativeInvoke:(command,args)=>{
+   commands.push({command,args});
+   if(command==='ollama_chat')return new Promise(resolve=>{resolvePending=resolve;});
+   if(command==='ollama_cancel')return Promise.resolve(true);
+   throw Error('Unexpected command');
+  }
+ });
+ const pending=conn.send('Never commit this',{model:'llama3.2:3b'});
+ assert.equal(conn.cancel(),true);
+ await Promise.resolve();
+ resolvePending('{"reply":"Late native model response","gesture":"nod"}');
+ await assert.rejects(pending,/abort/i);
+ await Promise.resolve();
+ assert.deepEqual(commands.map(x=>x.command),['ollama_chat','ollama_cancel']);
+ assert.equal(commands[0].args.requestId,commands[1].args.requestId);
+ assert.deepEqual(conn.history,[]);
+ assert.equal(conn.cancel(),false);
+});
+test('native transport propagates clear backend failures without falling back to WebView fetch',async()=>{
+ let fetchCount=0;
+ const conn=new LocalConversation({fetchImpl:()=>{fetchCount++;return null;},
+  nativeInvoke:async()=>{throw new Error('Ollama is not listening on 127.0.0.1:11434');}});
+ await assert.rejects(conn.listModels(),/not listening/);
+ await assert.rejects(conn.send('Hello',{model:'llama3.2:3b'}),/not listening/);
+ assert.equal(fetchCount,0);
+ assert.deepEqual(conn.history,[]);
+});

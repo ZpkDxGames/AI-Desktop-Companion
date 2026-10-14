@@ -31,12 +31,18 @@ try{
  const pages=()=>browser.contexts().flatMap(c=>c.pages());
  let avatar,workspace;
  for(let i=0;i<60;i++){
-  avatar=pages().find(p=>p.url().includes('mode=overlay'));workspace=pages().find(p=>!p.url().includes('mode=overlay')&&p.url().includes('index.html'));
-  if(avatar&&workspace)break;await new Promise(r=>setTimeout(r,250));
+  avatar=pages().find(p=>p.url().includes('mode=overlay'));
+  if(avatar)break;await new Promise(r=>setTimeout(r,250));
  }
- if(!avatar||!workspace)throw Error('Installed Workspace/overlay targets missing');
+ if(!avatar){await writeFile('smoke-artifacts/native-targets.json',JSON.stringify(pages().map(p=>p.url())));throw Error('Installed overlay target missing');}
  await avatar.waitForFunction(()=>window.__TAURI__?.core?.invoke);
  await avatar.evaluate(()=>window.__TAURI__.core.invoke('open_workshop'));
+ // Hidden WebView2 targets may be deferred; URLs may canonicalize index.html to /.
+ for(let i=0;i<80;i++){
+  workspace=pages().find(p=>p!==avatar&&!p.url().includes('mode=overlay')&&p.url().includes('tauri.localhost'));
+  if(workspace)break;await new Promise(r=>setTimeout(r,250));
+ }
+ if(!workspace){await writeFile('smoke-artifacts/native-targets.json',JSON.stringify(pages().map(p=>p.url())));throw Error('Installed Workspace target missing after explicit show');}
  await workspace.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:20000});
  if(requests.length)throw Error('Installed app contacted Ollama before explicit Connect');
  // Assert the native window-label boundary itself, not a mocked invoke function.
@@ -62,4 +68,8 @@ try{
  await workspace.screenshot({path:'smoke-artifacts/v62-installed-native-shake.png'});
  await writeFile('smoke-artifacts/v62-installed-native.json',JSON.stringify({environment:'Windows-2022 installed NSIS / WebView2 / software GPU; fake localhost Ollama only',requests,maxActive,cancelled,overlayCommandDenied:denied,actualModels:'NOT RUN',ownerGPU:'NOT RUN'},null,2));
  console.log('PASS installed Windows NSIS/WebView2 actual native bridge: startup, workspace, metadata, text, fallback, targeted cancellation, overlay command denial, manual shake');
+}catch(error){
+ await writeFile('smoke-artifacts/native-failure.txt',String(error.stack||error));
+ for(const [i,p] of (browser?.contexts().flatMap(c=>c.pages())||[]).entries())await p.screenshot({path:'smoke-artifacts/native-failure-'+i+'.png'}).catch(()=>{});
+ throw error;
 }finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));}

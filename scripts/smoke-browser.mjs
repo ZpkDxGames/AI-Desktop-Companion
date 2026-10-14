@@ -124,6 +124,24 @@ try {
   for (const mode of ['workshop','overlay']) {
     const context=await browser.newContext({viewport:{width:mode==='overlay'?252:1120,height:mode==='overlay'?370:780}});
     const page=await context.newPage();
+    let mockLocalRequests=0;
+    if(mode==='workshop'){
+      await page.route('http://127.0.0.1:11434/**',async route=>{
+        mockLocalRequests++;
+        const request=route.request(),url=new URL(request.url());
+        const headers={
+          'Access-Control-Allow-Origin':'*',
+          'Access-Control-Allow-Methods':'GET,POST,OPTIONS',
+          'Access-Control-Allow-Headers':'content-type',
+          'Access-Control-Allow-Private-Network':'true'
+        };
+        if(request.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+        const body=url.pathname==='/api/tags'
+          ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
+          :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
+        await route.fulfill({status:200,contentType:'application/json',headers,body});
+      });
+    }
     const errors=[];
     page.on('pageerror',error=>errors.push('pageerror: '+error.message));
     page.on('console',message=>{if(message.type()==='error')errors.push('console: '+message.text());});
@@ -192,7 +210,31 @@ try {
         if(!((await page.locator('#behavior-personality-status').innerText()).includes('curious')))
           throw new Error('Enabling local style did not activate V5');
         await page.screenshot({path:'smoke-artifacts/v5-personality-behavior-settings.png'});
+        checkpoint='V6 opt-in local conversation';
+        await page.locator('[data-nav="conversation"]').click();
+        if(mockLocalRequests!==0)throw new Error('V6 must not contact local model before Connect');
+        await page.locator('#ai-connect').click();
+        await page.waitForFunction(()=>document.querySelector('#ai-model')?.value==='llama3.2:3b',null,{timeout:9000});
+        if(await page.locator('#ai-send').isDisabled())throw new Error('V6 Send disabled after manual Connect');
+        await page.locator('#chat-input').fill('Hello from a local-only test');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>document.querySelector('.chat-message.from-model')?.textContent?.includes('Safe local conversation'),null,{timeout:9000});
+        if(await page.locator('.chat-message.from-model b').count()!==0)
+          throw new Error('HTML from local model was interpreted as markup');
+        await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
+        await page.locator('#ai-clear').click();
+        if(await page.locator('.chat-message.from-model').count()!==0)
+          throw new Error('Local chat clear did not remove conversation');
+        await page.reload({waitUntil:'load'});
+        await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+        await page.locator('[data-nav="conversation"]').click();
+        if(await page.locator('#ai-connection-status').innerText()!=='Disconnected (on-demand only)')
+          throw new Error('V6 must not reconnect or infer in background after reload');
+        if(await page.locator('.chat-message.from-model').count()!==0)
+          throw new Error('V6 should not persist personal conversation history');
+        console.log('PASS V6 explicit loopback-only connection, untrusted reply text and ephemeral history');
         checkpoint='daily activity controls and persistence';
+        await page.locator('[data-nav="behavior"]').click();
         await page.locator('#idle-mode').selectOption('off');
         await page.reload({waitUntil:'load'});
         await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});

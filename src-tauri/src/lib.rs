@@ -1,4 +1,5 @@
-//! Native shell for phase 0 / v0.1. No monitoring, screenshot, or AI permissions.
+//! Native shell. AI access is constrained to explicit local Ollama commands.
+mod ollama;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri::menu::MenuBuilder;
@@ -36,7 +37,8 @@ fn open_workshop(app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(Passthrough(Mutex::new(false)))
-        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop])
+        .manage(ollama::PendingRequests::default())
+        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_chat, ollama::ollama_cancel])
         .setup(|app| {
             let menu = MenuBuilder::new(app)
                 .text("workshop", "Open animation workshop")

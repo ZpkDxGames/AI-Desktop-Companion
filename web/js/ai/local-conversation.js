@@ -51,10 +51,15 @@ async function limitedJson(response){
  try{return JSON.parse(raw);}catch{throw Error('Local model returned invalid JSON.');}
 }
 export class LocalConversation{
- constructor({fetchImpl=fetch}={}){
-  this.fetchImpl=fetchImpl;this.history=[];this.pending=null;this.counter=0;
+ constructor({fetchImpl=fetch,nativeInvoke=null}={}){
+  this.fetchImpl=fetchImpl;this.nativeInvoke=nativeInvoke;this.history=[];this.pending=null;this.counter=0;
  }
  async listModels(){
+  if(this.nativeInvoke){
+   const models=await this.nativeInvoke('ollama_list_models');
+   if(!Array.isArray(models))throw Error('Invalid native Ollama model listing.');
+   return [...new Set(models.filter(validModelName))].slice(0,64);
+  }
   const request=new AbortController(),timer=setTimeout(()=>request.abort(),9000);
   try{
    const response=await this.fetchImpl(OLLAMA_BASE+'/api/tags',{
@@ -71,19 +76,22 @@ export class LocalConversation{
   if(typeof input!=='string'||!input.trim()||input.length>MAX_PROMPT)throw Error('Message length must be between 1 and 2400 characters.');
   const prompt=input.trim();
   const own=new AbortController();
-  this.pending=own;
-  const timer=setTimeout(()=>own.abort(),120000);
+  const requestId=this.nativeInvoke?('v6-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)):null;
+  this.pending=own;this.pendingId=requestId;
+  const timer=setTimeout(()=>{own.abort();if(requestId)void Promise.resolve().then(()=>this.nativeInvoke('ollama_cancel',{requestId})).catch(()=>{});},120000);
   const history=this.history.slice(-MAX_HISTORY);
   try{
-   const response=await this.fetchImpl(OLLAMA_BASE+'/api/chat',{
+   const messages=[baseSystem,...history,{role:'user',content:prompt}];
+   const nativeContent=this.nativeInvoke?await this.nativeInvoke('ollama_chat',{model,messages,requestId}):null;
+   const response=this.nativeInvoke?null:await this.fetchImpl(OLLAMA_BASE+'/api/chat',{
     method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',
     referrerPolicy:'no-referrer',cache:'no-store',signal:own.signal,
     body:JSON.stringify({
      model,stream:false,think:false,format:schema,options:{num_predict:450,temperature:.7},
-     keep_alive:'30s',messages:[baseSystem,...history,{role:'user',content:prompt}]
+     keep_alive:'30s',messages
     })
    });
-   const data=await limitedJson(response);
+   const data=this.nativeInvoke?{message:{content:nativeContent}}:await limitedJson(response);
    if(own.signal.aborted)throw new DOMException('Aborted','AbortError');
    const output=parseReply(data?.message?.content);
    const answer={reply:output.reply,gesture:gestures?output.gesture:null};
@@ -91,13 +99,21 @@ export class LocalConversation{
    if(this.history.length>MAX_HISTORY)this.history.splice(0,this.history.length-MAX_HISTORY);
    return answer;
   }catch(error){
+   if(own.signal.aborted)throw new DOMException('Aborted','AbortError');
    if(error instanceof TypeError)throw new Error(formatChatError(error));
    throw error;
   }finally{
    clearTimeout(timer);
-   if(this.pending===own)this.pending=null;
+   if(this.pending===own){this.pending=null;this.pendingId=null;}
   }
  }
- cancel(){if(this.pending){this.pending.abort();return true;}return false;}
+ cancel(){
+  if(!this.pending)return false;
+  this.pending.abort();
+  const requestId=this.pendingId;
+  if(this.nativeInvoke&&requestId)
+   void Promise.resolve().then(()=>this.nativeInvoke('ollama_cancel',{requestId})).catch(()=>{});
+  return true;
+ }
  clear(){this.cancel();this.history.length=0;this.counter++;}
 }

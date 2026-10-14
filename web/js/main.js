@@ -36,7 +36,7 @@ const state=stored();
 const seed=Date.now();
 const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
-const conversation=new LocalConversation();
+const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
 let aiConnected=false,chatBusy=false,conversationGeneration=0;
 controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');

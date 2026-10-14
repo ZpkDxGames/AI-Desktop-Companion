@@ -1,14 +1,17 @@
 /** Finite presentation policy, sampled by the existing frame. No content, timers or action queue. */
 import {REACTIONS} from './local-conversation.js';
+import {DIRECT_ACTIONS} from './command-intent.js';
 const ACTION=Object.freeze({agree:'nod',disagree:'shake',uncertain:'shrug',celebrate:'celebrate',reassure:'wave',surprised:'look'});
-const KINDS=Object.freeze(['request-start','model-loading','answer','cancel','error','clear','model-change','window-hidden','window-closed','visibility-resume']);
+const KINDS=Object.freeze(['request-start','model-loading','answer','direct-action','cancel','error','clear','model-change','window-hidden','window-closed','visibility-resume']);
 const ease=x=>{x=Math.max(0,Math.min(1,x));return x*x*x*(x*(x*6-15)+10);};
 export function validateCue(value,now=Date.now()){
- if(!value||typeof value!=='object'||Object.keys(value).some(k=>!['version','source','seq','kind','requestId','issuedAt','ttlMs','reaction'].includes(k)))return null;
+ if(!value||typeof value!=='object'||Object.keys(value).some(k=>!['version','source','seq','kind','requestId','issuedAt','ttlMs','reaction','action'].includes(k)))return null;
  if(value.version!==1||typeof value.source!=='string'||!/^[-a-zA-Z0-9]{1,64}$/.test(value.source)||!KINDS.includes(value.kind))return null;
  if(!Number.isSafeInteger(value.seq)||value.seq<1||!Number.isSafeInteger(value.requestId)||value.requestId<0)return null;
  if(!Number.isFinite(value.issuedAt)||!Number.isFinite(value.ttlMs)||value.ttlMs<1||value.ttlMs>120000||value.issuedAt>now+2000||now>=value.issuedAt+value.ttlMs)return null;
  if(value.reaction!==undefined&&!REACTIONS.includes(value.reaction))return null;
+ if(value.kind==='direct-action'&&!DIRECT_ACTIONS.includes(value.action))return null;
+ if(value.action!==undefined&&(value.kind!=='direct-action'||!DIRECT_ACTIONS.includes(value.action)))return null;
  return value;
 }
 export class ConversationReactionCoordinator{
@@ -27,7 +30,7 @@ export class ConversationReactionCoordinator{
  activity(){
   const now=this.clock();if(now-this.wakeAt>=1800){this.wakeFrom=this.sample().drowsiness;this.wakeAt=now;}this.lastActivity=now;this.previewUntil=0;
  }
- event(kind,{requestId=this.id,reaction='neutral',ttlMs=120000}={}){
+ event(kind,{requestId=this.id,reaction='neutral',action=null,ttlMs=120000}={}){
   if(kind==='activity'){this.activity();return true;}
   if(kind==='manual'){this.activity();this.suppressed=true;this.bulbAt=-Infinity;return true;}
   if(kind==='request-start'){
@@ -35,6 +38,13 @@ export class ConversationReactionCoordinator{
    this.activity();this.id=requestId;this.state='generating';this.expires=this.clock()+Math.min(120000,ttlMs);this.suppressed=false;this.bulbAt=-Infinity;return true;
   }
   if(kind==='model-loading')return requestId===this.id&&this.state==='generating';
+  if(kind==='direct-action'){
+   if(this.hidden||this.state==='generating'||!DIRECT_ACTIONS.includes(action))return false;
+   this.activity();
+   if(!this.request(action,'manual'))return false;
+   this.state='idle';this.suppressed=true;this.bulbAt=-Infinity;
+   return true;
+  }
   if(kind==='answer'||kind==='cancel'||kind==='error'){
    if(requestId!==this.id||this.state!=='generating')return false;
    this.state='idle';

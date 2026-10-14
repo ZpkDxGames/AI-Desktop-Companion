@@ -136,7 +136,7 @@
               <p class="small-note">Talk to a model installed on this PC. No service is started or contacted until you select Connect. Text stays in temporary session memory and is never saved to this application's settings.</p>
               <div class="setting-line"><div><strong>Connection</strong><small id="ai-connection-status" role="status">Disconnected (on-demand only)</small></div><button id="ai-connect" type="button" class="button-secondary">Connect to Ollama</button></div>
               <div class="setting-line"><label for="ai-model">Installed model</label><select id="ai-model" disabled aria-label="Installed local model"></select></div>
-              <div class="setting-line"><div><strong>Optional answer gestures</strong><small>Restrained answer reactions. Manual actions take priority.</small></div><label class="switch"><input id="ai-gesture-enabled" type="checkbox"/><span></span></label></div>
+              <div class="setting-line"><div><strong>Optional answer gestures</strong><small>AI-suggested gestures; explicit avatar commands are manual.</small></div><label class="switch"><input id="ai-gesture-enabled" type="checkbox"/><span></span></label></div>
             </div>
               <div class="setting-line"><label for="ai-fallback">Text fallback</label><select id="ai-fallback" disabled aria-label="Installed text fallback"></select></div>
               <p class="small-note" id="ai-route-status" role="status">No inference until Send</p>
@@ -146,7 +146,7 @@
             </div>
             <form id="chat-send-form" class="chat-compose">
               <label for="chat-input">Your message</label>
-              <textarea id="chat-input" maxlength="2400" rows="3" placeholder="Ask your companion something…"></textarea>
+              <textarea id="chat-input" maxlength="2400" rows="3" placeholder="Ask a question or say: Can you shake your head?"></textarea>
               <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear session</button></div>
             </form>
           </section>

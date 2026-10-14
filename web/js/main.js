@@ -7,6 +7,7 @@ import {BehaviorController} from './avatar/animation.js';
 import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
 import {LocalConversation,sanitizeAiSettings,formatChatError,OLLAMA_BASE} from './ai/local-conversation.js';
 import {ConversationReactionCoordinator} from './ai/reaction-coordinator.js';
+import {detectDirectAnimation,chooseAnswerReaction} from './ai/command-intent.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
 
@@ -39,20 +40,23 @@ const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
 const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
 let aiConnected=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
-const reactions=new ConversationReactionCoordinator({request:action=>{
- if(controller.source==='manual'&&controller.action!=='idle')return false;
- return controller.request(action,{source:'conversation'});
+const reactions=new ConversationReactionCoordinator({request:(action,source='conversation')=>{
+ if(source!=='manual'&&controller.source==='manual'&&controller.action!=='idle')return false;
+ return controller.request(action,{source});
 }});
 reactions.configure(state.ai);
 let cueSequence=0;const nativeUnlisten=[];
 function cue(kind,data={}){
- reactions.event(kind,data);wake();
+ if(!reactions.event(kind,data))return false;
+ wake();
  if(!overlay&&native){
   const payload={version:1,source:sessionId,seq:++cueSequence,kind,requestId:data.requestId??reactions.id,
    issuedAt:Date.now(),ttlMs:kind==='request-start'?120000:5000};
   if(data.reaction)payload.reaction=data.reaction;
+   if(kind==='direct-action'&&data.action)payload.action=data.action;
   window.__TAURI__?.event?.emitTo?.('avatar','zpkdx:reaction',payload).catch(()=>{});
  }
+ return true;
 }
 function manualInteraction(){reactions.event('manual');wake();}
 function configureReactions(){reactions.configure({...state.ai,sleepy:state.ai.sleepy&&state.idleMode!=='off'});}
@@ -82,7 +86,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.1',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
@@ -175,6 +179,14 @@ async function sendLocalChat(){
  if(!input)return;
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
  const generation=++conversationGeneration;
+ const direct=detectDirectAnimation(input);
+ if(direct){
+  appendConversation('user',input);field.value='';
+  const performed=cue('direct-action',{requestId:generation,action:direct.action});
+  appendConversation('assistant',performed?direct.reply:'I could not start that animation right now. Try after the current action finishes.');
+  routeStatus='Local avatar command · no AI inference';
+  updateAiControls();return;
+ }
  reactions.event('activity');cue('request-start',{requestId:generation});routeStatus='Loading primary model…';
  chatBusy=true;field.disabled=true;updateAiControls();
  appendConversation('user',input);field.value='';
@@ -186,7 +198,7 @@ async function sendLocalChat(){
   if(generation!==conversationGeneration)return;
   appendConversation('assistant',response.reply);
   routeStatus=(response.fallbackUsed?'Fallback used · ':'Answered · ')+response.model;
-  let reaction=response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction;
+  let reaction=chooseAnswerReaction(response.reply,response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction);
   // One manual interruption suppresses reply choreography in both renderers.
   if(reactions.suppressed||controller.source==='manual'&&controller.action!=='idle')reaction='neutral';
   cue('answer',{requestId:generation,reaction});

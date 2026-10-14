@@ -186,7 +186,9 @@ async function sendLocalChat(){
   if(generation!==conversationGeneration)return;
   appendConversation('assistant',response.reply);
   routeStatus=(response.fallbackUsed?'Fallback used · ':'Answered · ')+response.model;
-  const reaction=response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction;
+  let reaction=response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction;
+  // One manual interruption suppresses reply choreography in both renderers.
+  if(reactions.suppressed||controller.source==='manual'&&controller.action!=='idle')reaction='neutral';
   cue('answer',{requestId:generation,reaction});
  }catch(error){
   if(generation===conversationGeneration){cue('error',{requestId:generation});routeStatus='Request ended · '+formatChatError(error);appendConversation('system',formatChatError(error));}

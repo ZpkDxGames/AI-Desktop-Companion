@@ -40,6 +40,7 @@ try{
  await page.evaluate(()=>__resolve(JSON.stringify({reply:'Manual priority preserved',reaction:'disagree'})));
  await page.waitForFunction(()=>document.querySelector('.from-model')?.textContent.includes('Manual priority'));
  if(await page.locator('#animation-status').textContent()==='SHAKE')throw Error('Reply interrupted manual wave');
+ if(await page.evaluate(()=>__cueEvents.filter(e=>e.payload.kind==='answer').at(-1)?.payload.reaction)!=='neutral')throw Error('Manual suppression failed at overlay producer');
  await page.evaluate(()=>window.__scenario='fallback');
  await page.locator('#chat-input').fill('Fallback route test');await page.locator('#ai-send').click();
  await page.waitForFunction(()=>document.querySelector('#ai-route-status').textContent.includes('Fallback used · llama3.2:3b')&&!document.querySelector('#ai-send').disabled);

@@ -8,6 +8,7 @@ export const EXTRA_ANIMATIONS=Object.freeze({
  drink:Object.freeze({duration:4.4,priority:2}),
  inspect:Object.freeze({duration:4.2,priority:2}),
  nod:Object.freeze({duration:1.45,priority:2}),
+ shake:Object.freeze({duration:1.85,priority:2}),
  shrug:Object.freeze({duration:1.8,priority:2}),
  stretch:Object.freeze({duration:2.6,priority:2}),
  bow:Object.freeze({duration:1.9,priority:2})
@@ -81,6 +82,14 @@ export function applyExtraAnimation(name,pose,elapsed,activity){
   pose.headX+=(.30*decay*swing+lift)*w;
   pose.bodyX+=.03*decay*Math.sin(elapsed*9.5-.5)*w;
   pose.rootY-=.05*decay*Math.abs(swing)*w;
+ }
+ if(name==='shake'){
+  // Small counterturn, two legible decaying swings, secondary roll and gradual recovery.
+  const swing=Math.sin((elapsed-.14)*10.0),decay=Math.exp(-Math.max(0,elapsed-.14)*1.45);
+  pose.headY+=.37*swing*decay*w;
+  pose.headZ+=.035*Math.sin((elapsed-.14)*10-.45)*decay*w;
+  pose.bodyY+=.034*Math.sin((elapsed-.14)*10-.7)*decay*w;
+  pose.headX+=.025*w;
  }
  if(name==='shrug'){
   // Quick lift with overshoot, hold, ease down.

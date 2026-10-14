@@ -93,7 +93,7 @@ export class AvatarRenderer{
   const height=Math.max(2,Math.floor((bounds?.height||0)-(this.overlay?52:0)));
   if(this.viewer.width!==width||this.viewer.height!==height)this.viewer.setSize(width,height);
  }
- render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0,action='idle',actionElapsed=0,dt=0,activity=null,presentation=null,foodVariant='apple'}={}){
+ render(pose,{scale=1,rotation=0,gazeX=0,gazeY=0,blink=0,action='idle',actionElapsed=0,dt=0,activity=null,presentation=null,foodVariant='apple',cues=null}={}){
   if(!this.skin)return;
   this.resize();
   const player=this.viewer.playerObject;
@@ -101,10 +101,10 @@ export class AvatarRenderer{
   player.position.set(pose.rootX||0,pose.rootY||0,pose.rootZ||0);
   player.rotation.set(0,this.baseYaw+rotation+(pose.rootYaw||0),0);
   this.rig.apply(skin,pose);
-  this.faceMaterial.update(gazeX,gazeY,blink);
+  this.faceMaterial.update(gazeX,gazeY,blink,cues?.drowsiness||0);
   this.props.update(action,actionElapsed,dt,presentation||activity,presentation?.foodVariant||foodVariant);
   const shown=presentation||activity;
-  this.effects.update(action,actionElapsed,dt,shown,this.props.itemModels.get(shown?.foodVariant||foodVariant)?.pixels);
+  this.effects.update(action,actionElapsed,dt,shown,this.props.itemModels.get(shown?.foodVariant||foodVariant)?.pixels,cues,this.viewer.camera);
   const bounded=Math.max(.55,Math.min(1.5,Number.isFinite(scale)?scale:1));
   if(Math.abs(this.lastScale-bounded)>.001){
    this.lastScale=bounded;

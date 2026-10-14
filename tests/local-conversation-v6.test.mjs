@@ -6,9 +6,9 @@ const json=(data,status=200)=>({ok:status>=200&&status<300,status,headers:{get:(
 test('model names and gestures are strictly bounded',()=>{
  for(const model of ['llama3.2:3b','qwen2.5:1.5b','gemma3:4b'])assert.equal(validModelName(model),true);
  for(const model of ['', '../secret','http://example.com','some name','\n','x'.repeat(81)])assert.equal(validModelName(model),false);
- assert.deepEqual(parseReply('{"reply":"Hello","gesture":"wave"}'),{reply:'Hello',gesture:'wave'});
- assert.deepEqual(parseReply('{"reply":"Hello","gesture":"delete-files"}'),{reply:'Hello',gesture:null});
- assert.deepEqual(parseReply('{"reply":"Hi","gesture":"celebrate","tools":[{"name":"exec"}]}'),{reply:'Hi',gesture:'celebrate'});
+ assert.deepEqual(parseReply('{"reply":"Hello","gesture":"wave"}'),{reply:'Hello',gesture:'wave',reaction:'neutral'});
+ assert.deepEqual(parseReply('{"reply":"Hello","gesture":"delete-files"}'),{reply:'Hello',gesture:null,reaction:'neutral'});
+ assert.deepEqual(parseReply('{"reply":"Hi","gesture":"celebrate","tools":[{"name":"exec"}]}'),{reply:'Hi',gesture:'celebrate',reaction:'neutral'});
 });
 test('provider is fixed to loopback with no request until explicitly requested',async()=>{
  const requests=[];
@@ -87,7 +87,7 @@ test('native Windows transport lists models and chats without WebView fetch or b
  });
  assert.deepEqual(await conn.listModels(),['llama3.2:3b']);
  const out=await conn.send('Hello',{model:'llama3.2:3b',gestures:true});
- assert.deepEqual(out,{reply:'Native local response',gesture:'wave'});
+ assert.deepEqual(out,{reply:'Native local response',gesture:'wave',reaction:'neutral'});
  assert.deepEqual(actions.map(x=>x.command),['ollama_list_models','ollama_chat']);
  assert.equal(actions[1].args.model,'llama3.2:3b');
  assert.ok(/^v6-[a-z0-9-]+$/.test(actions[1].args.requestId));

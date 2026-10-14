@@ -34,7 +34,7 @@ const blank=()=>Object.fromEntries(POSE_KEYS.map(k=>[k,0]));
  */
 export class BehaviorController{
  constructor({seed=0x5f3759df}={}){
-  this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';
+  this.drowsiness=0;this.action='idle';this.elapsed=0;this.time=0;this.previous='idle';
   this.gaze=[0,0];this.gazeTarget=[0,0];this.headGaze=[0,0];this.blink=0;this.nextBlink=3.3;
   this.eyeGaze=[0,0];this.eyeJitter=[0,0];this.eyeJitterTarget=[0,0];this.nextSaccade=1.4;
   this.mood='neutral';this.poseBuffer=blank();
@@ -53,6 +53,7 @@ export class BehaviorController{
   this.presentation={};this.recovery={};this.recoveryTime=Infinity;this.propDelay=0;this.propSuppressed=false;
   this.updatePresentation();
  }
+ setDrowsiness(value){this.drowsiness=Number.isFinite(value)?clamp(value,0,.8):0;}
  setBehaviorPolicy(policy){
   if(policy!==null&&(typeof policy?.choose!=='function'||typeof policy?.tick!=='function'||typeof policy?.noteAction!=='function'))return false;
   this.behaviorPolicy=policy;return true;
@@ -336,6 +337,10 @@ export class BehaviorController{
    p.legRX+=.12*hop;p.legLX-=.09*second;
   }
   applyExtraAnimation(a,p,e,activity);
+  if(a==='idle'){
+   p.headX+=.17*this.drowsiness;p.headZ+=.025*this.drowsiness;
+   p.bodyX+=.025*this.drowsiness;p.armRX+=.035*this.drowsiness;p.armLX+=.035*this.drowsiness;
+  }
   if(a!=='sit'&&a!=='read'&&a!=='eat'&&a!=='drink'){
    for(const key of POSE_KEYS)if(key!=='breath')p[key]*=this.motionScale;
   }

@@ -39,6 +39,6 @@ export function chooseAnswerReaction(reply,modelReaction='neutral'){
  if(/^(?:yes[!., ]|absolutely[!., ]|exactly[!., ]|correct[!., ]|you(?:'re| are) right\b|i agree\b)/i.test(s))return 'agree';
  if(/^(?:no[!, ]|not quite\b|that's (?:incorrect|not correct)\b|i disagree\b|actually,\s*no\b)/i.test(s)&&!/^no (?:problem|worries|need)\b/i.test(s))return 'disagree';
  if(modelReaction!=='neutral')return modelReaction;
- if(/^(?:i(?:'ve| have) (?:got|an?) idea\b|here(?:'s| is) (?:an? idea|a possible solution)\b)/i.test(s))return 'insight';
+ if(/^(?:i(?:'ve| have) (?:got an?|an?) idea\b|here(?:'s| is) (?:an? idea|a possible solution)\b)/i.test(s))return 'insight';
  return 'neutral';
 }

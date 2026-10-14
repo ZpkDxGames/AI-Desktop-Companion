@@ -12,11 +12,12 @@ const skin=()=>({body:new Group(),rightArm:new Group(),leftArm:new Group(),head:
 test('reading phases include opening, a physical page flip and closing',()=>{
  const state={};
  assert.equal(sampleTimeline('read',.05,state).phase,'enter');
- assert.equal(sampleTimeline('read',1,state).phase,'open');
- const half=sampleTimeline('read',5.05,state);
+ assert.equal(sampleTimeline('read',1,state).phase,'raise');
+ assert.equal(sampleTimeline('read',2.2,state).phase,'open');
+ const half=sampleTimeline('read',11.1,state);
  assert.equal(half.phase,'pageTurn');
  assert.ok(half.pageAngle<-.2 && half.pageAngle>-3,'page must rotate across book spine');
- assert.equal(sampleTimeline('read',11.4,state).phase,'close');
+ assert.equal(sampleTimeline('read',25.6,state).phase,'close');
 });
 test('food variants are seeded, stable per action and from the required set',()=>{
  const a=new BehaviorController({seed:1234}),b=new BehaviorController({seed:1234});
@@ -44,7 +45,7 @@ test('book, food, drink props share the rig but use articulated cached geometry'
  assert.ok(props.turningPage?.rotation,'book requires physical hinged page');
  assert.ok(props.foodVariants?.length===4,'all food variants are cached at construction');
  const first=props.turningPage;
- props.update('read',5.05,.05);
+ props.update('read',11.1,.05);
  assert.strictEqual(props.turningPage,first);
  assert.ok(Math.abs(first.rotation.y)>.2);
  props.update('idle',0,.05);

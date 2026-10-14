@@ -12,7 +12,7 @@ import {once} from 'node:events';
 
 await mkdir('smoke-artifacts',{recursive:true});
 await writeFile('smoke-artifacts/activity-probe-entry.js',
-  "export {AvatarRenderer} from '../web/js/engine/renderer.js';\nexport {BehaviorController} from '../web/js/avatar/animation.js';\n");
+  "export {AvatarRenderer} from '../web/js/engine/renderer.js';\nexport {BehaviorController} from '../web/js/avatar/animation.js';\nexport {readSelectedItemPngs} from '../web/js/engine/item-import.js';\n");
 await build({configFile:false,root:process.cwd(),logLevel:'error',build:{
  target:'es2020',outDir:'dist/activity-probe',emptyOutDir:false,sourcemap:false,
  lib:{entry:resolve('smoke-artifacts/activity-probe-entry.js'),formats:['es'],fileName:'activity'}
@@ -34,7 +34,7 @@ server.listen(0,'127.0.0.1');await once(server,'listening');
 
 let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:500,height:500}});
  const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
@@ -42,13 +42,13 @@ try{
  await page.goto('http://127.0.0.1:'+server.address().port+'/activity-probe/probe.html');
  const seed=(await readFile('web/assets/sample-skin.png')).toString('base64');
  await page.evaluate(async base64=>{
-   const {AvatarRenderer,BehaviorController}=await import('/activity-probe/activity.js');
+   const {AvatarRenderer,BehaviorController,readSelectedItemPngs}=await import('/activity-probe/activity.js');
    const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();
    const renderer=new AvatarRenderer(document.getElementById('activity-canvas'));
    await renderer.setSkin(image);
    window.activityRenderer=renderer;
    window.activityController=new BehaviorController();
-   window.BehaviorController=BehaviorController;
+   window.BehaviorController=BehaviorController;window.readSelectedItemPngs=readSelectedItemPngs;
  },seed);
  const canvas=page.locator('#activity-canvas');
  const screenshot=async filename=>canvas.screenshot({path:'smoke-artifacts/activity-fixed-'+filename+'.png'});
@@ -69,9 +69,9 @@ try{
 
  for(const action of ['read','eat','drink']){
    await page.evaluate(name=>{
-     const c=window.activityController;
-     c.request('idle');c.request(name);
-     for(let i=0;i<15;i++){c.update(.05);c.pose();}
+     const c=window.activityController=new window.BehaviorController();
+     c.request(name);
+     for(let i=0;i<(name==='read'?65:15);i++){c.update(.05);c.pose();}
      const renderer=window.activityRenderer;
      renderer.render(c.pose(),{action:name,actionElapsed:c.elapsed,dt:1});
      const prop=name==='read'?'book':name==='eat'?'food':'drink';
@@ -92,9 +92,9 @@ try{
  // Authored time, never wall-clock screenshot timing: saved real WebGL frames
  // represent every requested action for visual diff and manual review.
  const sequence=[
-  ['read',.14,'read-enter'],['read',1.12,'read-open'],
-  ['read',4.7,'read-page-start'],['read',5.05,'read-page-half'],
-  ['read',5.52,'read-page-complete'],['read',11.4,'read-exit'],
+  ['read',.8,'read-enter'],['read',1.6,'read-closed-lift'],['read',2.25,'read-open'],['read',5,'read-calm'],
+  ['read',10.7,'read-page-start'],['read',11.1,'read-page-half'],
+  ['read',11.62,'read-page-complete'],['read',25.6,'read-exit'],
   ['sit',.13,'sit-down'],['sit',.8,'sit-seated'],['stand',.35,'sit-standing-up'],
   ['think',1.1,'think-bubble'],['celebrate',.43,'celebrate-flight'],
   ['celebrate',1.02,'celebrate-burst'],['celebrate',2.3,'celebrate-fade'],
@@ -103,8 +103,8 @@ try{
   ['drink',1.1,'drink-raise'],['drink',1.9,'drink-sip'],
   ['look',.95,'look-steps'],['look',2.25,'look-scan'],
   ['inspect',1.5,'inspect-visual-preview'],
-  ['read',5.05,'read-quarter-left',null,-.785],
-  ['read',5.05,'read-quarter-right',null,.785],
+  ['read',11.1,'read-quarter-left',null,-.785],
+  ['read',11.1,'read-quarter-right',null,.785],
   ['drink',1.9,'drink-quarter',null,.785],
   ['think',1.1,'think-quarter',null,-.785],
   ['look',1.6,'look-quarter',null,.785],
@@ -151,6 +151,13 @@ try{
    if(changed<10)throw Error(label+' GPU effect is invisible: '+changed+' changed pixels');
    console.log('PASS fixed-pose GPU '+label+': '+changed+' effect pixels');
   }
+  if(label==='eat-apple'){
+   await page.evaluate(()=>{const r=window.activityRenderer;r.props.food.visible=true;r.effects.crumbs.count=0;r.viewer.render();});
+   const bare=await screenshot('eat-crumbs-off');
+   const changed=await diff(frame,bare);
+   if(changed<12)throw Error('Eating crumbs invisible in WebGL: '+changed);
+   console.log('PASS fixed-pose GPU eating crumbs: '+changed+' effect pixels');
+  }
  }
 
  // Confirm the user-controlled local texture can replace fallback without a second
@@ -162,12 +169,20 @@ try{
   ctx.fillRect(3,3,10,10);ctx.clearRect(5,5,6,6);
   const count=await renderer.setItemTextures({apple:tex.toDataURL('image/png')});
   if(count!==1)throw Error('Local sprite import was not applied');
-  if(renderer.props.itemModels.get('apple').texture.magFilter!==1003)throw Error('Imported pixels lost nearest-neighbor filtering');
+  if(!renderer.props.itemModels.get('apple').group.userData.voxelFood)throw Error('Imported colors lost the volumetric food profile');
   const c=window.activityController;c.request('idle');c.request('eat');
   for(let i=0;i<25;i++)c.update(.05);
   renderer.render(c.pose(),{action:'eat',actionElapsed:c.elapsed,foodVariant:'apple',activity:c.activity,dt:.05});
  });
  const importFrame=await screenshot('v3-local-apple-imported');
+ // The same local-only path reads a selected client JAR; unrelated entries are ignored.
+ const importedArchive=await page.evaluate(async base64=>{
+  const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+  const result=await window.readSelectedItemPngs([new File([bytes],'client.jar',{type:'application/java-archive'})]);
+  if(result.count!==2||Object.keys(result.sprites).sort().join(',')!=='apple,cake_slice')throw Error('JAR selected the wrong assets');
+  await window.activityRenderer.setItemTextures(result.sprites);return result.count;
+ },"UEsDBBQAAAAIAFWoTV3KdgpZXQAAAGEAAAAoAAAAYXNzZXRzL21pbmVjcmFmdC90ZXh0dXJlcy9pdGVtL2FwcGxlLnBuZ+sM8HPn5ZLiYmBg4PX0cAkC0gIgzMEGJOU//08EUhqeLo4hFXOSEyQyDnScEax88W2+hG/+k/KDXw0DXzUFMrvxSsiw8dgwMLxRZJGwVzbIBOph8HT1c1nnlNAEAFBLAwQUAAAACABVqE1dynYKWV0AAABhAAAAJwAAAGFzc2V0cy9taW5lY3JhZnQvdGV4dHVyZXMvaXRlbS9jYWtlLnBuZ+sM8HPn5ZLiYmBg4PX0cAkC0gIgzMEGJOU//08EUhqeLo4hFXOSEyQyDnScEax88W2+hG/+k/KDXw0DXzUFMrvxSsiw8dgwMLxRZJGwVzbIBOph8HT1c1nnlNAEAFBLAwQUAAAACABVqE1dKdxC+Q4AAAAMAAAAFwAAAGlycmVsZXZhbnQvcGFzc3dvcmQudHh0y8svUShOzUlNLklNAQBQSwECFAMUAAAACABVqE1dynYKWV0AAABhAAAAKAAAAAAAAAAAAAAAgAEAAAAAYXNzZXRzL21pbmVjcmFmdC90ZXh0dXJlcy9pdGVtL2FwcGxlLnBuZ1BLAQIUAxQAAAAIAFWoTV3KdgpZXQAAAGEAAAAnAAAAAAAAAAAAAACAAaMAAABhc3NldHMvbWluZWNyYWZ0L3RleHR1cmVzL2l0ZW0vY2FrZS5wbmdQSwECFAMUAAAACABVqE1dKdxC+Q4AAAAMAAAAFwAAAAAAAAAAAAAAgAFFAQAAaXJyZWxldmFudC9wYXNzd29yZC50eHRQSwUGAAAAAAMAAwDwAAAAiAEAAAAA");
+ console.log('PASS browser local JAR decoding: '+importedArchive+' allowlisted PNGs; unrelated data excluded');
  await page.evaluate(async()=>{
   const renderer=window.activityRenderer;
   await renderer.setItemTextures({});
@@ -177,10 +192,36 @@ try{
  const importChanged=await diff(importFrame,fallbackFrame);
  if(importChanged<25)throw Error('Imported asset not visually distinct from fallback: '+importChanged);
  console.log('PASS local opt-in item asset pixel gate: '+importChanged+' changed pixels after restoring original geometry');
+ // A merged flat face must not create a one-pixel crack at a T junction.
+ // Inspect the actual production meshes, with their canonical material/light.
+ const surfaces=await page.evaluate(()=>{
+  const r=window.activityRenderer,canvas=r.canvas;canvas.parentElement.style.width='320px';canvas.parentElement.style.height='400px';r.resize();
+  const cameraPosition=r.viewer.camera.position.clone(),cameraQuaternion=r.viewer.camera.quaternion.clone(),results=[];
+  r.viewer.playerObject.visible=false;
+  for(const id of ['apple','cooked_porkchop','golden_carrot','cake_slice']){
+   const model=r.props.itemModels.get(id),object=model.group,parent=object.parent,position=object.position.clone(),quaternion=object.quaternion.clone(),scale=object.scale.clone(),visible=object.visible,opacity=model.materials.map(m=>m.opacity);
+   r.viewer.scene.add(object);object.visible=true;object.position.set(0,0,0);object.scale.setScalar(1);for(const m of model.materials)m.opacity=1;
+   for(const [view,yaw] of [['front',0],['quarter',-.7],['side',1.57]]){
+    object.rotation.set(0,yaw,0);r.viewer.camera.position.set(0,3.5,14);r.viewer.camera.lookAt(0,0,0);r.viewer.camera.updateProjectionMatrix();r.viewer.renderer.render(r.viewer.scene,r.viewer.camera);
+    const gl=r.viewer.renderer.getContext(),width=gl.drawingBufferWidth,height=gl.drawingBufferHeight,pixels=new Uint8Array(width*height*4),visited=new Uint8Array(width*height),queue=[];
+    gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+    const add=i=>{if(i>=0&&i<visited.length&&!visited[i]&&pixels[i*4+3]===0){visited[i]=1;queue.push(i);}};
+    for(let x=0;x<width;x++){add(x);add((height-1)*width+x);}for(let y=0;y<height;y++){add(y*width);add(y*width+width-1);}
+    for(let cursor=0;cursor<queue.length;cursor++){const i=queue[cursor];if(i%width)add(i-1);if(i%width<width-1)add(i+1);add(i-width);add(i+width);}
+    let smallHoles=0;
+    for(let i=0;i<visited.length;i++)if(!visited[i]&&pixels[i*4+3]===0){queue.length=0;add(i);for(let cursor=0;cursor<queue.length;cursor++){const n=queue[cursor];if(n%width)add(n-1);if(n%width<width-1)add(n+1);add(n-width);add(n+width);}if(queue.length<=3)smallHoles+=queue.length;}
+    results.push({id,view,smallHoles});
+   }
+   parent.add(object);object.position.copy(position);object.quaternion.copy(quaternion);object.scale.copy(scale);object.visible=visible;model.materials.forEach((m,i)=>m.opacity=opacity[i]);
+  }
+  r.viewer.playerObject.visible=true;r.viewer.camera.position.copy(cameraPosition);r.viewer.camera.quaternion.copy(cameraQuaternion);return results;
+ });
+ for(const s of surfaces)if(s.smallHoles)throw Error(`Food surface crack: ${s.id}/${s.view} has ${s.smallHoles} enclosed missing pixels`);
+ console.log('PASS solid food surfaces: 12 views with no enclosed pixel cracks');
  if(errors.length)throw Error('Activity GPU probe errors: '+errors.join('; '));
  await page.evaluate(()=>window.activityRenderer.dispose());
  await page.close();
-}finally{
+}catch(error){console.error(error.stack||error);throw error;}finally{
  await browser?.close();
  await new Promise(resolve=>server.close(resolve));
 }

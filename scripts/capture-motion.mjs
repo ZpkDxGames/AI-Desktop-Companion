@@ -1,0 +1,152 @@
+/** Real canonical-renderer evidence. Synthetic public sample skin, never owner certification.
+ * npm install --no-save --no-package-lock playwright@1.56.1
+ * Clip capture requires ffmpeg and ffprobe on PATH (development evidence only).
+ * node scripts/capture-motion.mjs <output-directory> [--clips]
+ */
+import {build} from 'vite';
+import {chromium} from 'playwright';
+import {createServer} from 'node:http';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve,extname,sep} from 'node:path';
+import {once} from 'node:events';
+import {execFileSync,spawn} from 'node:child_process';
+
+const out=resolve(process.argv[2]||'motion-evidence');
+const onlyPerf=process.argv.includes('--performance-only'),onlyClips=process.argv.includes('--clips-only');
+const clipRates=(process.argv.find(x=>x.startsWith('--clip-rates='))?.split('=')[1]||'60').split(',').map(Number);
+const selectedActions=process.argv.find(x=>x.startsWith('--actions='))?.split('=')[1]?.split(',');
+const itemDirectory=process.argv.find(x=>x.startsWith('--item-dir='))?.slice(11);
+const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const sourceTree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
+if(clipRates.some(hz=>![30,60,120,144].includes(hz)))throw Error('Unsupported simulation cadence');
+await mkdir(out,{recursive:true});await mkdir('dist/motion-probe',{recursive:true});
+await writeFile('dist/motion-entry.js',"export {AvatarRenderer} from '../web/js/engine/renderer.js';export {BehaviorController,ACTIONS,DURATION} from '../web/js/avatar/animation.js';");
+await build({configFile:false,root:process.cwd(),logLevel:'error',build:{target:'es2020',outDir:'dist/motion-probe',emptyOutDir:false,
+ lib:{entry:resolve('dist/motion-entry.js'),formats:['es'],fileName:'motion'}}});
+await writeFile('dist/motion-probe/index.html','<!doctype html><html><body style="margin:0;background:#162333"><div style="width:320px;height:400px"><canvas id="avatar"></canvas></div></body></html>');
+const root=resolve('dist'),mime={'.html':'text/html','.js':'text/javascript','.png':'image/png'};
+const server=createServer(async(req,res)=>{try{
+ const path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);
+ if(!path.startsWith(root+sep))throw Error('path');
+ res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'}).end(await readFile(path));
+}catch{res.writeHead(404).end();}});
+server.listen(0,'127.0.0.1');await once(server,'listening');
+let browser,activeEncoder;
+const manifest={commit:sourceCommit,sourceTree,skin:'repository sample-skin.png (synthetic)',
+ backend:'Chromium / ANGLE SwiftShader (software WebGL)',viewport:[320,400],deviceScaleFactor:1,shots:[],clips:[],performance:[]};
+try{
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ manifest.browserVersion=browser.version();
+ const page=await browser.newPage({viewport:{width:320,height:400},deviceScaleFactor:1});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:'+server.address().port+'/motion-probe/index.html');
+ await page.evaluate(async skin=>{
+  const mod=await import('/motion-probe/motion.js');window.mod=mod;
+  const img=new Image();img.src='data:image/png;base64,'+skin;await img.decode();
+  window.r=new mod.AvatarRenderer(document.querySelector('canvas'));await r.setSkin(img);r.baseYaw=0;
+  window.start=(action)=>{window.c=new mod.BehaviorController({seed:2026});c.request(action);};
+  window.draw=(yaw=0)=>{r.render(c.pose(),{rotation:yaw,action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,
+   foodVariant:c.foodVariant,gazeX:c.eyeGaze?.[0]??c.gaze[0],gazeY:c.eyeGaze?.[1]??c.gaze[1],blink:c.blink,dt:1/30});if(r.viewer.renderer.getContext().isContextLost())throw Error('Capture WebGL context lost');};
+  window.seek=(seconds)=>{for(let time=0;time<seconds-1e-9;time+=1/120)c.update(Math.min(1/120,seconds-time));};
+ },(await readFile('web/assets/sample-skin.png')).toString('base64'));
+ if(itemDirectory){
+  const sources={};for(const [id,file] of [['apple','apple'],['cooked_porkchop','cooked_porkchop'],['golden_carrot','golden_carrot'],['cake_slice','cake']])
+   sources[id]='data:image/png;base64,'+(await readFile(resolve(itemDirectory,file+'.png'))).toString('base64');
+  await page.evaluate(sources=>r.setItemTextures(sources),sources);
+  manifest.foodArt='Explicit local vanilla/resource-pack PNGs; raw source files are excluded from evidence';
+ }
+ const times={idle:2,walk:1.3,run:1.3,wave:.9,sit:.8,jump:.46,think:1.1,celebrate:1.02,look:2.2,read:5,eat:1.45,drink:1.9,inspect:1.5,nod:.43,shrug:.6,stretch:1.2,bow:.8};
+ if(selectedActions){for(const a of selectedActions)if(!(a in times))throw Error('Unknown capture action: '+a);for(const a of Object.keys(times))if(!selectedActions.includes(a))delete times[a];}
+ const extras=[['read',.4,'read-enter'],['read',1.6,'read-closed-lift'],['read',2.25,'read-open'],['read',5,'read-calm'],['read',10.5,'read-preturn'],['read',10.85,'read-page-25'],['read',11.1,'read-page-50'],['read',11.35,'read-page-75'],['read',11.7,'read-regrip'],['read',21.1,'read-second-page'],['read',25.6,'read-close'],
+  ['jump',.16,'jump-crouch'],['jump',.82,'jump-land'],['eat',1.8,'eat-porkchop','cooked_porkchop'],['eat',2.8,'eat-carrot','golden_carrot'],['eat',1.9,'eat-cake','cake_slice'],['eat',4.1,'eat-fade'],['drink',.7,'drink-raise'],['drink',2.6,'drink-empty'],['drink',3.6,'drink-lower']].filter(s=>!selectedActions||selectedActions.includes(s[0]));
+ if(!onlyPerf&&!onlyClips){for(const model of ['classic','slim']){
+  await page.evaluate(model=>r.setModelMode(model),model);
+  for(const [label,yaw] of [['front',0],['left',-.785398],['right',.785398],['side',1.570796]]){
+   for(const [action,time] of Object.entries(times)){
+    await page.evaluate(({action,time,yaw})=>{start(action);seek(time);draw(yaw);},{action,time,yaw});
+    const file=`${model}-${label}-${action}.png`;
+    await page.locator('canvas').screenshot({path:resolve(out,file)});
+    manifest.shots.push({file,model,view:label,yaw,action,time});
+   }
+  }
+ }
+ await page.evaluate(()=>r.setModelMode('classic'));
+ for(const [action,time,label,variant] of extras){
+  await page.evaluate(({action,time,variant})=>{start(action);seek(time);if(variant){c.foodVariant=variant;c.updatePresentation?.();}draw();},{action,time,variant});
+  const file=`detail-${label}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});
+  manifest.shots.push({file,model:'classic',view:'front',action,time,variant});
+ }
+ if(process.argv.includes('--prop-details')){
+  // Isolate the very same renderer-owned mesh for reference inspection. No
+  // alternate item model/lighting or generated illustration is substituted.
+  for(const id of ['apple','cooked_porkchop','golden_carrot','cake_slice','book-open','book-closed'])for(const [view,yaw] of [['front',0],['quarter',-.7],['side',1.57]]){
+   await page.evaluate(({id,yaw})=>{
+    const book=id.startsWith('book');start(book?'read':'eat');seek(book?(id==='book-open'?5:1.6):1.45);draw();
+    window.detailObject=book?r.props.book:r.props.itemModels.get(id).group;
+    window.detailParent=detailObject.parent;window.detailPosition=detailObject.position.clone();window.detailQuaternion=detailObject.quaternion.clone();window.detailScale=detailObject.scale.clone();
+    window.detailCameraPosition=r.viewer.camera.position.clone();window.detailCameraQuaternion=r.viewer.camera.quaternion.clone();
+    // Effects already belong to playerObject. Hiding their parent isolates
+    // the prop without changing their visibility for subsequent motion clips.
+    r.viewer.playerObject.visible=false;
+    r.viewer.scene.add(detailObject);detailObject.visible=true;detailObject.position.set(0,0,0);detailObject.scale.setScalar(1);detailObject.rotation.set(book?-.62:0,yaw,0);
+    r.viewer.camera.position.set(0,3.5,book?16:14);r.viewer.camera.lookAt(0,0,0);r.viewer.camera.updateProjectionMatrix();r.viewer.renderer.render(r.viewer.scene,r.viewer.camera);
+   },{id,yaw});
+   const file=`prop-${id}-${view}.png`;await page.locator('canvas').screenshot({path:resolve(out,file)});manifest.shots.push({file,kind:'isolated production prop',id,view,yaw});
+   await page.evaluate(()=>{detailParent.add(detailObject);detailObject.position.copy(detailPosition);detailObject.quaternion.copy(detailQuaternion);detailObject.scale.copy(detailScale);r.viewer.playerObject.visible=true;r.viewer.camera.position.copy(detailCameraPosition);r.viewer.camera.quaternion.copy(detailCameraQuaternion);});
+  }
+ }
+ }
+ if(!onlyClips)for(const action of ['idle','walk','read','drink','celebrate'].filter(a=>!selectedActions||selectedActions.includes(a))){
+  const result=await page.evaluate(action=>{
+   start(action);const update=[],render=[];
+   for(let i=0;i<420;i++){
+    if(c.action==='idle'&&action!=='idle')c.request(action);
+    let t=performance.now();c.update(1/60);const p=c.pose();const u=performance.now()-t;
+    r.viewer.renderer.info.autoReset=false;r.viewer.renderer.info.reset();
+    t=performance.now();r.render(p,{action:c.action,actionElapsed:c.elapsed,activity:c.activity,presentation:c.presentation,foodVariant:c.foodVariant,dt:1/60});
+    if(i>=60){update.push(u);render.push(performance.now()-t);}
+   }
+   const quantile=rows=>{rows.sort((a,b)=>a-b);return {p50:rows[Math.floor(rows.length*.5)],p95:rows[Math.floor(rows.length*.95)],p99:rows[Math.floor(rows.length*.99)]};};
+   return {updatePoseMs:quantile(update),renderSubmissionMs:quantile(render),drawCallsAllPasses:r.viewer.renderer.info.render.calls,
+    geometries:r.viewer.renderer.info.memory.geometries,textures:r.viewer.renderer.info.memory.textures};
+  },action);manifest.performance.push({action,...result});
+ }
+ if(process.argv.includes('--clips')||onlyClips)for(const hz of clipRates){
+  const directory=hz===60?'clips':`clips-${hz}`;
+  await mkdir(resolve(out,directory),{recursive:true});
+  for(const action of [...Object.keys(times),'interrupt-mid-book','interrupt-mid-drink','walk-stop','stand-up']){
+   console.log(`Rendering actual frame sequence: ${action} (${hz} Hz simulation / 30 fps authored-time video)`);
+   const file=`${directory}/${action}.webm`;
+   const encoder=spawn('ffmpeg',['-v','error','-y','-framerate','30','-f','image2pipe','-vcodec','png','-i','pipe:0','-an','-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','28','-b:v','0','-pix_fmt','yuv420p',resolve(out,file)],{stdio:['pipe','ignore','pipe']});
+   activeEncoder=encoder;
+   let encoderError='';encoder.stderr.on('data',chunk=>{encoderError+=chunk.toString();});
+   const encoded=once(encoder,'close');
+   const frames=await page.evaluate(({action})=>{
+    const special=action==='interrupt-mid-book'?'read':action==='interrupt-mid-drink'?'drink':action==='walk-stop'?'walk':action==='stand-up'?'sit':null;
+    start(special||action);if(special)seek(special==='read'?10.9:special==='drink'?1.7:.8);
+    if(action==='stand-up')c.request('idle');
+    window.simulationTime=0;
+    return Math.ceil((special?4.0:(mod.DURATION[action]||3.2)+(action==='read'?1:.6))*30);
+   },{action});
+   for(let i=0;i<frames;i++){
+    const png=await page.evaluate(({action,hz,i})=>{
+     if((action.startsWith('interrupt-')&&i===6)||(action==='walk-stop'&&i===30))c.request(action==='walk-stop'?'idle':'wave');
+     const target=(i+1)/30;
+     while(simulationTime+1/hz<=target+1e-9){c.update(1/hz);simulationTime+=1/hz;}
+     draw(.35);return document.querySelector('canvas').toDataURL('image/png').split(',')[1];
+    },{action,hz,i});
+    if(!encoder.stdin.write(Buffer.from(png,'base64')))await once(encoder.stdin,'drain');
+   }
+   encoder.stdin.end();const [code]=await encoded;activeEncoder=null;if(code!==0)throw Error('Clip encoder failed: '+encoderError);
+   const decoded=JSON.parse(execFileSync('ffprobe',['-v','error','-count_frames','-show_entries','stream=nb_read_frames,width,height','-of','json',resolve(out,file)],{encoding:'utf8'}));
+   if(Number(decoded.streams[0]?.nb_read_frames)!==frames||decoded.streams[0].width!==320||decoded.streams[0].height!==400)throw Error('Incomplete encoded frame sequence: '+file);
+   const final=await page.evaluate(()=>({action:c.action,sitPhase:c.sitPhase,propVisibility:c.presentation.visibility,elapsed:c.elapsed,rootY:c.pose().rootY}));
+   if(!['idle','walk','run','sit'].includes(action)&&!action.startsWith('interrupt-')&&final.action!=='idle')throw Error('Incomplete action capture: '+action);
+   if((['read','eat','drink'].includes(action)||action.startsWith('interrupt-')||action==='stand-up')&&(final.sitPhase!=='standing'||final.propVisibility!==0))throw Error('Incomplete capture recovery: '+action);
+   manifest.clips.push({file,action,simulationHz:hz,recordingHz:30,yaw:.35,frames,recordingMode:'deterministic actual-renderer PNG frames; authored time, not native display pacing',final});
+  }
+ }
+ if(errors.length)throw Error(errors.join('\n'));await page.evaluate(()=>r.dispose());
+ await writeFile(resolve(out,'manifest.json'),JSON.stringify(manifest,null,2));
+ console.log(`Captured ${manifest.shots.length} canonical-renderer frames; ${manifest.clips.length} clips at ${out}`);
+}finally{activeEncoder?.kill('SIGTERM');await browser?.close();await new Promise(resolve=>server.close(resolve));}

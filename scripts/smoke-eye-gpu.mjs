@@ -28,7 +28,7 @@ server.listen(0,'127.0.0.1');await once(server,'listening');
 
 let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:500,height:500}});
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));

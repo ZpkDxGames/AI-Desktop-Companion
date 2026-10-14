@@ -10,7 +10,7 @@ const advance=(c,seconds)=>{
 test('new activity actions are registered and all props use bounded durations',()=>{
  for(const a of ['look','read','eat','drink','inspect']){
   assert.ok(ACTIONS.includes(a),a);
-  assert.ok(DURATION[a]>2 && DURATION[a]<12,a);
+  assert.ok(DURATION[a]>2 && DURATION[a]<(a==='read'?28:12),a);
  }
 });
 test('calm auto-idle is bounded and deterministic with a fixed seed',()=>{
@@ -60,7 +60,8 @@ test('rate changes and nonfinite delta cannot create an idle action immediately'
 test('props mount once to canonical skin parts, change visibility, and release owned resources',()=>{
  const skin={body:new Group(),rightArm:new Group(),leftArm:new Group()};
  const props=new AvatarProps(skin);
- assert.equal(skin.body.children.length,1);
+ assert.equal(skin.body.children.length,0);
+ assert.equal(skin.leftArm.children.length,1);
  assert.equal(skin.rightArm.children.length,2);
  assert.strictEqual(props.food.parent,skin.rightArm);
  assert.strictEqual(props.drink.parent,skin.rightArm);
@@ -79,7 +80,7 @@ test('props mount once to canonical skin parts, change visibility, and release o
 });
 
 test('reading hands converge toward book; eating and drinking use inward arm roll',()=>{
- const read=new BehaviorController();read.request('read');advance(read,.6);
+ const read=new BehaviorController();read.request('read');advance(read,1.6);
  assert.ok(read.pose().armRZ>.1,'right arm must turn inward while reading');
  assert.ok(read.pose().armLZ<-.1,'left arm must turn inward while reading');
  const eat=new BehaviorController();eat.request('eat');advance(eat,.6);

@@ -1,7 +1,9 @@
 import {ITEM_IDS,resolveItemId,validateSpritePixels} from './item-models.js';
+import {readItemArchive} from './item-archive.js';
 /**
  * Explicit user-selected PNGs only. Never scans the Minecraft installation,
- * accesses ZIPs, starts a network request or uploads a personal texture.
+ * starts a network request or uploads a personal texture. Explicitly selected
+ * ZIP/JAR archives are read only for the same allowlisted item PNGs.
  * Limited source images are stored as data URLs in the existing local settings.
  */
 const MAX_PNG_BYTES=160*1024;
@@ -19,7 +21,11 @@ export function sanitizeSavedItemTextures(candidate){
 }
 export async function readSelectedItemPngs(files){
  const sprites={};let count=0;
+ const selected=[];
  for(const file of Array.from(files||[])){
+  if(/\.(zip|jar)$/i.test(file.name))selected.push(...await readItemArchive(file));else selected.push(file);
+ }
+ for(const file of selected){
   const id=resolveItemId(file.name);
   if(!id)throw Error('Unknown item file: '+file.name+'. Expected apple, cooked_porkchop, golden_carrot, cake_slice or potion PNG.');
   if(file.size<=0||file.size>MAX_PNG_BYTES||file.type!=='image/png')

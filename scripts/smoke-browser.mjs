@@ -124,6 +124,24 @@ try {
   for (const mode of ['workshop','overlay']) {
     const context=await browser.newContext({viewport:{width:mode==='overlay'?252:1120,height:mode==='overlay'?370:780}});
     const page=await context.newPage();
+    if(mode==='workshop'){
+      // Deterministic provider mock at fetch boundary, avoiding runner-dependent
+      // browser Private-Network-Access/CORS policy. Native CORS remains an owner gate.
+      await page.addInitScript(()=>{
+        const original=window.fetch.bind(window);
+        window.__v6LocalCalls=[];
+        window.fetch=(url,options={})=>{
+          const target=typeof url==='string'?url:url?.url;
+          if(!target?.startsWith('http://127.0.0.1:11434/'))
+            return original(url,options);
+          window.__v6LocalCalls.push({url:target,method:options.method});
+          const body=target.endsWith('/api/tags')
+            ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
+            :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
+          return Promise.resolve(new Response(body,{status:200,headers:{'Content-Type':'application/json'}}));
+        };
+      });
+    }
     const errors=[];
     page.on('pageerror',error=>errors.push('pageerror: '+error.message));
     page.on('console',message=>{if(message.type()==='error')errors.push('console: '+message.text());});
@@ -192,7 +210,32 @@ try {
         if(!((await page.locator('#behavior-personality-status').innerText()).includes('curious')))
           throw new Error('Enabling local style did not activate V5');
         await page.screenshot({path:'smoke-artifacts/v5-personality-behavior-settings.png'});
+        checkpoint='V6 opt-in local conversation';
+        await page.locator('[data-nav="conversation"]').click();
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('V6 must not contact local model before Connect');
+        await page.locator('#ai-connect').click();
+        await page.waitForFunction(()=>document.querySelector('#ai-model')?.value==='llama3.2:3b',null,{timeout:9000});
+        if(await page.locator('#ai-send').isDisabled())throw new Error('V6 Send disabled after manual Connect');
+        await page.locator('#chat-input').fill('Hello from a local-only test');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>document.querySelector('.chat-message.from-model')?.textContent?.includes('Safe local conversation'),null,{timeout:9000});
+        if(await page.locator('.chat-message.from-model b').count()!==0)
+          throw new Error('HTML from local model was interpreted as markup');
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==2)throw new Error('V6 expected exactly one model list and one chat request');
+        await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
+        await page.locator('#ai-clear').click();
+        if(await page.locator('.chat-message.from-model').count()!==0)
+          throw new Error('Local chat clear did not remove conversation');
+        await page.reload({waitUntil:'load'});
+        await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
+        await page.locator('[data-nav="conversation"]').click();
+        if(await page.locator('#ai-connection-status').innerText()!=='Disconnected (on-demand only)')
+          throw new Error('V6 must not reconnect or infer in background after reload');
+        if(await page.locator('.chat-message.from-model').count()!==0)
+          throw new Error('V6 should not persist personal conversation history');
+        console.log('PASS V6 explicit loopback-only connection, untrusted reply text and ephemeral history');
         checkpoint='daily activity controls and persistence';
+        await page.locator('[data-nav="behavior"]').click();
         await page.locator('#idle-mode').selectOption('off');
         await page.reload({waitUntil:'load'});
         await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});

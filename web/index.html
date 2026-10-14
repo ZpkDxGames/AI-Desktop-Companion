@@ -39,7 +39,7 @@
       <main class="workspace" id="workspace">
         <section class="preview-section" aria-label="Shared live 3D character preview">
           <div class="preview-topline">
-            <div><span class="section-eyebrow">YOUR CHARACTER</span><h1>ZpkDxGames</h1><p>Authentic Minecraft geometry. Locally rendered, without an AI model.</p></div>
+            <div><span class="section-eyebrow">YOUR CHARACTER</span><h1>ZpkDxGames</h1><p>Authentic Minecraft geometry. Optional conversation uses a user-installed local model.</p></div>
             <span class="mode-chip">THREE.JS + SKINVIEW3D</span>
           </div>
           <div class="stage" id="stage">
@@ -49,7 +49,7 @@
             <div class="stage-hint">DRAG TO ROTATE <span>·</span> MOVE CURSOR TO LOOK</div>
             <div class="preview-watermark">ZPKDX <span>/</span> DESKTOP</div>
           </div>
-          <div class="bottom-stats"><span><i></i> RENDERER ON DEVICE</span><span><i></i> AI NOT INSTALLED</span><span>SKIN <b id="current-skin-label">SAMPLE SKIN</b></span></div>
+          <div class="bottom-stats"><span><i></i> RENDERER ON DEVICE</span><span><i></i> <b id="model-connection-badge">AI OPTIONAL</b></span><span>SKIN <b id="current-skin-label">SAMPLE SKIN</b></span></div>
         </section>
         <aside class="settings" aria-label="Workspace details and controls">
           <div class="content-heading"><span class="section-eyebrow" id="page-eyebrow">WORKSPACE / HOME</span><h2 id="page-title">Overview</h2><p id="page-subtitle">Character and runtime at a glance.</p></div>
@@ -125,16 +125,32 @@
           </section>
 
           <section class="app-page" data-page="conversation" aria-label="Conversation" hidden>
-            <div class="availability"><span class="availability-icon">☷</span><h3>Conversation is not configured</h3><p>No model, conversation database or background inference runs in this build. These features come after avatar and Workspace certification.</p></div>
+            <div class="settings-group first">
+              <div class="group-heading"><h3>Local conversation</h3><span>V6 / MANUAL ONLY</span></div>
+              <p class="small-note">Talk to a model installed on this PC. No service is started or contacted until you select Connect. Text stays in temporary session memory and is never saved to this application's settings.</p>
+              <div class="setting-line"><div><strong>Connection</strong><small id="ai-connection-status" role="status">Disconnected (on-demand only)</small></div><button id="ai-connect" type="button" class="button-secondary">Connect to Ollama</button></div>
+              <div class="setting-line"><label for="ai-model">Installed model</label><select id="ai-model" disabled aria-label="Installed local model"></select></div>
+              <div class="setting-line"><div><strong>Optional answer gestures</strong><small>Only simple existing animations. No tools or OS commands.</small></div><label class="switch"><input id="ai-gesture-enabled" type="checkbox"/><span></span></label></div>
+            </div>
+            <div class="chat-history" id="chat-history" aria-live="polite" aria-label="Temporary local conversation">
+              <div class="chat-message from-system"><strong>System</strong><p>Connect to your locally installed Ollama server before sending your first message.</p></div>
+            </div>
+            <form id="chat-send-form" class="chat-compose">
+              <label for="chat-input">Your message</label>
+              <textarea id="chat-input" maxlength="2400" rows="3" placeholder="Ask your companion something…"></textarea>
+              <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear session</button></div>
+            </form>
           </section>
 
           <section class="app-page" data-page="models" aria-label="AI and Models" hidden>
-            <div class="availability"><span class="availability-icon">◇</span><h3>No AI provider installed</h3><p>Local provider detection, on-demand inference and idle GPU unloading are planned but not enabled. Animations never start an AI service.</p></div>
+            <div class="availability"><span class="availability-icon">◇</span><h3>On-demand Ollama connector</h3><p>Install Ollama and a compatible model separately. Then use Conversation → Connect. The app permits only loopback requests and never downloads models, starts services, accesses files or contacts a cloud provider.</p></div>
+            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Only after Send</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>30 seconds after request</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
+            <p class="small-note">On Windows, Ollama may require its CORS origin settings to allow the Tauri WebView origin. Keep Ollama bound to loopback; do not expose it publicly.</p>
           </section>
 
           <section class="app-page" data-page="privacy" aria-label="Privacy and permissions" hidden>
             <div class="privacy-state"><span class="live-pip"></span><div><strong>Companion only</strong><small>No screenshot capture, microphone, app observation or agent action permission is enabled.</small></div></div>
-            <div class="summary-list"><div><span>Screen capture</span><strong>Not implemented</strong></div><div><span>App monitoring</span><strong>Not implemented</strong></div><div><span>Agent tools</span><strong>Not implemented</strong></div><div><span>Local inference</span><strong>Not installed</strong></div></div>
+            <div class="summary-list"><div><span>Screen capture</span><strong>Not implemented</strong></div><div><span>App monitoring</span><strong>Not implemented</strong></div><div><span>Agent tools</span><strong>Not implemented</strong></div><div><span>Local inference</span><strong>Optional · only user-initiated</strong></div></div>
           </section>
 
           <section class="app-page" data-page="activity" aria-label="Activity" hidden>

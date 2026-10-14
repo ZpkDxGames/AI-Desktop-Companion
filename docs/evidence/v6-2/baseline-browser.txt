@@ -1,0 +1,6 @@
+PASS V6 explicit loopback-only connection, untrusted reply text and ephemeral history
+PASS five daily activities, manual interruptions, UI state and persisted idle settings
+PASS synthetic eye shader pixel gate: horizontal=9670, vertical=10282, enabledDelta=1847
+PASS workshop production startup, non-static 3D wave and clean resources, skin import and reload
+PASS overlay synthetic eyes rendered movement: horizontal=1892, vertical=1296
+PASS overlay production startup, non-static 3D wave and clean resources

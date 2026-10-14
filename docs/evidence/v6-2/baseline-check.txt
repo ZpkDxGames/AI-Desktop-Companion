@@ -1,0 +1,177 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> zpkdx-desktop-agent@0.1.0-alpha.6.1 check
+> npm test && node --check web/js/main.js && node --check web/js/engine/renderer.js && npm run build:web
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> zpkdx-desktop-agent@0.1.0-alpha.6.1 test
+> node --test tests/*.test.mjs
+
+✔ reading phases include opening, a physical page flip and closing (1.66241ms)
+✔ food variants are seeded, stable per action and from the required set (17.722831ms)
+✔ seated gestures request stand-up and execute latest intent without snapping (1.26506ms)
+✔ book, food, drink props share the rig but use articulated cached geometry (38.9547ms)
+✔ effects use a bounded preallocated pool and never instantiate per update (1.957376ms)
+✔ phase sampling is deterministic and reuses provided buffer even for nonfinite time (8.620848ms)
+✔ every seated interrupted transition reaches the queued request safely (7.434376ms)
+✔ sitting interruption every 100ms never abandons latest intent (9.73478ms)
+✔ one-shot event counters cannot repeat on zero frames or repeated pose() (0.784505ms)
+✔ reused renderer-owned geometries remain bounded across many activities (124.338606ms)
+✔ manual celebrate-to-look is a safe preemption; passive locomotion cannot steal a gesture (0.920309ms)
+✔ hot animation pose path reuses its owned transform buffer (4.091378ms)
+✔ cursor gaze updates mutate their existing coordinates rather than allocating an array (1.18523ms)
+✔ non-finite input deltas cannot poison the animation state (0.202917ms)
+✔ available actions have priorities (1.700087ms)
+✔ invalid animation is rejected (0.922292ms)
+✔ wave is a timed interruption and returns to idle (4.038999ms)
+✔ continuous walk cannot interrupt an active wave (2.147673ms)
+✔ manual idle always resets an animation (0.724855ms)
+✔ sit rotates legs into a seated pose (1.05964ms)
+✔ gaze input is clamped (1.130958ms)
+✔ non-finite deltas are never passed by frame pump (0.202255ms)
+✔ transition easing is bounded (2.76809ms)
+✔ 2D pupil motion changes both eyes on upper-hair-occluded marker skin (44.774783ms)
+✔ neutral and disabled face colors remain source-native; hair background is never whitened (1.149295ms)
+✔ half and full blink obscure dynamic iris coherently and preserve unsupported fallback (0.578313ms)
+✔ face shader clones only inner head material and never modifies hat/body ownership (2.030676ms)
+✔ one skin map per import, gaze/blink update reuses uniforms without shader recompilation (1.700829ms)
+✔ unsupported skin disables expressions without replacing face pixels (0.447846ms)
+✔ head-only map shader includes both axes and not duplicate 3D eye geometry (0.547927ms)
+✔ outer hair transparency mask is recognized for top and lower eye rows (2.171809ms)
+✔ eye composition preserves upper hair while pupils move within exposed column (0.660298ms)
+✔ neutral and disabled gaze use source native face without extra overlays (0.241595ms)
+✔ eyes reject original iris occluded by nontransparent outer hat (0.179081ms)
+✔ gaze never alters pixels outside the recognized eye rectangle (0.45021ms)
+✔ unsupported profiles always use vanilla face (4.579545ms)
+✔ invalid eye cells, alpha and occlusion fail closed (0.465974ms)
+✔ pixel motion bounds and gaze clamping are finite (1.084537ms)
+✔ native dark hair and white background remain original colors under eye motion (3.155314ms)
+✔ disabled mode preserves original pixel even with active cursor/blink (0.613005ms)
+✔ blink masks recognized iris then pupil without affecting top outer hair (0.402267ms)
+✔ unsupported background or invalid marker cannot animate the face (0.227663ms)
+✔ detects the supplied symmetric eye-marker layout without manual coordinates (2.161954ms)
+✔ invalid, missing or ambiguous marker layouts fall back safely (0.263007ms)
+✔ 60 FPS active cap on high-refresh 120 Hz screens (1.140552ms)
+✔ idle redraw cadence is reduced and renderer can reset cleanly after being hidden (0.250678ms)
+✔ frame limiter bounds missed deadlines without burst catchup (0.146511ms)
+✔ blink closes, holds and opens rather than starting instantly closed (1.443149ms)
+✔ animation transitions start at previous visible pose and do not snap to neutral (2.082725ms)
+✔ new activity actions are registered and all props use bounded durations (1.542694ms)
+✔ calm auto-idle is bounded and deterministic with a fixed seed (36.718624ms)
+✔ auto idle never overrides explicit sit, walk or manual gestures (54.720306ms)
+✔ manual idle interrupts auto reading and clears its prop without breaking gaze or blink (4.260314ms)
+✔ rate changes and nonfinite delta cannot create an idle action immediately (0.27825ms)
+✔ props mount once to canonical skin parts, change visibility, and release owned resources (54.483458ms)
+✔ reading hands converge toward book; eating and drinking use inward arm roll (1.460355ms)
+✔ explicit client JAR import reads only allowlisted vanilla PNGs and maps the actual cake item (19.925838ms)
+✔ archive import rejects traversal-only, duplicate and malformed directories (1.498022ms)
+✔ archive import detects corrupted selected data and declared expansion bombs (4.694719ms)
+✔ food and potion have original, distinct 16x16 pixel silhouettes, never generic cubes (1.235296ms)
+✔ import whitelist rejects unrelated paths, oversize or invalid images (0.943375ms)
+✔ volumetric foods use cached pixel-colored exterior geometry with a 3D contour (14.024397ms)
+✔ prop rigs mount to existing skin joints; one-hand book has physical cover/page hinges (34.544742ms)
+✔ book uses supported floor posture and food/drink hands reach mouth without face-level overraise (4.232732ms)
+✔ locally persisted imports contain only bounded allowlisted data URLs (0.95981ms)
+✔ only bounded named personality styles and non-sensitive options persist (1.845016ms)
+✔ policy shares controller clock and never owns a competing action loop (37.695889ms)
+✔ identical input and style produce identical timelines regardless of pose reads (103.795287ms)
+✔ every auto decision is valid and avoids immediate repetition (74.85601ms)
+✔ manual action, explicit seat, off and disabled settings remain authoritative (12.19236ms)
+✔ pointer attention uses only explicit in-window notification and decays without wakeups (11.011658ms)
+✔ profile changes are validated, recent action history bounded in long idle simulation (118.75805ms)
+✔ null and nonfinite intervals never mutate attention, mood or selected action (0.274094ms)
+✔ model names and gestures are strictly bounded (2.19281ms)
+✔ provider is fixed to loopback with no request until explicitly requested (0.704904ms)
+✔ user-initiated conversation sends only bounded local turns and permits no tools (2.837765ms)
+✔ model text is never a valid host/tool instruction and gesture is optional (0.294935ms)
+✔ network failure does not record the prompt or pretend reply was generated (0.977105ms)
+✔ response and user prompts are bounded, malformed models rejected before fetch (1.321876ms)
+✔ abort cancels in-flight work and prevents history commitment (0.470461ms)
+✔ native Windows transport lists models and chats without WebView fetch or browser CORS (0.499684ms)
+✔ native request cancellation targets only current request and never commits late model text (0.643191ms)
+✔ native transport propagates clear backend failures without falling back to WebView fetch (0.455478ms)
+✔ model policy defaults unknown settings to auto detection (0.694739ms)
+✔ manual Classic/Slim modes map to skinview3d model names (0.120953ms)
+✔ UI status distinguishes automatic detection from manual override (0.232942ms)
+✔ every pose channel is exposed, finite and defined for every action (93.268933ms)
+✔ changing action is position-continuous for every action pair, including re-triggering the same action (257.989099ms)
+✔ transitions are velocity-continuous: no acceleration spike larger than authored gestures produce (11.145579ms)
+✔ transition offset relaxes to zero so authored poses are reached exactly (2.257008ms)
+✔ interrupted-in-flight actions stay finite and never leave residual offset (12.302527ms)
+✔ idle has continuous life: breathing, sway and head drift stay bounded and never loop exactly (35.591752ms)
+✔ drift() stays within [-1,1] and life layer keeps channels inside safe limits (5.516139ms)
+✔ easing helpers: endpoints exact, overshoot only where designed (1.475909ms)
+✔ jump reads as crouch, push-off, parabolic flight and compressed landing (1.427095ms)
+✔ walk bob is highest when the legs pass, not at full stride (2.799707ms)
+✔ micro-motion is deterministic per seed and never disturbs seeded idle scheduling (28.062604ms)
+✔ saccades move the eyes slightly but never keep the renderer awake or leave [-1,1] (19.431151ms)
+✔ double blinks stay inside the normal blink envelope (36.01432ms)
+✔ FramePacer defaults remain 60/20 for existing callers (0.343298ms)
+✔ closed-form residual decay is identical under different dt partitions (5.644442ms)
+✔ pose sampling is idempotent and cannot advance activity, RNG, events or presentation (48.779125ms)
+✔ zero and invalid dt leave all authoritative state untouched; long stalls are bounded (2.282767ms)
+✔ all action poses and transition decay agree at 30/60/120/144Hz and irregular cadence (53.210866ms)
+✔ cosmetic clocks remain refresh-independent and never consume decision RNG (54.011896ms)
+✔ all accepted action pairs preserve position and measured incoming velocity, including seat reversals (130.226908ms)
+✔ props retain a continuous controller-owned recovery during interruption and self-retrigger (19.472803ms)
+✔ reduced motion suppresses cosmetic life and fireworks intent without losing actions or pointer gaze (2.094522ms)
+✔ original geometry/UVs and upper-body attachments survive all poses, model changes and resets (18.871615ms)
+✔ reading cover stays attached to the supporting palm in Classic and Slim (82.628586ms)
+✔ opaque food pixels avoid the original head and outer mask at mouth contact (114.740118ms)
+✔ the bottle neck keeps its intended pouring axis through shoulder yaw and roll (8.105669ms)
+✔ sit and stand retain the standing sole plane through the complete transition (6.970405ms)
+✔ held props remain outside the jacket volume while equipping and recovering (40.592844ms)
+✔ manual wave retrigger preserves the visible pose (12.926709ms)
+✔ jump prepares its weight before leaving the ground (1.103115ms)
+✔ bow involves the chest, rather than only the neck (2.701489ms)
+✔ walking rises at leg passing and settles at wide double support (18.94462ms)
+✔ reading settles into supported floor sitting and turns pages ten seconds apart (4.785015ms)
+✔ reading pupils focus down on the pages while retaining a small pointer response (7.691134ms)
+✔ food finishes by fading its sprite and bottle water drains monotonically during the sip (1.079239ms)
+✔ drink remains a cached volumetric vessel and foods have substantial side volume (57.719035ms)
+✔ volumetric bottle shell stays outside head/hat and jacket throughout sipping and interrupted recovery (241.550262ms)
+✔ water surface stays level under tilt, drains to empty and keeps the same resources (24.240873ms)
+✔ eating emits a bounded colored crumb pool, clears on idle and respects reduced motion (3.964577ms)
+✔ reading exit stands before the latest gesture, closes the book once and never reappears (26.321369ms)
+✔ food palette is decoded to linear vertex colors even with canonical color management disabled (38.094041ms)
+✔ reference foods are solid volumes with distinct silhouettes, not shallow sprite slabs (47.291619ms)
+✔ solid food surface avoids the head, hat and jacket during full bites and interrupted recovery (689.527997ms)
+✔ reading sits before equipping and raises the closed book before the free hand opens it (0.351661ms)
+✔ quiet reading supports the book with the left hand while the free right hand rests (9.055763ms)
+✔ both open page faces point toward the avatar eyes, rather than presenting their backs to the reader (17.412682ms)
+✔ page-turn hand arrives before the sheet and follows across the hinge, then returns to rest (15.805896ms)
+✔ book cover/page surfaces avoid the face and jacket while lifting, opening and closing (78.399458ms)
+✔ boot journal records ordered stages and bounded event history (2.333163ms)
+✔ failure provides a stable error ID without exposing base64 skin data (0.631433ms)
+✔ report carries stage transitions but no raw user skin payload (0.24538ms)
+✔ food meshes preserve every original colored exterior face cell with default and imported colors (126.712552ms)
+✔ solid foods merge matching flat faces to reduce the triangle budget by at least 30 percent (8.977185ms)
+ℹ tests 139
+ℹ suites 0
+ℹ pass 139
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1508.334821
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> zpkdx-desktop-agent@0.1.0-alpha.6.1 build:web
+> vite build --config vite.config.js
+
+vite v5.4.21 building for production...
+transforming...
+✓ 47 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/assets/sample-skin-BZ8F_nxK.png    2.67 kB
+../dist/index.html                        21.68 kB │ gzip:   5.92 kB
+../dist/assets/index-C-4pjjse.css         17.68 kB │ gzip:   4.67 kB
+../dist/assets/index-_CSILZDR.js         601.83 kB │ gzip: 160.52 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.23s

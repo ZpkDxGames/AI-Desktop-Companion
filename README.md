@@ -1,10 +1,10 @@
 # ZpkDxGames Desktop Companion
 
-**Alpha.6 recovery + expressive eyes + idle behaviors — draft Windows development build, not a stable release.**
+**V6.2 — Expressive AI & Dual-Model Intelligence. Unsigned development build; owner Windows acceptance pending.**
 
 A local-first Windows 11 desktop companion using the user's Minecraft skin as a fully 3D character. The current recovery branch builds on Alpha.6, replacing its broken packaged startup and technical-preview Workshop. Alpha.6 previously replaced the earlier custom WebGL player mesh with the established MIT-licensed **skinview3d 3.4.2 / Three.js** player model so Java 64×64 UVs, outer layers and Classic/Slim geometry have one canonical rendering path.
 
-This is **not yet an AI agent**. Screen observation, Ollama, tool execution and proactive desktop actions remain disabled until the avatar/overlay foundation is visually certified.
+Explicit local text chat uses `qwen3.5:4b` as the preferred primary and `llama3.2:3b` as text fallback. Capabilities come from installed Ollama metadata; Windows uses a native fixed-loopback bridge. Answer reactions, long-request thinking, a voxel idea bulb and optional deterministic sleepy/wake behavior share the existing renderer/controller. No desktop observation, image input or tool execution is enabled. See [implementation and acceptance report](docs/V6_2_IMPLEMENTATION_AND_ACCEPTANCE_REPORT.md).
 
 ## Canonical renderer and Workspace
 
@@ -58,22 +58,25 @@ npm run tauri:build
 | Classic/Slim auto-detection | Implemented |
 | Manual Classic/Slim override | Implemented |
 | Idle/walk/run/wave/sit/jump/think/celebrate | Implemented |
-| Nod/shrug/stretch/bow | Implemented |
-| 3D skin-native eye/pupil/eyelid rig | Experimental; off by default; visual parity unverified |
+| Nod/shrug/stretch/bow/head shake | Implemented |
+| Native skin UV eyes / blink / sleepy lids | Implemented; fail-closed marker detection; off by default |
 | Cursor head/pupil tracking | Implemented using native-UV composition |
 | Companion Workspace responsive pages | Source implemented; browser-smoke tested; native Windows visuals pending |
-| Timed reading/eating/drinking + procedural idle director | Development branch; configurable local frequency |\n| Transparent always-on-top Tauri overlay | Implemented; Windows visual certification required |
+| Timed reading/eating/drinking + procedural idle director | Implemented; configurable local frequency |
+| Transparent always-on-top Tauri overlay | Implemented; Windows visual certification required |
 | Whole-window click-through | Implemented; tray recovery required |
 | Per-pixel avatar hit testing | Planned |
 | Desktop/window physics | Planned |
-| Local AI / Ollama | Not implemented |
+| Local AI / Ollama | On-demand native bridge, verified-capability primary + one text fallback |
+| Conversation expressions / thinking / idea | Implemented; independently configurable |
+| Sleepy idle / gentle wake | Optional, local Companion inactivity only |
 | Screen viewing / agent actions | Not implemented |
 
 ## Engineering boundaries
 
 - `skinview3d` and `three` are bundled locally by Vite. No CDN/runtime network script is used.
 - The original user's skin is **not committed** to this public repository.
-- AI, screen capture, process enumeration, shell and accessibility permissions remain absent.
+- Native AI requests go only to 127.0.0.1:11434, with no proxy/redirect inheritance. Screen capture, process enumeration, shell and accessibility permissions remain absent.
 - `BehaviorController` remains deterministic and local.
 - Alpha.5 custom mesh/UV drafts are superseded; the old homegrown `rig.js`, `mat4.js`, `camera.js` and associated tests have been removed from Alpha.6.
 - Facial marker detection never edits the original PNG.
@@ -84,7 +87,7 @@ npm run tauri:build
 npm run check
 ```
 
-This runs 24 Node unit tests and builds the production Vite bundle. The Windows-hosted Chromium smoke gate additionally checks both surfaces, animated-pixel changes, skin import/reload, Workspace navigation and no horizontal overflow at 840×650 and 1120×780. GitHub Actions also builds unsigned NSIS preview installers on pull requests.
+This runs the Node test suite and builds the production Vite bundle. The Windows-hosted Chromium smoke gate additionally checks both surfaces, animated-pixel changes, skin import/reload, Workspace navigation and no horizontal overflow at 840×650 and 1120×780. GitHub Actions also builds unsigned NSIS preview installers on pull requests.
 
 **Passing browser CI does not prove an installed WebView2 window works.** Real Windows 11 / RTX 3050 performance, on-device transparency/tray/input, and authentic ZpkDxGames PNG front/side/back comparisons remain required before any production merge. See [current recovery gates](docs/RELEASE_GATES.md) and [draft PR #4](https://github.com/ZpkDxGames/AI-Desktop-Companion/pull/4).
 
@@ -95,15 +98,16 @@ web/
   index.html
   css/app.css
   js/main.js
-  js/engine/renderer.js          # skinview3d / Three.js adapter + UV facial shader\n  js/engine/avatar-props.js      # owned cached props on canonical joints
+  js/engine/renderer.js          # skinview3d / Three.js adapter + UV facial shader
+  js/engine/avatar-props.js      # owned cached props on canonical joints
   js/avatar/animation.js
   js/avatar/animation-handlers.js
   js/avatar/face.js              # marker detection only
-  js/avatar/animation-handlers.js # trusted local gesture + activity poses
   js/avatar/model-policy.js      # auto/manual Classic/Slim policy
   js/avatar/skin.js              # local PNG validation
 src-tauri/
   src/lib.rs
+  src/ollama.rs                 # fixed native localhost-only transport
   tauri.conf.json
 docs/
   ALPHA6_VIEWER_REBUILD.md

@@ -35,7 +35,7 @@ try{
  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
  await page.goto('http://127.0.0.1:'+server.address().port+'/eye-probe/probe.html');
  const seed=(await readFile('web/assets/sample-skin.png')).toString('base64');
- const info=await page.evaluate(async png=>{
+ const initialize=async png=>{
   const {AvatarRenderer,BehaviorController}=await import('/eye-probe/renderer.js');
   const source=new Image();source.src='data:image/png;base64,'+png;await source.decode();
   const tex=document.createElement('canvas');tex.width=64;tex.height=64;
@@ -59,7 +59,8 @@ try{
   renderer.render({}, {gazeX:0,gazeY:0,blink:0,rotation:0});
   window.eyeProbe=renderer;window.behaviorProbe=new BehaviorController();
   return {supported:profile.supported,reason:profile.reason};
- },seed);
+ };
+ const info=await page.evaluate(initialize,seed);
  if(!info.supported)throw Error('Synthetic skin marker not supported: '+info.reason);
  const captures=[];
  const scenes=[['neutral','idle',0,null],['agree','nod',.38,null],['uncertain','shrug',.7,null],['deny','shake',.5,null],
@@ -94,6 +95,18 @@ try{
   return {geo,mat,finalGeo:r.effects.geometries.length,finalMat:r.effects.materials.length,bubble:r.effects.bubble.visible,bulb:r.effects.bulb.visible};
  });
  if(lifecycle.geo!==lifecycle.finalGeo||lifecycle.mat!==lifecycle.finalMat||lifecycle.bubble||lifecycle.bulb)throw Error('Resource/effect lifecycle regression');
+ for(const dpr of [1.5,2]){
+  const context=await browser.newContext({viewport:{width:252,height:370},deviceScaleFactor:dpr});
+  const high=await context.newPage();await high.goto('http://127.0.0.1:'+server.address().port+'/eye-probe/probe.html');
+  await high.evaluate(initialize,seed);
+  await high.evaluate(()=>{const r=window.eyeProbe;r.overlay=true;r.baseZoom=.64;r.viewer.zoom=.64;document.querySelector('div').style.cssText='width:252px;height:370px';
+   for(let i=0;i<30;i++)r.render({}, {dt:1/60,cues:{thinking:true,drowsiness:.65}});
+  });
+  await high.locator('#eye-canvas').screenshot({path:'smoke-artifacts/v62-overlay-dpi-'+dpr+'.png'});
+  await high.evaluate(()=>window.eyeProbe.dispose());await context.close();
+ }
+ await page.evaluate(()=>{const r=window.eyeProbe;r.effects.setReducedMotion(true);for(let i=0;i<30;i++)r.render({}, {dt:1/60,cues:{bulbAge:.7,drowsiness:.6}});});
+ await page.locator('#eye-canvas').screenshot({path:'smoke-artifacts/v62-reduced-motion.png'});
  await writeFile('smoke-artifacts/v62-scene-metrics.json',JSON.stringify({captures,lifecycle},null,2));
  if(errors.length)throw Error('GPU probe errors: '+errors.join('; '));
  console.log('PASS V6.2 actual WebGL expression/effect scenes, long bubble and 100 pooled transitions');

@@ -1,0 +1,16 @@
+PASS GPU prop visible read: 672 changed pixels with identical body/eye pose
+PASS GPU prop visible eat: 2298 changed pixels with identical body/eye pose
+PASS GPU prop visible drink: 2862 changed pixels with identical body/eye pose
+PASS fixed-pose GPU think-bubble: 124 effect pixels
+PASS fixed-pose GPU celebrate-flight: 45 effect pixels
+PASS fixed-pose GPU celebrate-burst: 464 effect pixels
+PASS held prop pixel visibility eat-apple: 2460
+PASS fixed-pose GPU eating crumbs: 45 effect pixels
+PASS held prop pixel visibility eat-porkchop: 1711
+PASS held prop pixel visibility eat-carrot: 1224
+PASS held prop pixel visibility eat-cake: 1992
+PASS held prop pixel visibility drink-sip: 2358
+PASS held prop pixel visibility eat-apple-quarter: 1820
+PASS browser local JAR decoding: 2 allowlisted PNGs; unrelated data excluded
+PASS local opt-in item asset pixel gate: 983 changed pixels after restoring original geometry
+PASS solid food surfaces: 12 views with no enclosed pixel cracks

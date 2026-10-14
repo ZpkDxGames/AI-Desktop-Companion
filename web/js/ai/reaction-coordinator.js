@@ -20,6 +20,7 @@ export class ConversationReactionCoordinator{
   this.output={thinking:false,bulbAge:Infinity,drowsiness:0};
  }
  configure(p){
+  if(this.preferences.sleepy&&!p.sleepy)this.activity();
   this.preferences={gestures:p.gestures===true,effects:p.effects!==false,sleepy:p.sleepy===true,
    quietSeconds:[90,120,180].includes(p.quietSeconds)?p.quietSeconds:120};
  }
@@ -64,7 +65,7 @@ export class ConversationReactionCoordinator{
   const cue=validateCue(raw,wallNow);if(!cue)return false;
   const previous=this.lastCue.get(cue.source)||0;if(cue.seq<=previous)return false;
   // One Workspace session owns the stream; reopening it may restart its IDs.
-  if(this.remoteSource!==cue.source){this.state='idle';this.id=0;this.remoteSource=cue.source;}
+  if(this.remoteSource!==cue.source){if(this.lastCue.has(cue.source))return false;this.state='idle';this.id=0;this.remoteSource=cue.source;}
   this.lastCue.set(cue.source,cue.seq);if(this.lastCue.size>8)this.lastCue.delete(this.lastCue.keys().next().value);
   return this.event(cue.kind,{...cue,ttlMs:cue.issuedAt+cue.ttlMs-wallNow});
  }
@@ -77,7 +78,7 @@ export class ConversationReactionCoordinator{
   const quiet=(now-this.lastActivity)/1000;
   const sleepy=p.sleepy&&this.state==='idle'&&!this.hidden?.8*ease((quiet-p.quietSeconds)/240):0;
   const waking=this.wakeFrom*(1-ease((now-this.wakeAt)/1800));
-  o.drowsiness=this.hidden?0:Math.max(sleepy,waking,now<this.previewUntil?.8*ease((now-this.wakeAt)/1500):0);
+  o.drowsiness=this.hidden?0:Math.max(sleepy,waking,now<this.previewUntil?.8*ease((now-this.wakeAt)/1500)*(1-ease((now-this.previewUntil+1800)/1800)):0);
   return o;
  }
  dispose(){this.event('window-closed');this.lastCue.clear();}

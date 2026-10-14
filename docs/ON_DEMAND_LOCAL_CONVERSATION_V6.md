@@ -40,3 +40,9 @@ Official API reference: https://github.com/ollama/ollama/blob/main/docs/api.md .
 ## Explicitly not implemented
 
 Streaming output, voice, tool use, provider keys, cloud chat, semantic/vector memory, autonomous conversation initiation, desktop awareness, app/window edge interaction, browsing, external data or background monitoring. Future expansions require new authorization and their own privacy/latency/security acceptance.
+
+## V6.1 Windows transport correction
+
+User-device validation found that WebView2 direct fetch failed even while native PowerShell proved Ollama was healthy (HTTP 200 with authorized Origin) and `ollama run llama3.2:3b` performed GPU inference. The Windows build now routes **only** model list and chat through allowlisted native Tauri commands, bypassing browser CORS/private-network restrictions. Rust fixes destination at 127.0.0.1:11434, refuses URL/model redirection and external connections, validates message roles/lengths, caps returned bytes and cancels via request-specific tokens. Neither a native shell/file permission nor arbitrary HTTP proxy was added. Browser preview keeps its explicitly tested fetch fallback; Windows never silently falls back to WebView fetch.
+
+Users no longer need to alter `OLLAMA_ORIGINS` for the native bridge; the Ollama process must simply be running on loopback. Version bumped to `0.1.0-alpha.6.1` to distinguish the fixed installer from the earlier V6 Windows build. Native live connection still requires user-device acceptance before merging PR #12.

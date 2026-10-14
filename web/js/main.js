@@ -61,7 +61,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.0',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.1',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,

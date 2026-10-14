@@ -20,19 +20,29 @@ const COMMANDS=Object.freeze([
  ['drink',/^(?:drink|drink some water|take a sip)$/,'Okay — taking a drink.']
 ]);
 export const DIRECT_ACTIONS=Object.freeze(COMMANDS.map(([action])=>action));
-export function detectDirectAnimation(input){
- if(typeof input!=='string'||input.length>160||/[<>{}\n\r\x60"]/u.test(input))return null;
+export function parseCommandIntent(input){
+ const text={kind:'text'};
+ if(typeof input!=='string'||input.length>160||/[<>{}\n\r\x60"]/u.test(input))return text;
  let s=input.normalize('NFKC').toLowerCase().replace(/[\u2018\u2019]/g,"'").replace(/\s+/g,' ').trim();
- if(!s||s.split(/[?!]/).length>2||/[?!.]\s+\S/.test(s))return null;
+ if(!s||s.split(/[?!]/).length>2||/[?!.]\s+\S/.test(s))return text;
  s=s.replace(/[.!?]+$/g,'').trim();
- if(/\b(?:don't|do not|doesn't|cannot|can't|never|avoid|without|instead of|not)\b/.test(s))return null;
- if(/^(?:why|what|how|when|where|which|who|is it|do you know|explain|describe|tell me about|what if)\b/.test(s))return null;
+ if(/\b(?:don't|do not|doesn't|cannot|can't|never|avoid|without|instead of|not)\b/.test(s))return text;
+ if(/^(?:why|what|how|when|where|which|who|is it|do you know|explain|describe|tell me about|what if)\b/.test(s))return text;
  s=s.replace(/^(?:(?:hey|hi)(?: (?:friend|companion|buddy))?[, ]+)?(?:please[, ]+)?/,'');
  s=s.replace(/^(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?|i(?:'d| would) like you to\s+|i want you to\s+|go ahead and\s+|try to\s+|please\s+)/,'');
  s=s.replace(/^show me how you\s+/,'');
  s=s.replace(/(?:,?\s+please|\s+for me)$/,'').trim();
  const result=COMMANDS.filter(([_,pattern])=>pattern.test(s));
- return result.length===1?{action:result[0][0],reply:result[0][2]}:null;
+ if(result.length===1)return {kind:'direct',action:result[0][0],reply:result[0][2]};
+ // Only complete allowlisted action clauses followed by unsupported choreography
+ // are ambiguous. This is not whole-message keyword matching or another parser.
+ const clause=s.match(/^(.{1,80}?)\s+(?:and|while|to the (?:left|right)|to my screen)\b/);
+ return clause&&COMMANDS.some(([_,pattern])=>pattern.test(clause[1]))?{kind:'ambiguous'}:text;
+}
+/** Compatibility facade for existing callers; the grammar has one owner. */
+export function detectDirectAnimation(input){
+ const intent=parseCommandIntent(input);
+ return intent.kind==='direct'?{action:intent.action,reply:intent.reply}:null;
 }
 /** Response wording only influences allowlisted presentation labels, never capabilities. */
 export function chooseAnswerReaction(reply,modelReaction='neutral'){

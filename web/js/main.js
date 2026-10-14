@@ -7,7 +7,7 @@ import {BehaviorController} from './avatar/animation.js';
 import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
 import {LocalConversation,sanitizeAiSettings,formatChatError,OLLAMA_BASE} from './ai/local-conversation.js';
 import {ConversationReactionCoordinator} from './ai/reaction-coordinator.js';
-import {detectDirectAnimation,chooseAnswerReaction} from './ai/command-intent.js';
+import {parseCommandIntent,chooseAnswerReaction} from './ai/command-intent.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
 import {normalizeModelMode,describeModel} from './avatar/model-policy.js';
 
@@ -189,7 +189,7 @@ async function sendLocalChat(){
  const field=$('chat-input'),input=field.value.trim(),model=$('ai-model').value;
  if(!input)return;
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
- const direct=detectDirectAnimation(input);
+ const intent=parseCommandIntent(input),direct=intent.kind==='direct'?intent:null;
  if(chatBusy&&!direct){routeStatus='A reply is already running · cancel or wait';updateAiControls();return;}
  if(direct&&chatBusy)cancelChat();
  const generation=++conversationGeneration;
@@ -215,7 +215,7 @@ async function sendLocalChat(){
   routeStatus=(response.fallbackUsed?'Fallback used · ':'Answered · ')+response.model;
   let reaction=chooseAnswerReaction(response.reply,response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction);
   // One manual interruption suppresses reply choreography in both renderers.
-  if(reactions.suppressed||controller.source==='manual'&&controller.action!=='idle')reaction='neutral';
+  if(intent.kind==='ambiguous'||reactions.suppressed||controller.source==='manual'&&controller.action!=='idle')reaction='neutral';
   cue('answer',{requestId:generation,reaction});
  }catch(error){
   if(generation===conversationGeneration){cue('error',{requestId:generation});routeStatus='Request ended · '+formatChatError(error);appendConversation('system',formatChatError(error));}

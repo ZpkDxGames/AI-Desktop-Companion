@@ -55,11 +55,16 @@ try{
  await page.setViewportSize({width:1120,height:780});await page.locator('#ai-connect').click();
  await page.waitForFunction(()=>document.querySelector('#ai-model').value==='qwen3.5:4b');
  if(await page.locator('#ai-fallback').inputValue()!=='llama3.2:3b')throw Error('Wrong fallback default');
- await page.locator('.conversation-options summary').click();await page.locator('#ai-gesture-enabled').check();await page.locator('.conversation-options summary').click();await page.evaluate(()=>window.__scenario='delay');
+ await page.locator('.conversation-options summary').click();await page.locator('#ai-gesture-enabled').check();await page.locator('.conversation-options summary').click();
+ await page.evaluate(()=>window.__reply='Yes, that is correct.');
+ await page.locator('#chat-input').fill('Can you walk and wave simultaneously?');await page.locator('#ai-send').click();
+ await page.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
+ if(await page.evaluate(()=>__cueEvents.filter(e=>e.payload.kind==='answer').at(-1)?.payload.reaction)!=='neutral')throw Error('Ambiguous command produced a hidden answer gesture');
+ await page.evaluate(()=>{window.__reply=null;window.__scenario='delay';});
  await page.locator('#chat-input').fill('Temporary private test prompt');await page.locator('#ai-send').click();
  await page.waitForFunction(()=>typeof __resolve==='function');
  await page.waitForTimeout(400);await page.screenshot({path:'smoke-artifacts/v62-chat-thinking.png'});
- const start=await page.evaluate(()=>__cueEvents.find(e=>e.payload.kind==='request-start'));
+ const start=await page.evaluate(()=>__cueEvents.filter(e=>e.payload.kind==='request-start').at(-1));
  if(!start||JSON.stringify(start).includes('private'))throw Error('Missing or private cross-window event');
  await page.locator('[data-nav="behavior"]').click();await page.locator('[data-action="wave"]').click();await page.locator('[data-nav="conversation"]').click();
  await page.evaluate(()=>__resolve(JSON.stringify({reply:'Manual priority preserved',reaction:'disagree'})));

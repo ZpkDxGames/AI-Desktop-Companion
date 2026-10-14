@@ -64,7 +64,7 @@ try{
  await workspace.locator('#ai-connect').click();
  await workspace.waitForFunction(()=>document.querySelector('#ai-model').value==='qwen3.5:4b');
  await workspace.locator('#chat-input').fill('Installed bridge fixture');await workspace.locator('#ai-send').click();
- await workspace.waitForFunction(()=>document.querySelector('.from-model')?.textContent.includes('Installed native bridge response'));
+ await workspace.waitForFunction(()=>Array.from(document.querySelectorAll('.from-model')).some(n=>n.textContent.includes('Installed native bridge response')));
  scenario='fallback';await workspace.locator('#chat-input').fill('Installed fallback fixture');await workspace.locator('#ai-send').click();
  await workspace.waitForFunction(()=>document.querySelector('#ai-route-status').textContent.includes('Fallback used · llama3.2:3b')&&document.querySelector('#ai-stop').disabled);
  await workspace.screenshot({path:'smoke-artifacts/v62-installed-native-fallback.png'});

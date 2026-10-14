@@ -35,7 +35,7 @@ classification request.
 | Append/eviction → history scroll | Every message forced the user to the bottom | Near-bottom following, eviction compensation and an accessible Latest messages button |
 | Narrow navigation labels → page width | Absolutely positioned hidden labels expanded the page | Labels are contained by their existing navigation buttons |
 
-Command parsing happens on explicit Send. Input events only update button state.
+The canonical parser exposes explicit `direct`, `ambiguous` and `text` outcomes; its existing direct-only API is a compatibility facade over the same grammar. Unsupported compound choreography is ordinary text and suppresses automatic answer reactions. Command parsing happens on explicit Send. Input events only update button state.
 Ordinary offline text explains that Connect is needed; it does not invoke a
 model, perform an action, or fabricate an answer. Connect is guarded against
 concurrent catalog requests.
@@ -87,7 +87,7 @@ Candidate validation:
 
 | Command | Local result |
 | --- | --- |
-| `npm run check` | 166/166 tests pass, syntax checks and production build pass |
+| `npm run check` | 167/167 tests pass, syntax checks and production build pass |
 | `node scripts/smoke-browser.mjs` | Production Workspace/overlay, original skin reload, gaze pixels, activity controls and ephemeral/local chat pass |
 | `node scripts/smoke-eye-gpu.mjs` | Fixed-head gaze/blink pixel gates pass |
 | `node scripts/smoke-activity-gpu.mjs` | Held props, local item imports and solid food surface gates pass |
@@ -121,6 +121,23 @@ candidate/run mapping; a report cannot embed its own future commit hash.
 Fresh exact-head workflow results and installed-app certification are required
 before delivery and will be linked in PR #13 and the packaged acceptance record.
 Do not treat earlier CI results as certification of a new commit.
+
+Initial CI on `328d8bac18a99d01fda0fff62c923180a6d6f058`:
+
+- Source/browser [run 38616543828](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38616543828)
+  passed all source and WebGL steps.
+- Windows [run 38616543749](https://github.com/ZpkDxGames/AI-Desktop-Companion/actions/runs/38616543749)
+  passed native Rust tests (4), built the installer and passed the new offline
+  walk/run/stop/head-shake and real overlay-event checks, but failed the text
+  response wait at `smoke-windows-installed.mjs:67`. Its screenshot shows the
+  native answer already present. The assertion still selected the first
+  assistant acknowledgment instead of searching the growing history. The
+  fixture now searches all assistant messages, as the production browser
+  fixture does. This failed run is preserved as evidence, not certified.
+
+The final revision also adds and tests the explicit three-outcome intent
+contract and neutralizes answer gestures for unsupported compound requests.
+Fresh final exact-head CI is required; the initial installer is superseded.
 
 Evidence paths uploaded by the workflows include:
 

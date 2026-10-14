@@ -124,7 +124,8 @@ function updateAiControls(){
  $('quiet-threshold').value=String(state.ai.quietSeconds);
  $('ai-route-status').textContent=routeStatus||'No inference until Send';
  connect.disabled=chatBusy;
- send.disabled=!aiConnected||chatBusy||!model.value;
+ const direct=detectDirectAnimation($('chat-input')?.value||'');
+ send.disabled=chatBusy||(!direct&&(!aiConnected||!model.value));
  stop.disabled=!chatBusy;
  $('ai-gesture-enabled').checked=state.ai.gestures;
  $('ai-connection-status').textContent=chatBusy?'Responding locally…':aiConnected?'Local provider connected':'Disconnected (on-demand only)';
@@ -174,7 +175,7 @@ async function connectLocalAi(){
  }finally{updateAiControls();}
 }
 async function sendLocalChat(){
- if(overlay||!aiConnected||chatBusy)return;
+ if(overlay||chatBusy)return;
  const field=$('chat-input'),input=field.value.trim(),model=$('ai-model').value;
  if(!input)return;
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
@@ -187,6 +188,7 @@ async function sendLocalChat(){
   routeStatus='Local avatar command · no AI inference';
   updateAiControls();return;
  }
+ if(!aiConnected||!model)return;
  reactions.event('activity');cue('request-start',{requestId:generation});routeStatus='Loading primary model…';
  chatBusy=true;field.disabled=true;updateAiControls();
  appendConversation('user',input);field.value='';
@@ -214,6 +216,7 @@ function bindLocalChat(){
  $('ai-model').addEventListener('change',event=>{state.ai.model=event.target.value;conversation.clear();cue('model-change');save();updateAiControls();});
  $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
  $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
+ $('chat-input').addEventListener('input',updateAiControls);
  $('ai-stop').addEventListener('click',()=>cancelChat());
  $('ai-fallback').addEventListener('change',e=>{state.ai.fallback=e.target.value;conversation.clear();cue('model-change');save();});
  for(const [id,key] of [['ai-effects-enabled','effects'],['sleepy-enabled','sleepy']])$(id).addEventListener('change',e=>{state.ai[key]=e.target.checked;configureReactions();save();wake();});

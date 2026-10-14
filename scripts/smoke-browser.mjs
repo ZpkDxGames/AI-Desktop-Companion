@@ -214,6 +214,13 @@ try {
         checkpoint='V6 opt-in local conversation';
         await page.locator('[data-nav="conversation"]').click();
         if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('V6 must not contact local model before Connect');
+        // Commands are local user instructions, independent of AI provider availability.
+        await page.locator('#chat-input').fill('Can you shake your head?');
+        if(await page.locator('#ai-send').isDisabled())throw new Error('Offline manual avatar command was incorrectly disabled');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>Array.from(document.querySelectorAll('.chat-message.from-model')).some(n=>n.textContent?.includes('Okay — shaking my head.')),null,{timeout:9000});
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('Offline direct command contacted Ollama');
+        await page.locator('#ai-clear').click();
         await page.locator('#ai-connect').click();
         await page.waitForFunction(()=>document.querySelector('#ai-model')?.value==='llama3.2:3b',null,{timeout:9000});
         if(await page.locator('#ai-send').isDisabled())throw new Error('V6 Send disabled after manual Connect');

@@ -8,7 +8,7 @@ Accepted main foundation: e73541b6cf067d0185d1f987720b9194d9b4c6b9
 ## V6.2.1 immediate correction
 - No-network, conservative detection of short explicit gesture requests like "Can you shake your head?" Negations, quotations, meta-questions and compound requests fall back to normal chat. One complete phrase only.
 - User-requested gestures count as manual commands and are not controlled by the optional *AI-suggested* gesture toggle. One existing BehaviorController continues to own animations and spring continuity.
-- No Ollama inference for direct commands; static confirmation is shown only if the controller accepts the command.
+- No Ollama inference for direct commands; these also work without connecting to the model. Static confirmation is shown only if the controller accepts the command.
 - When Ollama does answer, carefully selected opening words can ground agreement, disagreement and uncertainty rather than trusting unreliable reaction labels entirely. Replies never execute tools.
 - Native floating overlay receives allowlisted action IDs only; no prompt or raw response crosses the cue channel.
 - Local Ollama stays fixed at 127.0.0.1:11434. No screenshot capture, cloud API, new permissions, or persistent conversation history.

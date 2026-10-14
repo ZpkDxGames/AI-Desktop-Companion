@@ -48,17 +48,30 @@ try{
  // Assert the native window-label boundary itself, not a mocked invoke function.
  const denied=await avatar.evaluate(async()=>{try{await window.__TAURI__.core.invoke('ollama_list_models');return false;}catch{return true;}});
  if(!denied)throw Error('Overlay was allowed to query Ollama');
- await workspace.locator('[data-nav="conversation"]').click();await workspace.locator('#ai-connect').click();
+ const received=[];
+ await avatar.evaluate(async()=>{window.__testCues=[];window.__testCueOff=await window.__TAURI__.event.listen('zpkdx:reaction',e=>window.__testCues.push({kind:e.payload.kind,action:e.payload.action||null}));});
+ await workspace.locator('[data-nav="conversation"]').click();
+ for(const [text,action] of [['Can you walk?','walk'],['Show me how you run','run'],['Stop walking','idle'],['Can you shake your head?','shake'],['Stand still','idle']]){
+  await workspace.locator('#chat-input').fill(text);await workspace.locator('#ai-send').click();
+  await workspace.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
+  await avatar.waitForFunction(a=>window.__testCues.at(-1)?.action===a,action);
+  received.push(action);
+ }
+ if(requests.length)throw Error('Installed offline avatar command contacted Ollama');
+ await workspace.screenshot({path:'smoke-artifacts/v622-installed-offline-actions.png'});
+ await avatar.screenshot({path:'smoke-artifacts/v622-installed-overlay-idle.png'});
+ await avatar.evaluate(()=>window.__testCueOff());
+ await workspace.locator('#ai-connect').click();
  await workspace.waitForFunction(()=>document.querySelector('#ai-model').value==='qwen3.5:4b');
  await workspace.locator('#chat-input').fill('Installed bridge fixture');await workspace.locator('#ai-send').click();
  await workspace.waitForFunction(()=>document.querySelector('.from-model')?.textContent.includes('Installed native bridge response'));
  scenario='fallback';await workspace.locator('#chat-input').fill('Installed fallback fixture');await workspace.locator('#ai-send').click();
- await workspace.waitForFunction(()=>document.querySelector('#ai-route-status').textContent.includes('Fallback used · llama3.2:3b')&&!document.querySelector('#ai-send').disabled);
+ await workspace.waitForFunction(()=>document.querySelector('#ai-route-status').textContent.includes('Fallback used · llama3.2:3b')&&document.querySelector('#ai-stop').disabled);
  await workspace.screenshot({path:'smoke-artifacts/v62-installed-native-fallback.png'});
  scenario='delay';await workspace.locator('#chat-input').fill('Installed cancellation fixture');await workspace.locator('#ai-send').click();
  const began=Date.now();while(active===0&&Date.now()-began<10000)await new Promise(r=>setTimeout(r,100));
  if(active!==1)throw Error('Native delayed request missing');
- await workspace.locator('#ai-stop').click();await workspace.waitForFunction(()=>!document.querySelector('#ai-send').disabled);
+ await workspace.locator('#ai-stop').click();await workspace.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
  const cancelledAt=Date.now();while(active&&Date.now()-cancelledAt<5000)await new Promise(r=>setTimeout(r,100));
  if(active||!cancelled)throw Error('Native cancellation did not close the loopback request');
  if(maxActive!==1)throw Error('Overlapping native inference');
@@ -66,7 +79,7 @@ try{
  await workspace.locator('[data-nav="behavior"]').click();await workspace.locator('[data-action="shake"]').click();
  await workspace.waitForFunction(()=>document.querySelector('#animation-status').textContent==='SHAKE');
  await workspace.screenshot({path:'smoke-artifacts/v62-installed-native-shake.png'});
- await writeFile('smoke-artifacts/v62-installed-native.json',JSON.stringify({environment:'Windows-2022 installed NSIS / WebView2 / software GPU; fake localhost Ollama only',requests,maxActive,cancelled,overlayCommandDenied:denied,actualModels:'NOT RUN',ownerGPU:'NOT RUN'},null,2));
+ await writeFile('smoke-artifacts/v62-installed-native.json',JSON.stringify({environment:'Windows-2022 installed NSIS / WebView2 / software GPU; fake localhost Ollama only',requests,maxActive,cancelled,offlineActions:received,overlayCommandDenied:denied,actualModels:'NOT RUN',ownerGPU:'NOT RUN'},null,2));
  console.log('PASS installed Windows NSIS/WebView2 actual native bridge: startup, workspace, metadata, text, fallback, targeted cancellation, overlay command denial, manual shake');
 }catch(error){
  await writeFile('smoke-artifacts/native-failure.txt',String(error.stack||error));

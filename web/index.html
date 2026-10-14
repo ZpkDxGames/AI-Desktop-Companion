@@ -34,7 +34,7 @@
         <p class="navigation-heading">SYSTEM</p>
         <button class="nav-link" data-nav="diagnostics"><span class="nav-symbol" aria-hidden="true">⌁</span><span class="nav-label">Diagnostics</span></button>
         <button class="nav-link" data-nav="settings"><span class="nav-symbol" aria-hidden="true">⚙</span><span class="nav-label">Settings</span></button>
-        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>Alpha.6 recovery</small></div>
+        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>V6.2.2 development</small></div>
       </nav>
       <main class="workspace" id="workspace">
         <section class="preview-section" aria-label="Shared live 3D character preview">
@@ -131,23 +131,30 @@
           </section>
 
           <section class="app-page" data-page="conversation" aria-label="Conversation" hidden>
-            <div class="settings-group first">
-              <div class="group-heading"><h3>Local conversation</h3><span>V6.2 / LOCAL ONLY</span></div>
-              <p class="small-note">Talk to a model installed on this PC. No service is started or contacted until you select Connect. Text stays in temporary session memory and is never saved to this application's settings.</p>
-              <div class="setting-line"><div><strong>Connection</strong><small id="ai-connection-status" role="status">Disconnected (on-demand only)</small></div><button id="ai-connect" type="button" class="button-secondary">Connect to Ollama</button></div>
-              <div class="setting-line"><label for="ai-model">Installed model</label><select id="ai-model" disabled aria-label="Installed local model"></select></div>
-              <div class="setting-line"><div><strong>Optional answer gestures</strong><small>AI-suggested gestures; explicit avatar commands are manual.</small></div><label class="switch"><input id="ai-gesture-enabled" type="checkbox"/><span></span></label></div>
+            <div class="conversation-controls">
+              <div class="conversation-connection"><span id="ai-connection-status" role="status">Disconnected · actions available</span><button id="ai-connect" type="button" class="button-secondary">Connect</button></div>
+              <div class="conversation-model"><label for="ai-model">Model</label><select id="ai-model" disabled aria-label="Installed local model"><option value="">Connect for text chat</option></select></div>
+              <details class="conversation-options">
+                <summary>Reply preferences <span>Local only</span></summary>
+                <div class="conversation-option-body">
+                  <div class="conversation-model"><label for="ai-fallback">Text fallback</label><select id="ai-fallback" disabled aria-label="Installed text fallback"><option value="">Connect to choose</option></select></div>
+                  <label class="conversation-toggle"><input id="ai-gesture-enabled" type="checkbox"/> Optional answer gestures</label>
+                  <label class="conversation-toggle"><input id="ai-effects-enabled" type="checkbox" checked/> Visual request effects</label>
+                  <p class="small-note">Direct avatar commands work offline. Model replies and their optional reactions stay local; text is temporary and never saved. No screen access.</p>
+                </div>
+              </details>
             </div>
-              <div class="setting-line"><label for="ai-fallback">Text fallback</label><select id="ai-fallback" disabled aria-label="Installed text fallback"></select></div>
-              <p class="small-note" id="ai-route-status" role="status">No inference until Send</p>
-              <div class="setting-line"><div><strong>Visual request effects</strong><small>Thinking bubble and occasional idea reveal.</small></div><label class="switch"><input id="ai-effects-enabled" type="checkbox" checked aria-label="Visual request effects"/><span></span></label></div>
-            <div class="chat-history" id="chat-history" aria-live="polite" aria-label="Temporary local conversation">
-              <div class="chat-message from-system"><strong>System</strong><p>Connect to Ollama for text chat, or type a direct avatar command such as “Wave” without connecting.</p></div>
+            <p id="ai-route-status" class="chat-route" role="status">No inference until Send</p>
+            <div class="chat-transcript">
+              <div class="chat-history" id="chat-history" role="log" aria-live="polite" aria-relevant="additions" aria-label="Temporary local conversation" tabindex="0">
+                <div class="chat-message from-system"><strong>Companion</strong><p>Try “Can you walk?” or “Show me how you run”. Connect to Ollama for text chat.</p></div>
+              </div>
+              <button id="chat-latest" type="button" class="button-secondary" hidden>Latest messages ↓</button>
             </div>
             <form id="chat-send-form" class="chat-compose">
-              <label for="chat-input">Your message</label>
-              <textarea id="chat-input" maxlength="2400" rows="3" placeholder="Ask a question or say: Can you shake your head?"></textarea>
-              <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear session</button></div>
+              <label for="chat-input">Message or avatar command <span>Temporary · local only</span></label>
+              <textarea id="chat-input" maxlength="2400" rows="2" placeholder="Ask a question, or say: Can you walk?"></textarea>
+              <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear</button></div>
             </form>
           </section>
 
@@ -173,7 +180,7 @@
               <div class="metric-row"><span>Renderer</span><strong id="graphics-status">Initializing…</strong></div>
               <div class="metric-row"><span>Animation</span><strong id="animation-status">Idle</strong></div>
               <div class="metric-row"><span>Frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
-              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.0</strong></div>
+              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.2.2</strong></div>
               <div class="button-row"><button id="diagnostics-copy" class="button-secondary" type="button">Copy diagnostic report</button><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button></div>
             </div>
             <p class="small-note">Frame cost measures a browser CPU render call, not GPU frametime. Real Windows 11/RTX 3050 FPS and memory measurements are still required.</p>
@@ -181,7 +188,7 @@
 
           <section class="app-page" data-page="settings" aria-label="Settings" hidden>
             <div class="settings-group first"><div class="group-heading"><h3>Application</h3><span>LOCAL-FIRST</span></div>
-              <div class="summary-list"><div><span>Version</span><strong>Alpha.6 recovery</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
+              <div class="summary-list"><div><span>Version</span><strong>V6.2.2 development</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
               <div class="button-row"><button class="button-secondary" type="button" data-quick="studio">Open Avatar Studio</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset character scale</button></div>
             </div>
             <p class="small-note">Autostart, on-demand models and privacy grants will be presented here only after their native implementations exist.</p>

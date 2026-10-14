@@ -39,7 +39,7 @@ const seed=Date.now();
 const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
 const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
-let aiConnected=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
+let aiConnected=false,aiConnecting=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
 const reactions=new ConversationReactionCoordinator({request:(action,source='conversation')=>{
  if(source!=='manual'&&controller.source==='manual'&&controller.action!=='idle')return false;
  return controller.request(action,{source});
@@ -52,7 +52,8 @@ function cue(kind,data={}){
  if(!overlay&&native){
   const payload={version:1,source:sessionId,seq:++cueSequence,kind,requestId:data.requestId??reactions.id,
    issuedAt:Date.now(),ttlMs:kind==='request-start'?120000:5000};
-  if(data.reaction)payload.reaction=data.reaction;
+  if(kind==='answer')payload.reaction=reactions.lastAnswerReaction;
+  else if(data.reaction)payload.reaction=data.reaction;
    if(kind==='direct-action'&&data.action)payload.action=data.action;
   window.__TAURI__?.event?.emitTo?.('avatar','zpkdx:reaction',payload).catch(()=>{});
  }
@@ -61,7 +62,9 @@ function cue(kind,data={}){
 function manualInteraction(){reactions.event('manual');wake();}
 function configureReactions(){reactions.configure({...state.ai,sleepy:state.ai.sleepy&&state.idleMode!=='off'});}
 function cancelChat(kind='cancel'){
+ conversationGeneration++;
  conversation.cancel();cue(kind,{requestId:reactions.id});
+ if(!overlay&&chatBusy){routeStatus=kind==='cancel'?'Cancelled · no reply reaction':'Reply interrupted';updateAiControls();}
 }
 controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
@@ -86,7 +89,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.1',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.2',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
@@ -123,27 +126,34 @@ function updateAiControls(){
  $('sleepy-enabled').checked=state.ai.sleepy;
  $('quiet-threshold').value=String(state.ai.quietSeconds);
  $('ai-route-status').textContent=routeStatus||'No inference until Send';
- connect.disabled=chatBusy;
- const direct=detectDirectAnimation($('chat-input')?.value||'');
- send.disabled=chatBusy||(!direct&&(!aiConnected||!model.value));
+ connect.disabled=chatBusy||aiConnecting;
+ send.disabled=!$('chat-input').value.trim();
  stop.disabled=!chatBusy;
  $('ai-gesture-enabled').checked=state.ai.gestures;
- $('ai-connection-status').textContent=chatBusy?'Responding locally…':aiConnected?'Local provider connected':'Disconnected (on-demand only)';
+ $('ai-connection-status').textContent=aiConnecting?'Checking local Ollama…':chatBusy?(conversation.pending?.signal.aborted?'Cancelling reply…':'Responding locally…'):aiConnected?'Local provider connected':'Disconnected · actions available';
  const label=$('model-connection-badge');if(label)label.textContent=aiConnected?'LOCAL AI CONNECTED':'AI OPTIONAL';
 }
 function appendConversation(role,content){
  const root=$('chat-history');
+ const follow=root.scrollHeight-root.clientHeight-root.scrollTop<48,previousTop=root.scrollTop;
  const article=document.createElement('div');
  article.className='chat-message '+(role==='user'?'from-user':role==='assistant'?'from-model':'from-system');
  const label=document.createElement('strong');
  label.textContent=role==='user'?'You':role==='assistant'?'Companion':'System';
  const text=document.createElement('p');text.textContent=content;
  article.append(label,text);root.append(article);
- while(root.children.length>30)root.firstElementChild.remove();
- root.scrollTop=root.scrollHeight;
+ let removedHeight=0;
+ while(root.children.length>30){removedHeight+=root.firstElementChild.getBoundingClientRect().height+10;root.firstElementChild.remove();}
+ root.scrollTop=follow?root.scrollHeight:Math.max(0,previousTop-removedHeight);
+ updateLatestMessage();
+}
+function updateLatestMessage(){
+ const root=$('chat-history');
+ $('chat-latest').hidden=root.scrollHeight-root.clientHeight-root.scrollTop<48;
 }
 async function connectLocalAi(){
- if(overlay||chatBusy)return;
+ if(overlay||chatBusy||aiConnecting)return;
+ aiConnecting=true;
  $('ai-connect').disabled=true;
  $('ai-connection-status').textContent='Checking local Ollama…';
  try{
@@ -172,25 +182,28 @@ async function connectLocalAi(){
   aiConnected=false;
   installedModels=[];$('ai-model').replaceChildren();$('ai-fallback').replaceChildren();$('model-catalog').textContent='Ollama offline or metadata unavailable';
   appendConversation('system',formatChatError(error));
- }finally{updateAiControls();}
+ }finally{aiConnecting=false;updateAiControls();}
 }
 async function sendLocalChat(){
- if(overlay||chatBusy)return;
+ if(overlay)return;
  const field=$('chat-input'),input=field.value.trim(),model=$('ai-model').value;
  if(!input)return;
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
- const generation=++conversationGeneration;
  const direct=detectDirectAnimation(input);
+ if(chatBusy&&!direct){routeStatus='A reply is already running · cancel or wait';updateAiControls();return;}
+ if(direct&&chatBusy)cancelChat();
+ const generation=++conversationGeneration;
  if(direct){
   appendConversation('user',input);field.value='';
   const performed=cue('direct-action',{requestId:generation,action:direct.action});
-  appendConversation('assistant',performed?direct.reply:'I could not start that animation right now. Try after the current action finishes.');
-  routeStatus='Local avatar command · no AI inference';
+  const acceptedReply=controller.queuedAction&&direct.action!=='idle'?'Command accepted. Standing up before the '+direct.action+' animation.':direct.reply;
+  appendConversation('assistant',performed?acceptedReply:'I could not start that animation right now. Try after the current action finishes.');
+  routeStatus='Local avatar action · no inference · '+reactions.lastActionStatus;
   updateAiControls();return;
  }
- if(!aiConnected||!model)return;
+ if(!aiConnected||!model){routeStatus='Text chat unavailable · connect to Ollama';appendConversation('system','Choose Connect for local text chat. Direct avatar commands work offline.');updateAiControls();return;}
  reactions.event('activity');cue('request-start',{requestId:generation});routeStatus='Loading primary model…';
- chatBusy=true;field.disabled=true;updateAiControls();
+ chatBusy=true;updateAiControls();
  appendConversation('user',input);field.value='';
  try{
   const response=await conversation.send(input,{model,fallback:$('ai-fallback').value,installed:installedModels,gestures:state.ai.gestures,onStatus:status=>{
@@ -213,12 +226,14 @@ async function sendLocalChat(){
 function bindLocalChat(){
  if(overlay)return;
  $('ai-connect').addEventListener('click',connectLocalAi);
- $('ai-model').addEventListener('change',event=>{state.ai.model=event.target.value;conversation.clear();cue('model-change');save();updateAiControls();});
+ $('ai-model').addEventListener('change',event=>{conversationGeneration++;state.ai.model=event.target.value;conversation.clear();cue('model-change');routeStatus='Model changed · no inference';save();updateAiControls();});
  $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
  $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
  $('chat-input').addEventListener('input',updateAiControls);
  $('ai-stop').addEventListener('click',()=>cancelChat());
- $('ai-fallback').addEventListener('change',e=>{state.ai.fallback=e.target.value;conversation.clear();cue('model-change');save();});
+ $('ai-fallback').addEventListener('change',e=>{conversationGeneration++;state.ai.fallback=e.target.value;conversation.clear();cue('model-change');routeStatus='Fallback changed · no inference';save();updateAiControls();});
+ $('chat-history').addEventListener('scroll',updateLatestMessage,{passive:true});
+ $('chat-latest').addEventListener('click',()=>{const root=$('chat-history');root.scrollTop=root.scrollHeight;updateLatestMessage();});
  for(const [id,key] of [['ai-effects-enabled','effects'],['sleepy-enabled','sleepy']])$(id).addEventListener('change',e=>{state.ai[key]=e.target.checked;configureReactions();save();wake();});
  $('quiet-threshold').addEventListener('change',e=>{state.ai.quietSeconds=Number(e.target.value);configureReactions();save();});
  $('models-open-chat').addEventListener('click',()=>showPage('conversation'));
@@ -393,6 +408,9 @@ function showPage(page){
  $('page-eyebrow').textContent=eyebrow;
  $('page-title').textContent=title;
  $('page-subtitle').textContent=subtitle;
+ $('workshop').classList.toggle('conversation-active',page==='conversation');
+ document.querySelector('.workspace').classList.toggle('conversation-layout',page==='conversation');
+ document.querySelector('.settings').classList.toggle('conversation-panel',page==='conversation');
  // Avoid stale scroll offsets hiding page headings after switching panels.
  document.querySelector('.settings')?.scrollTo({top:0,behavior:'instant'});
  wake();

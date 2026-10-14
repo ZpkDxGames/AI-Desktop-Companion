@@ -65,6 +65,7 @@ jobs:
           Copy-Item -LiteralPath 'src-tauri/Cargo.lock' -Destination 'dist/windows-alpha/'
           $sha = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$sha  $($installer.Name)" | Set-Content -Path 'dist/windows-alpha/SHA256SUMS.txt' -Encoding utf8
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           @(
             "repository=${{ github.repository }}"
             "commit=${{ github.event.pull_request.head.sha || github.sha }}"
@@ -72,7 +73,7 @@ jobs:
             "run_id=${{ github.run_id }}"
             "run_attempt=${{ github.run_attempt }}"
             "runner=windows-2022"
-            "version=0.1.0-alpha.6.2"
+            "version=$version"
             "known_gaps=owner RTX3050/WebView2/skin/model acceptance pending; manual vision deferred"
             "build=unsigned development alpha (NOT production-certified)"
           ) | Set-Content -Path 'dist/windows-alpha/BUILD_INFO.txt' -Encoding utf8

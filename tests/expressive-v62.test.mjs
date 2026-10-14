@@ -55,3 +55,38 @@ test('shake is canonical and transition positions stay continuous for all finite
   for(let i=0;i<300;i++){c.update(1/60);for(const value of Object.values(c.pose()))assert.ok(Number.isFinite(value));}
  }
 });
+
+test('V6.2.2 expired replies are rejected even without sampling a frame',()=>{
+ let now=0;const calls=[],c=new ConversationReactionCoordinator({clock:()=>now,request:a=>{calls.push(a);return true;}});
+ c.configure({gestures:true,effects:true});c.event('request-start',{requestId:1,ttlMs:1000});now=1000;
+ assert.equal(c.event('answer',{requestId:1,reaction:'agree'}),false);
+ assert.deepEqual(calls,[]);assert.equal(c.sample().thinking,false);
+});
+test('V6.2.2 cancellation, model switch, hidden, close and new manual request invalidate late cues',()=>{
+ for(const ending of ['cancel','clear','model-change','window-hidden','window-closed']){
+  const calls=[],c=new ConversationReactionCoordinator({request:a=>{calls.push(a);return true;}});
+  c.configure({gestures:true});c.event('request-start',{requestId:1});c.event(ending,{requestId:1});
+  assert.equal(c.event('answer',{requestId:1,reaction:'disagree'}),false,ending);
+  assert.deepEqual(calls,[]);assert.equal(c.sample().thinking,false);
+ }
+ const calls=[],c=new ConversationReactionCoordinator({request:a=>{calls.push(a);return true;}});
+ c.event('request-start',{requestId:1});c.event('cancel',{requestId:1});
+ assert.equal(c.event('direct-action',{action:'walk',requestId:2}),true);
+ assert.equal(c.event('request-start',{requestId:1}),false);
+ assert.equal(c.event('direct-action',{action:'run',requestId:1}),false);
+ assert.equal(c.event('answer',{requestId:1,reaction:'agree'}),false);
+ assert.deepEqual(calls,['walk']);c.dispose();
+ assert.equal(c.event('request-start',{requestId:3}),false);
+});
+test('V6.2.2 only accepted answer reactions may be relayed to the overlay',()=>{
+ let now=0,accepted=false;
+ const c=new ConversationReactionCoordinator({clock:()=>now,request:()=>accepted});c.configure({gestures:true,effects:true});
+ c.event('request-start',{requestId:1});c.event('answer',{requestId:1,reaction:'agree'});
+ assert.equal(c.lastAnswerReaction,'neutral');
+ accepted=true;c.event('request-start',{requestId:2});c.event('answer',{requestId:2,reaction:'agree'});
+ assert.equal(c.lastAnswerReaction,'agree');
+ c.event('request-start',{requestId:3});c.event('answer',{requestId:3,reaction:'agree'});
+ assert.equal(c.lastAnswerReaction,'neutral');
+ now=15000;c.event('request-start',{requestId:4});c.event('manual');c.event('answer',{requestId:4,reaction:'insight'});
+ assert.equal(c.lastAnswerReaction,'neutral');assert.equal(c.sample().bulbAge,Infinity);
+});

@@ -19,7 +19,7 @@ export class ConversationReactionCoordinator{
   this.clock=clock;this.request=request;this.state='idle';this.id=0;this.expires=0;this.suppressed=false;this.hidden=false;
   this.preferences={gestures:false,effects:true,sleepy:false,quietSeconds:120};
   this.lastActivity=clock();this.wakeAt=-Infinity;this.wakeFrom=0;this.previewUntil=0;this.previewBulbUntil=0;this.bulbAt=-Infinity;
-  this.cooldowns=Object.create(null);this.lastReaction=null;this.lastCue=new Map();
+  this.cooldowns=Object.create(null);this.lastReaction=null;this.lastCue=new Map();this.lastActionStatus=null;this.lastAnswerReaction='neutral';
   this.output={thinking:false,bulbAge:Infinity,drowsiness:0};
  }
  configure(p){
@@ -30,29 +30,36 @@ export class ConversationReactionCoordinator{
  activity(){
   const now=this.clock();if(now-this.wakeAt>=1800){this.wakeFrom=this.sample().drowsiness;this.wakeAt=now;}this.lastActivity=now;this.previewUntil=0;
  }
- event(kind,{requestId=this.id,reaction='neutral',action=null,ttlMs=120000}={}){
+ event(kind,data={}){
+  const {requestId=this.id,reaction='neutral',action=null,ttlMs=120000}=data;
   if(kind==='activity'){this.activity();return true;}
   if(kind==='manual'){this.activity();this.suppressed=true;this.bulbAt=-Infinity;return true;}
   if(kind==='request-start'){
-   if(!Number.isSafeInteger(requestId)||requestId<=this.id)return false;
+   if(this.hidden||!Number.isSafeInteger(requestId)||requestId<=this.id)return false;
    this.activity();this.id=requestId;this.state='generating';this.expires=this.clock()+Math.min(120000,ttlMs);this.suppressed=false;this.bulbAt=-Infinity;return true;
   }
-  if(kind==='model-loading')return requestId===this.id&&this.state==='generating';
+  if(kind==='model-loading')return requestId===this.id&&this.state==='generating'&&this.clock()<this.expires;
   if(kind==='direct-action'){
-   if(this.hidden||this.state==='generating'||!DIRECT_ACTIONS.includes(action))return false;
+   this.lastActionStatus=!DIRECT_ACTIONS.includes(action)?'invalid':this.hidden?'unavailable':
+    !Number.isSafeInteger(requestId)||requestId<this.id||Object.hasOwn(data,'requestId')&&requestId===this.id&&requestId>0?'interrupted':this.state==='generating'?'rejected-busy':null;
+   if(this.lastActionStatus)return false;
+   this.id=Math.max(this.id,requestId);
    this.activity();
-   if(!this.request(action,'manual'))return false;
+   if(!this.request(action,'manual')){this.lastActionStatus='rejected-busy';return false;}
+   this.lastActionStatus='accepted';
    this.state='idle';this.suppressed=true;this.bulbAt=-Infinity;
    return true;
   }
   if(kind==='answer'||kind==='cancel'||kind==='error'){
    if(requestId!==this.id||this.state!=='generating')return false;
    this.state='idle';
+   this.lastAnswerReaction='neutral';
+   if(kind==='answer'&&this.clock()>=this.expires)return false;
    if(kind==='answer'&&!this.hidden&&!this.suppressed){
     const now=this.clock();
     if(REACTIONS.includes(reaction)&&now-(this.cooldowns[reaction]??-Infinity)>=12000&&reaction!==this.lastReaction){
-     if(reaction==='insight'&&this.preferences.effects){this.bulbAt=now;this.cooldowns[reaction]=now;this.lastReaction=reaction;}
-     else if(this.preferences.gestures&&ACTION[reaction]&&this.request(ACTION[reaction])){this.cooldowns[reaction]=now;this.lastReaction=reaction;}
+     if(reaction==='insight'&&this.preferences.effects){this.bulbAt=now;this.cooldowns[reaction]=now;this.lastReaction=reaction;this.lastAnswerReaction=reaction;}
+     else if(this.preferences.gestures&&ACTION[reaction]&&this.request(ACTION[reaction])){this.cooldowns[reaction]=now;this.lastReaction=reaction;this.lastAnswerReaction=reaction;}
     }else if(reaction==='neutral')this.lastReaction=null;
    }
    return true;

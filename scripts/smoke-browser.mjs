@@ -124,22 +124,22 @@ try {
   for (const mode of ['workshop','overlay']) {
     const context=await browser.newContext({viewport:{width:mode==='overlay'?252:1120,height:mode==='overlay'?370:780}});
     const page=await context.newPage();
-    let mockLocalRequests=0;
     if(mode==='workshop'){
-      await page.route('http://127.0.0.1:11434/**',async route=>{
-        mockLocalRequests++;
-        const request=route.request(),url=new URL(request.url());
-        const headers={
-          'Access-Control-Allow-Origin':'*',
-          'Access-Control-Allow-Methods':'GET,POST,OPTIONS',
-          'Access-Control-Allow-Headers':'content-type',
-          'Access-Control-Allow-Private-Network':'true'
+      // Deterministic provider mock at fetch boundary, avoiding runner-dependent
+      // browser Private-Network-Access/CORS policy. Native CORS remains an owner gate.
+      await page.addInitScript(()=>{
+        const original=window.fetch.bind(window);
+        window.__v6LocalCalls=[];
+        window.fetch=(url,options={})=>{
+          const target=typeof url==='string'?url:url?.url;
+          if(!target?.startsWith('http://127.0.0.1:11434/'))
+            return original(url,options);
+          window.__v6LocalCalls.push({url:target,method:options.method});
+          const body=target.endsWith('/api/tags')
+            ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
+            :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
+          return Promise.resolve(new Response(body,{status:200,headers:{'Content-Type':'application/json'}}));
         };
-        if(request.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
-        const body=url.pathname==='/api/tags'
-          ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
-          :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
-        await route.fulfill({status:200,contentType:'application/json',headers,body});
       });
     }
     const errors=[];
@@ -212,7 +212,7 @@ try {
         await page.screenshot({path:'smoke-artifacts/v5-personality-behavior-settings.png'});
         checkpoint='V6 opt-in local conversation';
         await page.locator('[data-nav="conversation"]').click();
-        if(mockLocalRequests!==0)throw new Error('V6 must not contact local model before Connect');
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('V6 must not contact local model before Connect');
         await page.locator('#ai-connect').click();
         await page.waitForFunction(()=>document.querySelector('#ai-model')?.value==='llama3.2:3b',null,{timeout:9000});
         if(await page.locator('#ai-send').isDisabled())throw new Error('V6 Send disabled after manual Connect');
@@ -221,6 +221,7 @@ try {
         await page.waitForFunction(()=>document.querySelector('.chat-message.from-model')?.textContent?.includes('Safe local conversation'),null,{timeout:9000});
         if(await page.locator('.chat-message.from-model b').count()!==0)
           throw new Error('HTML from local model was interpreted as markup');
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==2)throw new Error('V6 expected exactly one model list and one chat request');
         await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
         await page.locator('#ai-clear').click();
         if(await page.locator('.chat-message.from-model').count()!==0)

@@ -1,0 +1,193 @@
+✖ selection only prepares native preview; explicit approval consumes it once; no history (1.352879ms)
+✖ cancel, clear, replacement and late completion discard images and answers (0.394754ms)
+✖ late prepare cannot replace a newer selection or escape cleanup (11.404416ms)
+✖ source budget, MIME/signature and header dimensions checked before native IPC (0.840751ms)
+✖ native-only image transport and text fallback remain separate (1.938092ms)
+✖ no new renderer, persistent image data or screen capture commands (8.429021ms)
+ℹ Error: Test "late prepare cannot replace a newer selection or escape cleanup" at tests/local-vision-v7.test.mjs:39:1 generated asynchronous activity after the test ended. This activity created the error "Error: V7 preview not implemented" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 157.707356
+
+✖ failing tests:
+
+test at tests/local-vision-v7.test.mjs:19:1
+✖ selection only prepares native preview; explicit approval consumes it once; no history (1.352879ms)
+  Error: V7 preview not implemented
+      at LocalVision.select (file:///workspace/scratch/4bb055981c3c/companion/web/js/ai/local-vision.js:5:23)
+      at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:20:35)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at tests/local-vision-v7.test.mjs:33:1
+✖ cancel, clear, replacement and late completion discard images and answers (0.394754ms)
+  Error: V7 preview not implemented
+      at LocalVision.select (file:///workspace/scratch/4bb055981c3c/companion/web/js/ai/local-vision.js:5:23)
+      at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:34:35)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests/local-vision-v7.test.mjs:39:1
+✖ late prepare cannot replace a newer selection or escape cleanup (11.404416ms)
+  Error: V7 preview not implemented
+      at LocalVision.select (file:///workspace/scratch/4bb055981c3c/companion/web/js/ai/local-vision.js:5:23)
+      at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:42:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests/local-vision-v7.test.mjs:45:1
+✖ source budget, MIME/signature and header dimensions checked before native IPC (0.840751ms)
+  Error: V7 source admission not implemented
+      at validateSource (file:///workspace/scratch/4bb055981c3c/companion/web/js/ai/local-vision.js:2:40)
+      at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:46:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests/local-vision-v7.test.mjs:52:1
+✖ native-only image transport and text fallback remain separate (1.938092ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /native|installed/i. Input:
+  
+  'Error: V7 preview not implemented'
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:54:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: V7 preview not implemented
+        at LocalVision.select (file:///workspace/scratch/4bb055981c3c/companion/web/js/ai/local-vision.js:5:23)
+        at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:54:25)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /native|installed/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/local-vision-v7.test.mjs:57:1
+✖ no new renderer, persistent image data or screen capture commands (8.429021ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /vision_prepare/. Input:
+  
+  '//! Native shell. AI access is constrained to explicit local Ollama commands.\n' +
+    'mod ollama;\n' +
+    'use std::sync::Mutex;\n' +
+    'use tauri::{Emitter, Manager};\n' +
+    'use tauri::menu::MenuBuilder;\n' +
+    'use tauri::tray::TrayIconBuilder;\n' +
+    '\n' +
+    'struct Passthrough(Mutex<bool>);\n' +
+    '\n' +
+    'fn update_passthrough(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {\n' +
+    '    let window = app.get_webview_window("avatar").ok_or("Avatar window missing")?;\n' +
+    '    window.set_ignore_cursor_events(enabled).map_err(|e| e.to_string())?;\n' +
+    '    *app.state::<Passthrough>().0.lock().map_err(|_| "State lock poisoned")? = enabled;\n' +
+    '    let _ = app.emit("zpkdx:passthrough", enabled);\n' +
+    '    Ok(())\n' +
+    '}\n' +
+    '\n' +
+    '#[tauri::command]\n' +
+    'fn set_passthrough(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {\n' +
+    '    update_passthrough(&app, enabled)\n' +
+    '}\n' +
+    '\n' +
+    '#[tauri::command]\n' +
+    'fn begin_drag(window: tauri::WebviewWindow) -> Result<(), String> {\n' +
+    '    if window.label() != "avatar" { return Err("Drag is restricted to the avatar window".into()); }\n' +
+    '    window.start_dragging().map_err(|e| e.to_string())\n' +
+    '}\n' +
+    '\n' +
+    '#[tauri::command]\n' +
+    'fn open_workshop(app: tauri::AppHandle) -> Result<(), String> {\n' +
+    '    let window = app.get_webview_window("workshop").ok_or("Workshop window missing")?;\n' +
+    '    window.show().map_err(|e| e.to_string())?;\n' +
+    '    let _ = window.emit("zpkdx:workspace-visible", true);\n' +
+    '    window.set_focus().map_err(|e| e.to_string())?;\n' +
+    '    Ok(())\n' +
+    '}\n' +
+    '\n' +
+    'pub fn run() {\n' +
+    '    tauri::Builder::default()\n' +
+    '        .manage(Passthrough(Mutex::new(false)))\n' +
+    '        .manage(ollama::PendingRequests::default())\n' +
+    '        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_model_info, ollama::ollama_chat, ollama::ollama_cancel])\n' +
+    '        .setup(|app| {\n' +
+    '            let menu = MenuBuilder::new(app)\n' +
+    '                .text("workshop", "Open animation workshop")\n' +
+    '                .text("passthrough", "Toggle avatar click-through")\n' +
+    '                .text("wave", "Wave")\n' +
+    '                .separator()\n' +
+    '                .text("quit", "Quit ZpkDxGames")\n' +
+    '                .build()?;\n' +
+    '            let icon = app.default_window_icon().expect("Tauri bundle must include an icon").clone();\n' +
+    '            TrayIconBuilder::new()\n' +
+    '                .icon(icon)\n' +
+    '                .tooltip("ZpkDxGames Desktop Companion — local preview")\n' +
+    '                .menu(&menu)\n' +
+    '                .on_menu_event(|app, event| match event.id().as_ref() {\n' +
+    '                    "workshop" => {\n' +
+    '                        if let Some(window) = app.get_webview_window("workshop") {\n' +
+    '                            let _ = window.show();\n' +
+    '                            let _ = window.emit("zpkdx:workspace-visible", true);\n' +
+    '                            let _ = window.set_focus();\n' +
+    '                        }\n' +
+    '                    }\n' +
+    '                    "passthrough" => {\n' +
+    '                        let enabled = app.state::<Passthrough>().0.lock().map(|v| !*v).unwrap_or(false);\n' +
+    '                        let _ = update_passthrough(app, enabled);\n' +
+    '                    }\n' +
+    '                    "wave" => { let _ = app.emit("zpkdx:wave", ()); }\n' +
+    '                    "quit" => app.exit(0),\n' +
+    '                    _ => {}\n' +
+    '                })\n' +
+    '                .build(app)?;\n' +
+    '            Ok(())\n' +
+    '        })\n' +
+    '        .on_window_event(|window, event| {\n' +
+    '            if window.label() == "workshop" {\n' +
+    '                if let tauri::WindowEvent::CloseRequested { api, .. } = event {\n' +
+    '                    api.prevent_close();\n' +
+    '                    let _ = window.emit("zpkdx:workspace-visible", false);\n' +
+    '                    let _ = window.hide();\n' +
+    '                }\n' +
+    '            }\n' +
+    '        })\n' +
+    '        .run(tauri::generate_context!())\n' +
+    '        .expect("failed to start ZpkDxGames Desktop Companion");\n' +
+    '}\n'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/4bb055981c3c/companion/tests/local-vision-v7.test.mjs:61:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '//! Native shell. AI access is constrained to explicit local Ollama commands.\nmod ollama;\nuse std::sync::Mutex;\nuse tauri::{Emitter, Manager};\nuse tauri::menu::MenuBuilder;\nuse tauri::tray::TrayIconBuilder;\n\nstruct Passthrough(Mutex<bool>);\n\nfn update_passthrough(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {\n    let window = app.get_webview_window("avatar").ok_or("Avatar window missing")?;\n    window.set_ignore_cursor_events(enabled).map_err(|e| e.to_string())?;\n    *app.state::<Passthrough>().0.lock().map_err(|_| "State lock poisoned")? = enabled;\n    let _ = app.emit("zpkdx:passthrough", enabled);\n    Ok(())\n}\n\n#[tauri::command]\nfn set_passthrough(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {\n    update_passthrough(&app, enabled)\n}\n\n#[tauri::command]\nfn begin_drag(window: tauri::WebviewWindow) -> Result<(), String> {\n    if window.label() != "avatar" { return Err("Drag is restricted to the avatar window".into()); }\n    window.start_dragging().map_err(|e| e.to_string())\n}\n\n#[tauri::command]\nfn open_workshop(app: tauri::AppHandle) -> Result<(), String> {\n    let window = app.get_webview_window("workshop").ok_or("Workshop window missing")?;\n    window.show().map_err(|e| e.to_string())?;\n    let _ = window.emit("zpkdx:workspace-visible", true);\n    window.set_focus().map_err(|e| e.to_string())?;\n    Ok(())\n}\n\npub fn run() {\n    tauri::Builder::default()\n        .manage(Passthrough(Mutex::new(false)))\n        .manage(ollama::PendingRequests::default())\n        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_model_info, ollama::ollama_chat, ollama::ollama_cancel])\n        .setup(|app| {\n            let menu = MenuBuilder::new(app)\n                .text("workshop", "Open animation workshop")\n                .text("passthrough", "Toggle avatar click-through")\n                .text("wave", "Wave")\n                .separator()\n                .text("quit", "Quit ZpkDxGames")\n                .build()?;\n            let icon = app.default_window_icon().expect("Tauri bundle must include an icon").clone();\n            TrayIconBuilder::new()\n                .icon(icon)\n                .tooltip("ZpkDxGames Desktop Companion — local preview")\n                .menu(&menu)\n                .on_menu_event(|app, event| match event.id().as_ref() {\n                    "workshop" => {\n                        if let Some(window) = app.get_webview_window("workshop") {\n                            let _ = window.show();\n                            let _ = window.emit("zpkdx:workspace-visible", true);\n                            let _ = window.set_focus();\n                        }\n                    }\n                    "passthrough" => {\n                        let enabled = app.state::<Passthrough>().0.lock().map(|v| !*v).unwrap_or(false);\n                        let _ = update_passthrough(app, enabled);\n                    }\n                    "wave" => { let _ = app.emit("zpkdx:wave", ()); }\n                    "quit" => app.exit(0),\n                    _ => {}\n                })\n                .build(app)?;\n            Ok(())\n        })\n        .on_window_event(|window, event| {\n            if window.label() == "workshop" {\n                if let tauri::WindowEvent::CloseRequested { api, .. } = event {\n                    api.prevent_close();\n                    let _ = window.emit("zpkdx:workspace-visible", false);\n                    let _ = window.hide();\n                }\n            }\n        })\n        .run(tauri::generate_context!())\n        .expect("failed to start ZpkDxGames Desktop Companion");\n}\n',
+    expected: /vision_prepare/,
+    operator: 'match',
+    diff: 'simple'
+  }

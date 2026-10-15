@@ -69,6 +69,7 @@ export class ConversationReactionCoordinator{
     if(this.hidden)return finish('window_hidden');
     if(this.suppressed||this.manualPriority())return finish('manual_action_priority');
     const now=this.clock();
+    if(!REACTIONS.includes(reaction))return finish('neutral_or_no_supported_reaction');
     const action=ACTION[reaction];
     if(reaction!=='insight'&&!action)return finish('neutral_or_no_supported_reaction');
     if(reaction==='insight'&&!this.preferences.effects)return finish('effects_disabled');

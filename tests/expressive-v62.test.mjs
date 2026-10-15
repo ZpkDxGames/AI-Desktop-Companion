@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import {ConversationReactionCoordinator,validateCue} from '../web/js/ai/reaction-coordinator.js';
 import {parseReply,REACTIONS} from '../web/js/ai/local-conversation.js';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
+test('V6.2.3 coordinator rejects unknown labels including inherited object properties',()=>{
+ const calls=[],c=new ConversationReactionCoordinator({request:a=>{calls.push(a);return true;}});c.configure({gestures:true});
+ let id=0;for(const reaction of ['toString','constructor','__proto__','exec',{},[]]){
+  c.event('request-start',{requestId:++id});c.event('answer',{requestId:id,reaction});
+  assert.equal(c.lastAnswerReaction,'neutral');assert.equal(c.lastDecision.reason,'neutral_or_no_supported_reaction');
+ }
+ assert.deepEqual(calls,[]);
+});
 test('V6.2.3 finite diagnostics distinguish stale, expiry, manual priority and overlay replay',()=>{
  let now=0;const c=new ConversationReactionCoordinator({clock:()=>now,request:()=>true});c.configure({gestures:true});
  c.event('request-start',{requestId:1});c.event('manual');c.event('answer',{requestId:1,reaction:'agree'});

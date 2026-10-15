@@ -3,6 +3,23 @@ import {LocalConversation,sanitizeAiSettings} from '../web/js/ai/local-conversat
 const primary='qwen3.5:4b',fallback='llama3.2:3b';
 const json=(data,status=200)=>({ok:status<400,status,headers:{get:()=>null},text:async()=>JSON.stringify(data)});
 const good={message:{content:'{"reply":"Local answer","reaction":"insight"}'}};
+test('V6.2.3 bounded retention opt-in, invalid values off, release before switch and telemetry',async()=>{
+ const calls=[];const c=new LocalConversation({fetchImpl:async(url,opts)=>{
+  calls.push({url,body:JSON.parse(opts.body)});return json({...good,load_duration:1000000,eval_duration:2000000});
+ }});
+ await c.send('first',{model:primary,retentionSeconds:30});
+ assert.equal(calls[0].body.keep_alive,30);
+ const out=await c.send('next',{model:fallback,retentionSeconds:30});
+ assert.equal(calls[1].url.endsWith('/api/generate'),true);assert.equal(calls[1].body.model,primary);
+ assert.equal(calls[1].body.keep_alive,0);assert.ok(!calls[1].body.messages&&!calls[1].body.prompt);
+ assert.equal(calls[2].body.model,fallback);assert.equal(out.metrics.loadMs,1);
+ for(const invalid of [-1,Infinity,600,'30',null]){
+  const d=new LocalConversation({fetchImpl:async(_,o)=>{assert.equal(JSON.parse(o.body).keep_alive,0);return json(good);}});
+  await d.send('fixture',{model:primary,retentionSeconds:invalid});
+ }
+ assert.equal(sanitizeAiSettings({retentionSeconds:30}).retentionSeconds,30);
+ assert.equal(sanitizeAiSettings({}).retentionSeconds,0);
+});
 test('defaults preserve owner model names, capabilities come from API not names',async()=>{
  assert.equal(sanitizeAiSettings({}).model,primary);assert.equal(sanitizeAiSettings({}).fallback,fallback);
  const c=new LocalConversation({fetchImpl:async(url,opts)=>url.endsWith('/show')?json({capabilities:['completion','vision']}):json({models:[{name:primary},{name:fallback}]})});

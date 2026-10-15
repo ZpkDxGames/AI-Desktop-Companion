@@ -3,6 +3,33 @@ import assert from 'node:assert/strict';
 import {detectDirectAnimation,parseCommandIntent,chooseAnswerReaction,DIRECT_ACTIONS} from '../web/js/ai/command-intent.js';
 import {ConversationReactionCoordinator,validateCue} from '../web/js/ai/reaction-coordinator.js';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
+export const REACTION_CORPUS=[
+ ["Yes, you're correct.",'agree'],["That's right.",'agree'],["You're absolutely correct.",'agree'],
+ ['I agree with that assessment.','agree'],['That makes sense, yes.','agree'],
+ ["No, that doesn't appear correct.",'disagree'],['I disagree.','disagree'],
+ ["I'm not sure.",'uncertain'],["I don't know enough to say.",'uncertain'],
+ ['I have an idea that might help.','insight'],
+ ['Here is the reasoning.\n\nIn conclusion, yes, that is correct.','agree'],
+ ['If the premise holds, then yes.','neutral'],['The word ‘yes’ is an affirmative particle.','neutral'],
+ ['Say ‘I agree’.','neutral'],['Yes, I can walk on your screen.','neutral'],
+ ['No worries.','neutral'],['No problem.','neutral'],['Exactly how this works is explained below.','neutral'],
+ ['I do not agree.','disagree'],['I might agree if that were true.','neutral'],
+ ['The example says "I agree".','neutral'],['You could say yes.','neutral'],
+ ['Yes is a word.','neutral'],['I have no idea.','uncertain'],
+ ['Yes, but that is incorrect.','disagree'],['Yes, if you change the premise.','neutral'],
+ ['An idea is a thought.','neutral'],['This explains the procedure.','neutral'],
+ ['Great news! We did it.','celebrate'],["Don't worry, it will be okay.",'reassure'],['Wow, that is surprising!','surprised']
+];
+test('V6.2.3 grounded corpus works for structured Qwen/Llama and missing labels',()=>{
+ for(const [reply,expected] of REACTION_CORPUS){
+  assert.equal(chooseAnswerReaction(reply,expected),expected,reply+' structured');
+  assert.equal(chooseAnswerReaction(reply),expected,reply+' fallback');
+ }
+ for(const reply of REACTION_CORPUS.filter(([,r])=>r==='neutral').map(([s])=>s))
+  assert.equal(chooseAnswerReaction(reply,'agree'),'neutral',reply+' misleading label');
+ assert.equal(chooseAnswerReaction('No, that is wrong.','agree'),'disagree');
+ assert.equal(chooseAnswerReaction('Ordinary text',{}),'neutral');
+});
 test('explicit standalone requests identify only registered gestures',()=>{
  for(const [text,action] of [['Can you shake your head?','shake'],['Can you make your avatar shake its head?','shake'],['Please give me a nod.','nod'],['Would you shrug your shoulders?','shrug'],['Wave hello!','wave'],['I want you to think for a moment','think'],['Look around','look'],['Please celebrate','celebrate'],['Sit down','sit'],['Stand up','idle'],['Jump','jump'],['Stretch your arms','stretch'],['Take a bow','bow'],['Read a book','read'],['Eat something','eat'],['Drink some water','drink']]){
   assert.equal(detectDirectAnimation(text)?.action,action,text);

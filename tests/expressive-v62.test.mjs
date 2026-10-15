@@ -3,6 +3,33 @@ import assert from 'node:assert/strict';
 import {ConversationReactionCoordinator,validateCue} from '../web/js/ai/reaction-coordinator.js';
 import {parseReply,REACTIONS} from '../web/js/ai/local-conversation.js';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
+test('V6.2.3 eligible repeated agreement starts twice without a neutral reply',()=>{
+ let now=0;const calls=[],c=new ConversationReactionCoordinator({clock:()=>now,request:a=>{calls.push(a);return true;}});
+ c.configure({gestures:true});
+ for(const id of [1,2]){c.event('request-start',{requestId:id});c.event('answer',{requestId:id,reaction:'agree'});now=15000;}
+ assert.deepEqual(calls,['nod','nod']);
+});
+test('V6.2.3 rejected dispatch has explicit reason and no accepted cue or cooldown',()=>{
+ const c=new ConversationReactionCoordinator({clock:()=>0,request:()=>false});c.configure({gestures:true});
+ c.event('request-start',{requestId:1});c.event('answer',{requestId:1,reaction:'agree'});
+ assert.equal(c.lastAnswerReaction,'neutral');assert.equal(c.cooldowns.agree,undefined);
+ assert.equal(c.lastDecision?.reason,'controller_rejected');
+});
+test('V6.2.3 repeats after bounded cooldown without neutral; running/disabled/rejected reasons',()=>{
+ let now=0,running=false,accept=true;const calls=[];
+ const c=new ConversationReactionCoordinator({clock:()=>now,playing:()=>running,request:a=>{if(accept)calls.push(a);return accept;}});
+ c.configure({gestures:true});
+ const answer=(id,time)=>{now=time;c.event('request-start',{requestId:id});c.event('answer',{requestId:id,reaction:'agree',modelReaction:'agree'});return c.lastDecision;};
+ assert.equal(answer(1,0).reason,'accepted_and_started');
+ running=true;assert.equal(answer(2,3000).reason,'already_playing');
+ running=false;assert.equal(answer(3,8000).reason,'reaction_cooldown');
+ assert.equal(answer(4,15000).reason,'accepted_and_started');assert.deepEqual(calls,['nod','nod']);
+ now=30000;accept=false;assert.equal(answer(5,now).reason,'controller_rejected');
+ accept=true;assert.equal(answer(6,now+1).reason,'accepted_and_started');
+ c.configure({gestures:false});assert.equal(answer(7,50000).reason,'automatic_gestures_disabled');
+ assert.equal(c.lastAnswerReaction,'neutral');assert.equal(c.lastDecision.requestId,7);
+ assert.ok(!JSON.stringify(c.diagnostics).includes('reply'));
+});
 
 test('all presentational intents parse; unsafe metadata stays neutral',()=>{
  for(const reaction of REACTIONS)assert.equal(parseReply(JSON.stringify({reply:'Text',reaction})).reaction,reaction);

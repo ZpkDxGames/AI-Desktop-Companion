@@ -27,6 +27,8 @@ try{
  await page.goto('http://127.0.0.1:'+server.address().port+'/index.html');
  await page.waitForFunction(()=>document.querySelector('#avatar-canvas').dataset.renderReady==='true');
  if(await page.evaluate(()=>__nativeCalls.some(c=>c.cmd.startsWith('ollama'))))throw Error('Startup queried Ollama');
+ // Eligible-reaction gates use idle controllers; autonomous idle arbitration is tested separately.
+ await page.locator('[data-nav="behavior"]').click();await page.locator('#idle-mode').selectOption('off');
  await page.locator('[data-nav="conversation"]').click();
  // V6.2.2: the composer is in the viewport without scrolling its parent panel.
  await page.setViewportSize({width:1024,height:600});

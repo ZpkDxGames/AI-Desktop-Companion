@@ -62,6 +62,7 @@ try{
  if(!retentionDenied||requests.length)throw Error('Invalid retention escaped native validation');
  const received=[];
  await avatar.evaluate(async()=>{window.__testCues=[];window.__testCueOff=await window.__TAURI__.event.listen('zpkdx:reaction',e=>window.__testCues.push({kind:e.payload.kind,action:e.payload.action||null}));});
+ await workspace.locator('[data-nav="behavior"]').click();await workspace.locator('#idle-mode').selectOption('off');
  await workspace.locator('[data-nav="conversation"]').click();
  for(const [text,action] of [['Can you walk?','walk'],['Show me how you run','run'],['Stop walking','idle'],['Can you shake your head?','shake'],['Stand still','idle']]){
   await workspace.locator('#chat-input').fill(text);await workspace.locator('#ai-send').click();

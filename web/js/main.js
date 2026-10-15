@@ -133,7 +133,7 @@ function updateAiControls(){
  $('ai-effects-enabled').checked=state.ai.effects;
  $('sleepy-enabled').checked=state.ai.sleepy;
  $('quiet-threshold').value=String(state.ai.quietSeconds);
- $('ai-route-status').textContent=routeStatus||'No inference until Send';
+ $('ai-route-status').textContent=routeStatus||'No inference until Send or Analyze image';
  connect.disabled=chatBusy||aiConnecting;
  send.disabled=!!vision.preview||vision.state==='selecting'||!$('chat-input').value.trim();
  updateVisionControls();
@@ -226,7 +226,7 @@ async function connectLocalAi(){
   for(const item of catalog){const row=document.createElement('div'),name=document.createElement('span'),value=document.createElement('strong');name.textContent=item.model;value.textContent=item.status+' · '+(item.capabilities.join(' / ')||'capabilities unavailable');row.append(name,value);summary.append(row);}
   if(!catalog.length)summary.textContent='Unavailable · no installed models';
   if(!models.length)appendConversation('system','No supported local completion models available. Inspect AI & Models for installed capabilities.');
-  else appendConversation('system','Connected to local Ollama. Messages are sent only when you press Send.');
+  else appendConversation('system','Connected to local Ollama. Send starts text chat; images require preview and separate Analyze approval.');
  }catch(error){
   aiConnected=false;
   installedModels=[];$('ai-model').replaceChildren();$('ai-fallback').replaceChildren();$('model-catalog').textContent='Ollama offline or metadata unavailable';

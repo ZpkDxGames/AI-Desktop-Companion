@@ -34,7 +34,7 @@
         <p class="navigation-heading">SYSTEM</p>
         <button class="nav-link" data-nav="diagnostics"><span class="nav-symbol" aria-hidden="true">⌁</span><span class="nav-label">Diagnostics</span></button>
         <button class="nav-link" data-nav="settings"><span class="nav-symbol" aria-hidden="true">⚙</span><span class="nav-label">Settings</span></button>
-        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>V6.2.3 development</small></div>
+        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>V7.0 development</small></div>
       </nav>
       <main class="workspace" id="workspace">
         <section class="preview-section" aria-label="Shared live 3D character preview">
@@ -145,7 +145,7 @@
                 </div>
               </details>
             </div>
-            <p id="ai-route-status" class="chat-route" role="status">No inference until Send</p>
+            <p id="ai-route-status" class="chat-route" role="status">No inference until Send or Analyze image</p>
             <div class="chat-transcript">
               <div class="chat-history" id="chat-history" role="log" aria-live="polite" aria-relevant="additions" aria-label="Temporary local conversation" tabindex="0">
                 <div class="chat-message from-system"><strong>Companion</strong><p>Try “Can you walk?” or “Show me how you run”. Connect to Ollama for text chat.</p></div>
@@ -167,8 +167,8 @@
           </section>
 
           <section class="app-page" data-page="models" aria-label="AI and Models" hidden>
-            <div class="availability"><span class="availability-icon">◇</span><h3>On-demand Ollama connector</h3><p>Install Ollama and a compatible model separately. Then use Conversation → Connect. The app permits only loopback requests and never downloads models, starts services, accesses files or contacts a cloud provider.</p></div>
-            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Send text or separately approve Analyze image</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>Unload requested after each reply · context 4096</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
+            <div class="availability"><span class="availability-icon">◇</span><h3>On-demand Ollama connector</h3><p>Install Ollama and a compatible model separately. Then use Conversation → Connect. The app permits only loopback inference and never downloads models, starts services, scans files or contacts a cloud provider. Image input requires explicit file selection and separate approval.</p></div>
+            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Send text or separately approve Analyze image</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>Off / 30 s / 60 s · one active inference</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
             <div class="summary-list" id="model-catalog" aria-live="polite">Capabilities are checked only after Connect.</div>
             <button id="models-open-chat" class="button-secondary">Configure primary and fallback</button>
             <p class="small-note">Windows uses the native localhost bridge. Actual capabilities are read from the installed models. Cloud aliases are unsupported. PNG/JPEG import requires preview and separate Analyze approval; desktop capture is unavailable.</p>
@@ -188,7 +188,7 @@
               <div class="metric-row"><span>Renderer</span><strong id="graphics-status">Initializing…</strong></div>
               <div class="metric-row"><span>Animation</span><strong id="animation-status">Idle</strong></div>
               <div class="metric-row"><span>Frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
-              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.2.3</strong></div>
+              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.7.0.0</strong></div>
               <div class="button-row"><button id="diagnostics-copy" class="button-secondary" type="button">Copy diagnostic report</button><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button></div>
             </div>
             <p class="small-note">Frame cost measures a browser CPU render call, not GPU frametime. Real Windows 11/RTX 3050 FPS and memory measurements are still required.</p>
@@ -196,7 +196,7 @@
 
           <section class="app-page" data-page="settings" aria-label="Settings" hidden>
             <div class="settings-group first"><div class="group-heading"><h3>Application</h3><span>LOCAL-FIRST</span></div>
-              <div class="summary-list"><div><span>Version</span><strong>V6.2.3 development</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
+              <div class="summary-list"><div><span>Version</span><strong>V7.0 development</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
               <div class="button-row"><button class="button-secondary" type="button" data-quick="studio">Open Avatar Studio</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset character scale</button></div>
             </div>
             <p class="small-note">Autostart, on-demand models and privacy grants will be presented here only after their native implementations exist.</p>

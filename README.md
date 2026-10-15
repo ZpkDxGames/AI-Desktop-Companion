@@ -1,10 +1,12 @@
 # ZpkDxGames Desktop Companion
 
-**V6.2 — Expressive AI & Dual-Model Intelligence. Unsigned development build; owner Windows acceptance pending.**
+**V7.0 — Opt-in Local Image Understanding. Unsigned development candidate; owner Windows/model/GPU acceptance pending.**
 
 A local-first Windows 11 desktop companion using the user's Minecraft skin as a fully 3D character. The current recovery branch builds on Alpha.6, replacing its broken packaged startup and technical-preview Workshop. Alpha.6 previously replaced the earlier custom WebGL player mesh with the established MIT-licensed **skinview3d 3.4.2 / Three.js** player model so Java 64×64 UVs, outer layers and Classic/Slim geometry have one canonical rendering path.
 
-Explicit local text chat uses `qwen3.5:4b` as the preferred primary and `llama3.2:3b` as text fallback. Capabilities come from installed Ollama metadata; Windows uses a native fixed-loopback bridge. Answer reactions, long-request thinking, a voxel idea bulb and optional deterministic sleepy/wake behavior share the existing renderer/controller. No desktop observation, image input or tool execution is enabled. See [implementation and acceptance report](docs/V6_2_IMPLEMENTATION_AND_ACCEPTANCE_REPORT.md).
+Explicit local text chat uses `qwen3.5:4b` as the preferred primary and `llama3.2:3b` as text fallback. Capabilities come from installed Ollama metadata; Windows uses a native fixed-loopback bridge. Answer reactions, long-request thinking, a voxel idea bulb and optional deterministic sleepy/wake behavior share the existing renderer/controller. V7.0 adds explicit PNG/JPEG import in Conversation: Attach image → inspect the sanitized preview → optionally ask a question → Analyze image. Selection alone never sends pixels to Ollama. Native capability/locality checks require a local vision model; image content and visual answers never enter text fallback or subsequent model history. Screen capture, desktop observation and OS tools remain absent. See [V7 implementation record and limits](docs/V7_IMPLEMENTATION_REPORT.md).
+
+Images must be 8-bit sRGB PNG/JPEG without embedded ICC profiles, at most 5 MiB and 4 megapixels. Rust applies EXIF orientation, preserves alpha, resizes the long edge to 1600 px and strips metadata. Inspect the full sanitized preview before approval. Preview tokens expire after two minutes. Browser-only previews cannot analyze images. Real Qwen3.5 quality and RTX 3050 performance require owner testing. PR #14 stays draft; V7.1 screen capture requires separate owner approval.
 
 ## Canonical renderer and Workspace
 

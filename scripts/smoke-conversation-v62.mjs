@@ -5,7 +5,7 @@ const root=resolve('dist'),mime={'.html':'text/html','.js':'text/javascript','.c
 const server=createServer(async(req,res)=>{try{let path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!path.startsWith(root+sep))throw Error();res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'}).end(await readFile(path));}catch{res.writeHead(404).end();}});
 server.listen(0,'127.0.0.1');await once(server,'listening');await mkdir('smoke-artifacts',{recursive:true});let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
  const context=await browser.newContext({viewport:{width:1120,height:780}});
  await context.addInitScript(()=>{
   const realFetch=fetch;window.__nativeCalls=[];window.__cueEvents=[];window.__listeners={};window.__scenario='success';
@@ -18,7 +18,7 @@ try{
    if(cmd==='ollama_chat'){
     if(window.__scenario==='delay')return new Promise((yes,no)=>{window.__resolve=yes;window.__reject=no;});
     if(window.__scenario==='fallback'&&args.model==='qwen3.5:4b')throw 'Ollama responded with HTTP 503';
-    return JSON.stringify({reply:window.__reply||'Safe local answer <b>text only</b>',reaction:'insight'});
+    return JSON.stringify({reply:window.__reply||'Safe local answer <b>text only</b>',reaction:window.__reaction||'insight'});
    }
    return null;
   }},event:{listen:async(name,fn)=>{window.__listeners[name]=fn;return ()=>delete window.__listeners[name];},emit:async()=>{},emitTo:async(target,name,payload)=>window.__cueEvents.push({target,name,payload})}};
@@ -97,6 +97,40 @@ try{
  await overlay.evaluate(cue=>{const payload={...cue.payload,seq:100,kind:'cancel',issuedAt:Date.now(),ttlMs:5000};__listeners['zpkdx:reaction']({payload});__listeners['zpkdx:reaction']({payload});},start);
  await overlay.waitForTimeout(350);await overlay.screenshot({path:'smoke-artifacts/v62-overlay-cleared-event.png'});
  if(await overlay.evaluate(()=>__nativeCalls.some(c=>c.cmd.startsWith('ollama'))))throw Error('Overlay queried Ollama');
+ // V6.2.3: model → grounded decision → real controller → rendered canvas → overlay.
+ const reactionMatrix=[];
+ const reactionTurn=async(name,reply,reaction,action,expected)=>{
+  await page.evaluate(({reply,reaction})=>{window.__scenario='success';window.__reply=reply;window.__reaction=reaction;},{reply,reaction});
+  await page.locator('#chat-input').fill('Reaction verification fixture');await page.locator('#ai-send').click();
+  await page.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
+  const decision=await page.locator('#ai-route-status').evaluate(n=>({...n.dataset}));
+  if(decision.reason!==expected||decision.chosenReaction!==reaction)throw Error('Reaction decision mismatch '+JSON.stringify(decision));
+  const events=await page.evaluate(()=>__cueEvents.slice(-2));
+  for(const e of events)await overlay.evaluate(e=>__listeners['zpkdx:reaction']({payload:e.payload}),e);
+  if(action){
+   await overlay.waitForFunction(r=>document.querySelector('#overlay-canvas').dataset.appliedReaction===r,reaction);
+   await page.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
+   const frames=[];
+   for(let i=0;i<3;i++){
+    await page.waitForTimeout(160);
+    frames.push(await page.locator('#avatar-canvas').screenshot({path:`smoke-artifacts/v623-${name}-${i}.png`}));
+    await overlay.locator('#overlay-canvas').screenshot({path:`smoke-artifacts/v623-overlay-${name}-${i}.png`});
+   }
+   if(frames[0].equals(frames[2]))throw Error('Rendered gesture canvas did not change');
+  }else {await page.waitForTimeout(220);await page.screenshot({path:`smoke-artifacts/v623-${name}.png`});await overlay.locator('#overlay-canvas').screenshot({path:`smoke-artifacts/v623-overlay-${name}.png`});}
+  reactionMatrix.push({name,...decision,overlayIntent:events.at(-1)?.payload.reaction});
+  await page.waitForTimeout(3000);
+ };
+ await reactionTurn('nod-first',"You're absolutely correct.",'agree','nod','accepted_and_started');
+ await page.waitForTimeout(9000);
+ await reactionTurn('nod-repeat',"That makes sense, yes.",'agree','nod','accepted_and_started');
+ await reactionTurn('shake','I disagree.','disagree','shake','accepted_and_started');
+ await reactionTurn('shrug',"I don't know enough to say.",'uncertain','shrug','accepted_and_started');
+ await reactionTurn('lightbulb','I have an idea that might help.','insight',null,'effect_only');
+ await page.locator('.conversation-options summary').click();await page.locator('#ai-gesture-enabled').uncheck();await page.locator('.conversation-options summary').click();
+ await reactionTurn('disabled',"That's right.",'agree',null,'automatic_gestures_disabled');
+ if(await page.locator('#animation-status').textContent()==='NOD')throw Error('Disabled response animated');
+ await writeFile('smoke-artifacts/v623-reaction-matrix.json',JSON.stringify(reactionMatrix,null,2));
  // Double submit performs one action; zero extra model calls.
  const doubleBefore=await page.evaluate(()=>({actions:__cueEvents.filter(e=>e.payload.kind==='direct-action').length,calls:__nativeCalls.filter(c=>c.cmd==='ollama_chat').length}));
  await page.locator('#chat-input').fill('Return to idle');

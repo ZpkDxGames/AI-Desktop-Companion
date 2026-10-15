@@ -44,19 +44,38 @@ export function detectDirectAnimation(input){
  const intent=parseCommandIntent(input);
  return intent.kind==='direct'?{action:intent.action,reply:intent.reply}:null;
 }
-/** Response wording only influences allowlisted presentation labels, never capabilities. */
+/** Ground presentation in explicit speaker stance, never arbitrary word occurrences.
+ * Full bounded replies permit a sincere conclusion after explanatory paragraphs.
+ * Structured labels are candidates: matching stance wins, contradictions correct it.
+ */
 export function chooseAnswerReaction(reply,modelReaction='neutral'){
  if(!REACTIONS.includes(modelReaction))modelReaction='neutral';
- if(typeof reply!=='string')return 'neutral';
- const s=reply.trim().replace(/[\u2018\u2019]/g,"'").slice(0,220);
- if(!s||/^[<>{}\x60"'“]/.test(s))return 'neutral';
- // Literal examples, conditions and capability discussion are not performed actions.
- if(/^(?:(?:yes|no|absolutely|correct|exactly)[,.! ]+)?(?:if|unless|assuming|provided|suppose)\b/i.test(s)||
-    /^(?:yes[,.! ]+)?i (?:can|could|will|would|am|have) (?:walk|run|wave|nod|shake|move)\b/i.test(s))return 'neutral';
- if(/^(?:i (?:don't|do not) know\b|i(?:'m| am) (?:not sure|uncertain)\b|not sure\b|it(?:'s| is) unclear\b|i can't (?:tell|determine|be sure)\b)/i.test(s))return 'uncertain';
- if(/^(?:(?:yes|absolutely|exactly|correct)(?:[!.,]|$)|you(?:'re| are) right\b|i agree\b)/i.test(s))return 'agree';
- if(/^(?:no(?:[!.,]|$)|not quite\b|that's (?:incorrect|not correct)\b|i disagree\b|actually,\s*no\b)/i.test(s)&&!/^no (?:problem|worries|need)\b/i.test(s))return 'disagree';
- if(/^(?:i(?:'ve| have) (?:got an?|an?) idea\b|here(?:'s| is) (?:an? idea|a possible solution)\b)/i.test(s))return 'insight';
- // Unsupported certainty labels cannot turn an ordinary explanation into agreement.
- return ['thinking','celebrate','reassure','surprised'].includes(modelReaction)?modelReaction:'neutral';
+ if(typeof reply!=='string'||reply.length>2000)return 'neutral';
+ const text=reply.normalize('NFKC').replace(/[\u2018\u2019]/g,"'").replace(/\*\*|__/g,'').trim();
+ if(!text||/^[<>{}\x60"'“>]/.test(text))return 'neutral';
+ // Quoted material is not the speaker's own stance (apostrophes inside words survive).
+ const unquoted=text.replace(/"[^"\n]*"|“[^”\n]*”|(?:^|\s)'[^'\n]*'|\x60[^\x60]*\x60/g,' ');
+ const clauses=unquoted.split(/(?:[.!?]\s+|\n+)/).map(s=>s.trim().replace(/^(?:in conclusion|overall|to conclude|my conclusion is)[,:]\s*/i,''));
+ let chosen='neutral';
+ for(let s of clauses){
+  if(!s||/^[>]/.test(s)||/\b(?:if|unless|assuming|provided|suppose|hypothetically|would agree|might agree|could agree)\b/i.test(s))continue;
+  if(/^(?:the (?:word|phrase|example)|say|you (?:could|can|should) say|yes is|no is)\b/i.test(s))continue;
+  if(/^(?:i agree|yes|no)\b.{0,40}\b(?:means|is a (?:word|phrase|statement|particle))\b/i.test(s))continue;
+  if(/^(?:yes[,.! ]+)?i (?:can|could|will|would|am|have) (?:walk|run|wave|nod|shake|move|see|inspect|capture|access)\b/i.test(s))continue;
+  if(/^(?:yes[,.! ]+)?i(?:'m| am) not sure\b/i.test(s)){chosen='uncertain';continue;}
+  if(/^(?:i (?:don't|do not) know\b|i(?:'m| am) (?:not sure|uncertain)\b|not sure\b|it(?:'s| is) unclear\b|i can't (?:tell|determine|be sure)\b|i have no idea\b)/i.test(s))chosen='uncertain';
+  else if(/^(?:no(?:[!.,]|$)|not quite\b|that(?:'s| is) (?:incorrect|not correct|not right)\b|i (?:disagree|do not agree|don't agree|agree with nothing)\b|actually,\s*no\b)/i.test(s)&&!/^no (?:problem|worries|need)\b/i.test(s))chosen='disagree';
+  else if(/^(?:(?:yes|absolutely|exactly|correct)(?:[!.,]|$)|you(?:'re| are) (?:right|(?:absolutely |completely )?correct)\b|that(?:'s| is) right\b|that sounds (?:right|sensible|correct)\b|(?:your|that) assessment is (?:accurate|correct)\b|that makes sense(?:[,.]\s*yes)?(?:[.!]|$)|i agree\b)/i.test(s)){
+   // A nominal yes followed by an explicit negative correction is disagreement.
+   chosen=/\bbut\b.{0,80}\b(?:incorrect|wrong|not correct|disagree)\b/i.test(s)?'disagree':'agree';
+  }
+  else if(/^(?:i(?:'ve| have) (?:got an?|an?) idea\b|here(?:'s| is) (?:an? idea|a possible solution)\b)/i.test(s))chosen='insight';
+  else if(/^(?:great news|we did it|hooray|congratulations)\b/i.test(s))chosen='celebrate';
+  else if(/^(?:don't worry|do not worry|it will be okay|i(?:'m| am) here for you)\b/i.test(s))chosen='reassure';
+  else if(/^(?:wow[!,]|that(?:'s| is) surprising\b|i(?:'m| am) surprised\b)/i.test(s))chosen='surprised';
+  else if(/^(?:let me think|i(?:'m| am) thinking)\b/i.test(s)&&modelReaction==='thinking')chosen='thinking';
+  else if(/^one possible solution (?:is|would be)\b/i.test(s)&&modelReaction==='insight')chosen='insight';
+  else if(/^(?:hello|hi|you're welcome)[!.]*$/i.test(s)&&modelReaction==='reassure')chosen='reassure';
+ }
+ return chosen;
 }

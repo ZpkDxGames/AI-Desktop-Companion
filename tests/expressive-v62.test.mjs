@@ -3,6 +3,25 @@ import assert from 'node:assert/strict';
 import {ConversationReactionCoordinator,validateCue} from '../web/js/ai/reaction-coordinator.js';
 import {parseReply,REACTIONS} from '../web/js/ai/local-conversation.js';
 import {BehaviorController,ACTIONS,POSE_KEYS} from '../web/js/avatar/animation.js';
+test('V6.2.3 finite diagnostics distinguish stale, expiry, manual priority and overlay replay',()=>{
+ let now=0;const c=new ConversationReactionCoordinator({clock:()=>now,request:()=>true});c.configure({gestures:true});
+ c.event('request-start',{requestId:1});c.event('manual');c.event('answer',{requestId:1,reaction:'agree'});
+ assert.equal(c.lastDecision.reason,'manual_action_priority');
+ c.event('request-start',{requestId:2,ttlMs:1000});now=1000;c.event('answer',{requestId:2,reaction:'agree'});
+ assert.equal(c.lastDecision.reason,'request_expired');
+ c.event('request-start',{requestId:3});c.event('cancel',{requestId:3});c.event('answer',{requestId:3,reaction:'agree'});
+ assert.equal(c.lastDecision.reason,'request_cancelled_or_stale');
+ for(let id=4;id<=60;id++){c.event('request-start',{requestId:id});c.event('answer',{requestId:id,reaction:'neutral'});}
+ assert.equal(c.diagnostics.length,32);
+ const overlay=new ConversationReactionCoordinator({clock:()=>now,request:()=>true});overlay.configure({gestures:true});
+ const start={version:1,source:'fixture',seq:1,kind:'request-start',requestId:1,issuedAt:1000,ttlMs:120000};
+ assert.ok(overlay.receive(start,1000));
+ const answer={...start,seq:2,kind:'answer',reaction:'agree',ttlMs:5000};
+ assert.ok(overlay.receive(answer,1000));assert.equal(overlay.lastAnswerReaction,'agree');
+ assert.equal(overlay.crossWindowStatus,'cross_window_accepted');
+ assert.equal(overlay.receive(answer,1000),false);assert.equal(overlay.crossWindowStatus,'cross_window_cue_rejected');
+ assert.equal(overlay.receive({...answer,seq:3},6000),false);
+});
 test('V6.2.3 eligible repeated agreement starts twice without a neutral reply',()=>{
  let now=0;const calls=[],c=new ConversationReactionCoordinator({clock:()=>now,request:a=>{calls.push(a);return true;}});
  c.configure({gestures:true});

@@ -42,12 +42,18 @@ const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
 let aiConnected=false,aiConnecting=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
 const reactions=new ConversationReactionCoordinator({request:(action,source='conversation')=>{
  if(source!=='manual'&&controller.source==='manual'&&controller.action!=='idle')return false;
+ if(source!=='manual'&&controller.sitPhase!=='standing')return false;
  return controller.request(action,{source});
-}});
+},playing:action=>controller.action===action,manualPriority:()=>controller.source==='manual'&&controller.action!=='idle'});
 reactions.configure(state.ai);
 let cueSequence=0;const nativeUnlisten=[];
 function cue(kind,data={}){
  if(!reactions.event(kind,data))return false;
+ if(kind==='answer'&&reactions.lastDecision){
+  const d=reactions.lastDecision;
+  for(const [key,value] of Object.entries(d))$('ai-route-status').dataset[key]=value??'';
+  $('ai-route-status').title='Reaction: '+d.chosenReaction+' · '+d.reason;
+ }
  wake();
  if(!overlay&&native){
   const payload={version:1,source:sessionId,seq:++cueSequence,kind,requestId:data.requestId??reactions.id,
@@ -89,7 +95,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.2',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.3',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
@@ -206,17 +212,20 @@ async function sendLocalChat(){
  chatBusy=true;updateAiControls();
  appendConversation('user',input);field.value='';
  try{
-  const response=await conversation.send(input,{model,fallback:$('ai-fallback').value,installed:installedModels,gestures:state.ai.gestures,onStatus:status=>{
+  const response=await conversation.send(input,{model,fallback:$('ai-fallback').value,installed:installedModels,gestures:state.ai.gestures,retentionSeconds:state.ai.retentionSeconds,onStatus:status=>{
    routeStatus=(status.kind==='fallback'?'Fallback used · ':'Responding · ')+status.model;
    cue('model-loading',{requestId:generation});updateAiControls();
   }});
   if(generation!==conversationGeneration)return;
+  const replyCompletedAt=performance.now();
   appendConversation('assistant',response.reply);
   routeStatus=(response.fallbackUsed?'Fallback used · ':'Answered · ')+response.model;
   let reaction=chooseAnswerReaction(response.reply,response.reaction==='neutral'&&response.gesture?({nod:'agree',celebrate:'celebrate',wave:'reassure',look:'surprised'}[response.gesture]||'neutral'):response.reaction);
   // One manual interruption suppresses reply choreography in both renderers.
-  if(intent.kind==='ambiguous'||reactions.suppressed||controller.source==='manual'&&controller.action!=='idle')reaction='neutral';
-  cue('answer',{requestId:generation,reaction});
+  if(intent.kind==='ambiguous')reaction='neutral';
+  cue('answer',{requestId:generation,reaction,modelReaction:response.reaction});
+  for(const [key,value] of Object.entries(response.metrics||{}))$('ai-route-status').dataset[key]=value;
+  $('ai-route-status').dataset.dispatchDelayMs=String(performance.now()-replyCompletedAt);
  }catch(error){
   if(generation===conversationGeneration){cue('error',{requestId:generation});routeStatus='Request ended · '+formatChatError(error);appendConversation('system',formatChatError(error));}
  }finally{
@@ -228,6 +237,8 @@ function bindLocalChat(){
  $('ai-connect').addEventListener('click',connectLocalAi);
  $('ai-model').addEventListener('change',event=>{conversationGeneration++;state.ai.model=event.target.value;conversation.clear();cue('model-change');routeStatus='Model changed · no inference';save();updateAiControls();});
  $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
+ $('ai-retention').value=String(state.ai.retentionSeconds);
+ $('ai-retention').addEventListener('change',e=>{state.ai.retentionSeconds=sanitizeAiSettings({retentionSeconds:Number(e.target.value)}).retentionSeconds;save();});
  $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
  $('chat-input').addEventListener('input',updateAiControls);
  $('ai-stop').addEventListener('click',()=>cancelChat());
@@ -322,7 +333,16 @@ async function subscribeNative(){
    manualInteraction();controller.request('wave');wake();
   }));
   nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:reaction',event=>{
-   if(overlay&&reactions.receive(event.payload))wake();
+   if(overlay){
+    const accepted=reactions.receive(event.payload);
+    canvas.dataset.cueStatus=reactions.crossWindowStatus;
+    if(event.payload?.kind==='answer'){
+     canvas.dataset.appliedReaction=reactions.lastAnswerReaction;
+     canvas.dataset.reactionReason=reactions.lastDecision?.reason||'request_cancelled_or_stale';
+     canvas.dataset.controllerAction=controller.action;
+    }
+    if(accepted)wake();
+   }
   }));
   nativeUnlisten.push(await window.__TAURI__.event.listen('zpkdx:workspace-visible',event=>{
    if(overlay)return;

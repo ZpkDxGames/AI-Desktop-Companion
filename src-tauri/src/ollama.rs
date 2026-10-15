@@ -18,6 +18,7 @@ pub(crate) struct PendingRequests(pub Mutex<RequestState>);
 pub(crate) struct RequestState {
     active: HashMap<String, oneshot::Sender<()>>,
     cancelled: VecDeque<String>,
+    resident_model: Option<String>,
 }
 impl RequestState {
     fn register(&mut self, id: &str, sender: oneshot::Sender<()>) -> Result<(), String> {
@@ -170,6 +171,28 @@ pub(crate) async fn ollama_model_info(window: WebviewWindow, model: String) -> R
     Ok(json!({"capabilities":capabilities,"local":local_metadata(&data)}))
 }
 
+fn retention_seconds(value: u32) -> Result<u32, String> {
+    if [0, 30, 60].contains(&value) { Ok(value) }
+    else { Err("Invalid model retention policy".into()) }
+}
+fn duration_ms(value: Option<&Value>) -> Option<f64> {
+    value.and_then(Value::as_u64).map(|n| (n as f64 / 1_000_000.0).min(120_000.0))
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ChatResult {
+    content: String,
+    load_ms: Option<f64>,
+    generation_ms: Option<f64>,
+}
+async fn release_model(http: &reqwest::Client, model: &str) -> Result<(), String> {
+    // Only a model previously validated by this native transport is released.
+    require_local_model(http, model).await?;
+    read_json(http.post(format!("{BASE}/api/generate"))
+        .json(&json!({"model":model,"stream":false,"keep_alive":0}))
+        .send().await.map_err(transport_error)?).await?;
+    Ok(())
+}
 #[tauri::command]
 pub(crate) async fn ollama_chat(
     window: WebviewWindow,
@@ -177,11 +200,13 @@ pub(crate) async fn ollama_chat(
     model: String,
     messages: Vec<ChatMessage>,
     request_id: String,
-) -> Result<String, String> {
+    retention_seconds: u32,
+) -> Result<ChatResult, String> {
     workshop_only(&window)?;
     if !valid_model(&model) || !valid_id(&request_id) || !valid_messages(&messages) {
         return Err("Invalid local model, conversation payload, or request identifier".into());
     }
+    let keep_alive = self::retention_seconds(retention_seconds)?;
     let (tx, rx) = oneshot::channel();
     {
         let mut pending_requests = pending.0.lock().map_err(|_| "Request state unavailable")?;
@@ -192,6 +217,15 @@ pub(crate) async fn ollama_chat(
         result = async {
             let http = client(120)?;
             require_local_model(&http, &model).await?;
+            let previous = pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model.clone();
+            if let Some(previous) = previous.filter(|previous| previous != &model) {
+                release_model(&http, &previous).await?;
+                pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model = None;
+            }
+            // Record before sending: even interrupted inference can leave a bounded resident model.
+            if keep_alive > 0 {
+                pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model = Some(model.clone());
+            }
             let response = http
                 .post(format!("{BASE}/api/chat"))
                 .json(&json!({
@@ -208,14 +242,18 @@ pub(crate) async fn ollama_chat(
                         "additionalProperties": false
                     },
                     "options": {"num_predict": 450, "num_ctx": 4096, "temperature": 0.7},
-                    "keep_alive": 0,
+                    "keep_alive": keep_alive,
                     "messages": messages
                 }))
                 .send().await.map_err(transport_error)?;
             let content = read_json(response).await?;
-            content.pointer("/message/content").and_then(Value::as_str)
-                .map(str::to_owned)
-                .ok_or_else(|| "Ollama response missing assistant text".into())
+            if keep_alive == 0 {
+                pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model = None;
+            }
+            let text = content.pointer("/message/content").and_then(Value::as_str)
+                .ok_or_else(|| "Ollama response missing assistant text".to_owned())?;
+            Ok(ChatResult { content: text.to_owned(), load_ms: duration_ms(content.get("load_duration")),
+                generation_ms: duration_ms(content.get("eval_duration")) })
         } => result,
     };
     pending.0.lock().map_err(|_| "Request state unavailable")?.active.remove(&request_id);
@@ -237,6 +275,14 @@ pub(crate) fn ollama_cancel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn model_retention_is_finite_and_telemetry_is_content_free() {
+        for value in [0, 30, 60] { assert_eq!(retention_seconds(value).unwrap(), value); }
+        for value in [1, 31, 600, u32::MAX] { assert!(retention_seconds(value).is_err()); }
+        assert_eq!(duration_ms(Some(&json!(1_000_000))), Some(1.0));
+        assert_eq!(duration_ms(Some(&json!(-1))), None);
+        assert_eq!(duration_ms(None), None);
+    }
     #[test]
     fn model_names_cannot_carry_urls_paths_or_credentials() {
         assert!(valid_model("llama3.2:3b"));

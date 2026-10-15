@@ -18,7 +18,10 @@ export const REACTION_CORPUS=[
  ['Yes is a word.','neutral'],['I have no idea.','uncertain'],
  ['Yes, but that is incorrect.','disagree'],['Yes, if you change the premise.','neutral'],
  ['An idea is a thought.','neutral'],['This explains the procedure.','neutral'],
- ['Great news! We did it.','celebrate'],["Don't worry, it will be okay.",'reassure'],['Wow, that is surprising!','surprised']
+ ['Great news! We did it.','celebrate'],["Don't worry, it will be okay.",'reassure'],['Wow, that is surprising!','surprised'],
+ ['**Yes**, that is correct.','agree'],['Your assessment is accurate.','agree'],['That sounds sensible.','agree'],
+ ['I agree with nothing you said.','disagree'],["That's not right.",'disagree'],['Yes, I am not sure.','uncertain'],
+ ['I agree is a phrase.','neutral'],['Yes, I can inspect your desktop.','neutral']
 ];
 test('V6.2.3 grounded corpus works for structured Qwen/Llama and missing labels',()=>{
  for(const [reply,expected] of REACTION_CORPUS){
@@ -29,6 +32,8 @@ test('V6.2.3 grounded corpus works for structured Qwen/Llama and missing labels'
   assert.equal(chooseAnswerReaction(reply,'agree'),'neutral',reply+' misleading label');
  assert.equal(chooseAnswerReaction('No, that is wrong.','agree'),'disagree');
  assert.equal(chooseAnswerReaction('Ordinary text',{}),'neutral');
+ assert.equal(chooseAnswerReaction('One possible solution is to check the connection.','insight'),'insight');
+ assert.equal(chooseAnswerReaction('One possible solution is to check the connection.'),'neutral');
 });
 test('explicit standalone requests identify only registered gestures',()=>{
  for(const [text,action] of [['Can you shake your head?','shake'],['Can you make your avatar shake its head?','shake'],['Please give me a nod.','nod'],['Would you shrug your shoulders?','shrug'],['Wave hello!','wave'],['I want you to think for a moment','think'],['Look around','look'],['Please celebrate','celebrate'],['Sit down','sit'],['Stand up','idle'],['Jump','jump'],['Stretch your arms','stretch'],['Take a bow','bow'],['Read a book','read'],['Eat something','eat'],['Drink some water','drink']]){

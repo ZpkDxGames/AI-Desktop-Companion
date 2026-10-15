@@ -5,6 +5,8 @@
 export const OLLAMA_BASE='http://127.0.0.1:11434';
 export const REACTIONS=Object.freeze(['neutral','agree','disagree','uncertain','thinking','insight','celebrate','reassure','surprised']);
 export const ALLOWED_GESTURES=Object.freeze(['wave','nod','think','celebrate','look']);
+export const retentionPolicy=value=>[0,30,60].includes(value)?value:0;
+const durationMs=value=>Number.isFinite(value)&&value>=0?Math.min(value/1e6,120000):null;
 const MAX_PROMPT=2400,MAX_REPLY=2000,MAX_HISTORY=12,MAX_RESPONSE_BYTES=128*1024;
 const schema=Object.freeze({
  type:'object',
@@ -25,7 +27,7 @@ const baseSystem=Object.freeze({
 });
 export const validModelName=name=>typeof name==='string'&&name.length>0&&name.length<=80&&/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(name)&&!name.includes('..')&&!name.includes('://')&&!name.endsWith(':cloud');
 export function sanitizeAiSettings(input){
- return {model:validModelName(input?.model)?input.model:'qwen3.5:4b',fallback:input?.fallback===''?'':validModelName(input?.fallback)?input.fallback:'llama3.2:3b',gestures:input?.gestures===true,effects:input?.effects!==false,sleepy:input?.sleepy===true,quietSeconds:[90,120,180].includes(input?.quietSeconds)?input.quietSeconds:120};
+ return {model:validModelName(input?.model)?input.model:'qwen3.5:4b',fallback:input?.fallback===''?'':validModelName(input?.fallback)?input.fallback:'llama3.2:3b',gestures:input?.gestures===true,effects:input?.effects!==false,sleepy:input?.sleepy===true,quietSeconds:[90,120,180].includes(input?.quietSeconds)?input.quietSeconds:120,retentionSeconds:retentionPolicy(input?.retentionSeconds)};
 }
 export function parseReply(content){
  if(typeof content!=='string'||!content.trim())throw Error('The local model returned an empty response.');
@@ -60,6 +62,7 @@ async function limitedJson(response){
 export class LocalConversation{
  constructor({fetchImpl=fetch,nativeInvoke=null}={}){
   this.fetchImpl=fetchImpl;this.nativeInvoke=nativeInvoke;this.history=[];this.pending=null;this.counter=0;this.catalog=null;
+  this.residentModel=null;
  }
  async listModels(){
   if(this.nativeInvoke){
@@ -97,7 +100,7 @@ export class LocalConversation{
   this.catalog=entries;
   return entries;
  }
- async send(input,{model='qwen3.5:4b',fallback='',installed=null,gestures=false,onStatus=()=>{},images=null}={}){
+ async send(input,{model='qwen3.5:4b',fallback='',installed=null,gestures=false,onStatus=()=>{},images=null,retentionSeconds=0}={}){
   if(this.pending)throw Error('Another local request is already running.');
   if(images)throw Error('Image analysis is deferred; this milestone accepts text only. No image was sent.');
   if(!validModelName(model)||fallback&&!validModelName(fallback))throw Error('Select a valid installed local model.');
@@ -117,16 +120,34 @@ export class LocalConversation{
   while(history.length&&(length()>11000||bytes()>24000))history.splice(0,2);
   const messages=[baseSystem,...history,{role:'user',content:prompt}];
   const aborted=()=>own.signal.aborted||generation!==this.counter;
+  const keepAlive=retentionPolicy(retentionSeconds),started=performance.now();let metrics={};
   const infer=async chosen=>{
    if(aborted())throw new DOMException('Aborted','AbortError');
    onStatus({kind:chosen===model?'responding':'fallback',model:chosen});
    const requestId='v6-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
    this.pendingId=requestId;
-   if(this.nativeInvoke)return this.nativeInvoke('ollama_chat',{model:chosen,messages,requestId});
+   if(this.nativeInvoke){
+    const result=await this.nativeInvoke('ollama_chat',{model:chosen,messages,requestId,retentionSeconds:keepAlive});
+    if(typeof result==='string')return result; // Old deterministic fixtures / transport compatibility.
+    metrics={loadMs:result?.loadMs??null,generationMs:result?.generationMs??null};
+    return result?.content;
+   }
+   if(this.residentModel&&this.residentModel!==chosen){
+    // Release the preceding retained model before loading its replacement. No inference prompt.
+    await limitedJson(await this.fetchImpl(OLLAMA_BASE+'/api/generate',{
+     method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',referrerPolicy:'no-referrer',cache:'no-store',signal:own.signal,
+     body:JSON.stringify({model:this.residentModel,stream:false,keep_alive:0})
+    }));
+    this.residentModel=null;
+    if(aborted())throw new DOMException('Aborted','AbortError');
+   }
+   if(keepAlive)this.residentModel=chosen;
    const data=await limitedJson(await this.fetchImpl(OLLAMA_BASE+'/api/chat',{
     method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',referrerPolicy:'no-referrer',cache:'no-store',signal:own.signal,
-    body:JSON.stringify({model:chosen,stream:false,think:false,format:schema,options:{num_predict:450,num_ctx:4096,temperature:.7},keep_alive:0,messages})
+    body:JSON.stringify({model:chosen,stream:false,think:false,format:schema,options:{num_predict:450,num_ctx:4096,temperature:.7},keep_alive:keepAlive,messages})
    }));
+   metrics={loadMs:durationMs(data.load_duration),generationMs:durationMs(data.eval_duration)};
+   this.residentModel=keepAlive?chosen:null;
    return data?.message?.content;
   };
   try{
@@ -141,7 +162,8 @@ export class LocalConversation{
    }
    if(aborted())throw new DOMException('Aborted','AbortError');
    const output=parseReply(content);
-   const answer={reply:output.reply,gesture:gestures?output.gesture:null,reaction:output.reaction,model:route,fallbackUsed:route!==model};
+   const answer={reply:output.reply,gesture:gestures?output.gesture:null,reaction:output.reaction,model:route,fallbackUsed:route!==model,
+    metrics:{...metrics,completeResponseMs:performance.now()-started,retentionSeconds:keepAlive}};
    this.history.push({role:'user',content:prompt},{role:'assistant',content:answer.reply});
    if(this.history.length>MAX_HISTORY)this.history.splice(0,this.history.length-MAX_HISTORY);
    return answer;

@@ -94,7 +94,7 @@ try{
  await overlay.waitForFunction(()=>document.querySelector('#overlay-canvas').dataset.renderReady==='true');
  await overlay.evaluate(cue=>__listeners['zpkdx:reaction']({payload:{...cue.payload,issuedAt:Date.now()}}),start);
  await overlay.waitForTimeout(350);await overlay.screenshot({path:'smoke-artifacts/v62-overlay-request-event.png'});
- await overlay.evaluate(cue=>{const payload={...cue.payload,seq:100,kind:'cancel',issuedAt:Date.now(),ttlMs:5000};__listeners['zpkdx:reaction']({payload});__listeners['zpkdx:reaction']({payload});},start);
+ await overlay.evaluate(cue=>{const payload={...cue.payload,seq:cue.payload.seq+1,kind:'cancel',issuedAt:Date.now(),ttlMs:5000};__listeners['zpkdx:reaction']({payload});__listeners['zpkdx:reaction']({payload});},start);
  await overlay.waitForTimeout(350);await overlay.screenshot({path:'smoke-artifacts/v62-overlay-cleared-event.png'});
  if(await overlay.evaluate(()=>__nativeCalls.some(c=>c.cmd.startsWith('ollama'))))throw Error('Overlay queried Ollama');
  // V6.2.3: model → grounded decision → real controller → rendered canvas → overlay.

@@ -1,5 +1,6 @@
 //! Native shell. AI access is constrained to explicit local Ollama commands.
 mod ollama;
+mod vision;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 use tauri::menu::MenuBuilder;
@@ -39,7 +40,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Passthrough(Mutex::new(false)))
         .manage(ollama::PendingRequests::default())
-        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_model_info, ollama::ollama_chat, ollama::ollama_cancel])
+        .invoke_handler(tauri::generate_handler![set_passthrough, begin_drag, open_workshop, ollama::ollama_list_models, ollama::ollama_model_info, ollama::ollama_chat, ollama::ollama_cancel, vision::vision_prepare, vision::vision_clear, vision::vision_analyze])
         .setup(|app| {
             let menu = MenuBuilder::new(app)
                 .text("workshop", "Open animation workshop")
@@ -74,7 +75,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if window.label() == "workshop" {
+                if let tauri::WindowEvent::Resized(_) = event {
+                    if window.is_minimized().unwrap_or(true) { ollama::discard_workspace(&window.state::<ollama::PendingRequests>()); }
+                }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    ollama::discard_workspace(&window.state::<ollama::PendingRequests>());
                     api.prevent_close();
                     let _ = window.emit("zpkdx:workspace-visible", false);
                     let _ = window.hide();

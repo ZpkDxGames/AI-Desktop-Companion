@@ -6,6 +6,7 @@ import {FramePacer} from './runtime/frame-pacing.js';
 import {BehaviorController} from './avatar/animation.js';
 import {LocalBehaviorPolicy,sanitizeBehaviorPreferences} from './avatar/local-behavior-policy.js';
 import {LocalConversation,sanitizeAiSettings,formatChatError,OLLAMA_BASE} from './ai/local-conversation.js';
+import {LocalVision} from './ai/local-vision.js';
 import {ConversationReactionCoordinator} from './ai/reaction-coordinator.js';
 import {parseCommandIntent,chooseAnswerReaction} from './ai/command-intent.js';
 import {decodeImage,loadSkin} from './avatar/skin.js';
@@ -39,6 +40,7 @@ const seed=Date.now();
 const controller=new BehaviorController({seed});
 const personalityPolicy=new LocalBehaviorPolicy({seed,style:state.personality.style});
 const conversation=new LocalConversation({nativeInvoke:native?invoke:null});
+const vision=new LocalVision({conversation,onState:()=>updateVisionControls()});
 let aiConnected=false,aiConnecting=false,chatBusy=false,conversationGeneration=0,installedModels=[],routeStatus='';
 const reactions=new ConversationReactionCoordinator({request:(action,source='conversation')=>{
  if(source!=='manual'&&controller.source==='manual'&&controller.action!=='idle')return false;
@@ -69,7 +71,7 @@ function manualInteraction(){reactions.event('manual');wake();}
 function configureReactions(){reactions.configure({...state.ai,sleepy:state.ai.sleepy&&state.idleMode!=='off'});}
 function cancelChat(kind='cancel'){
  conversationGeneration++;
- conversation.cancel();cue(kind,{requestId:reactions.id});
+ conversation.cancel();vision.clear();cue(kind,{requestId:reactions.id});
  if(!overlay&&chatBusy){routeStatus=kind==='cancel'?'Cancelled · no reply reaction':'Reply interrupted';updateAiControls();}
 }
 controller.setBehaviorPolicy(state.personality.enabled?personalityPolicy:null);
@@ -95,7 +97,7 @@ const save=()=>{try{
 }catch{toast('Settings could not be saved.');}};
 const statusNode=id=>$(id);
 const stage=(name,message)=>{journal.record(name,message);const node=statusNode('runtime-stage');if(node)node.textContent=name.replaceAll('_',' ');};
-const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.6.2.3',contextLosses,
+const report=()=>journal.report({mode:overlay?'overlay':'workspace',native,version:'0.1.0-alpha.7.0.0',contextLosses,
   graphics:renderer?'skinview3d / Three.js':'not initialized',pixelRatio:window.devicePixelRatio||1,
   modelMode:state.modelMode,customSkinPresent:!!state.skin,expressiveEyesEnabled:state.expressions,
   idleMode:state.idleMode,action:controller.action,actionSource:controller.source,autoStarts:controller.autoStarts,
@@ -131,13 +133,54 @@ function updateAiControls(){
  $('ai-effects-enabled').checked=state.ai.effects;
  $('sleepy-enabled').checked=state.ai.sleepy;
  $('quiet-threshold').value=String(state.ai.quietSeconds);
- $('ai-route-status').textContent=routeStatus||'No inference until Send';
+ $('ai-route-status').textContent=routeStatus||'No inference until Send or Analyze image';
  connect.disabled=chatBusy||aiConnecting;
- send.disabled=!$('chat-input').value.trim();
+ send.disabled=!!vision.preview||vision.state==='selecting'||!$('chat-input').value.trim();
+ updateVisionControls();
  stop.disabled=!chatBusy;
  $('ai-gesture-enabled').checked=state.ai.gestures;
  $('ai-connection-status').textContent=aiConnecting?'Checking local Ollama…':chatBusy?(conversation.pending?.signal.aborted?'Cancelling reply…':'Responding locally…'):aiConnected?'Local provider connected':'Disconnected · actions available';
  const label=$('model-connection-badge');if(label)label.textContent=aiConnected?'LOCAL AI CONNECTED':'AI OPTIONAL';
+}
+function updateVisionControls(){
+ if(overlay)return;
+ const preview=vision.preview,node=$('image-preview');
+ node.hidden=!preview;
+ $('workshop').classList.toggle('has-image',!!preview);
+ if(preview){
+  if($('image-thumbnail').getAttribute('src')!==preview.url)$('image-thumbnail').src=preview.url;
+  $('image-summary').textContent=`PNG · ${preview.width} × ${preview.height} · ${Math.max(1,Math.ceil(preview.bytes/1024))} KiB · ${$('ai-model').value||'select a model'}`;
+ }else {
+  $('image-thumbnail').removeAttribute('src');$('image-full').removeAttribute('src');
+  if($('image-dialog').open)$('image-dialog').close();
+ }
+ const supported=conversation.catalog?.some(m=>m.model===$('ai-model').value&&m.local&&m.capabilities.includes('vision'));
+ $('image-analyze').disabled=!preview||chatBusy||!aiConnected||!supported;
+ $('image-attach').disabled=chatBusy||vision.state==='selecting'||!native;
+ $('image-analyze').textContent=vision.state==='analyzing'?'Analyzing…':'Analyze image';
+ $('image-consent').textContent=vision.state==='analyzing'?'Analyzing approved image locally. Cancel to discard the result.':
+  preview&&!supported?'Not yet analyzed · Connect and choose a vision-capable local model.':
+  'Not yet analyzed · Analyze approves local inference.';
+ $('chat-input').placeholder=preview?'Optional question · blank: Describe this image.':'Ask a question, or say: Can you walk?';
+ $('image-attach').title=native?'Select one PNG/JPEG, up to 5 MiB and 4 megapixels':'Image analysis requires the installed Windows app';
+}
+async function analyzeLocalImage(){
+ if(overlay||chatBusy||!vision.preview||document.hidden)return;
+ const field=$('chat-input'),model=$('ai-model').value,generation=++conversationGeneration;
+ chatBusy=true;routeStatus='Preparing approved local analysis…';updateAiControls();
+ try{
+  const response=await vision.analyze(field.value,{model,approved:true,retentionSeconds:state.ai.retentionSeconds,
+   onStart:()=>{cue('request-start',{requestId:generation});routeStatus='Analyzing imported image · '+model;updateAiControls();}});
+  if(generation!==conversationGeneration||document.hidden)return;
+  // Image questions and answers are display-only and never enter model history or settings.
+  field.value='';appendConversation('system','Approved imported image analyzed locally. Image released; later text turns cannot see it.');
+  appendConversation('assistant',response.reply);
+  routeStatus='Image answered · '+model;
+  cue('answer',{requestId:generation,reaction:chooseAnswerReaction(response.reply,response.reaction),modelReaction:response.reaction});
+  for(const [key,value] of Object.entries(response.metrics))$('ai-route-status').dataset[key]=value??'';
+ }catch(error){
+  if(generation===conversationGeneration){cue('error',{requestId:generation});routeStatus='No visual answer · '+formatChatError(error);appendConversation('system',formatChatError(error)+' No text fallback was used.');}
+ }finally{chatBusy=!!conversation.pending;updateAiControls();if(!document.hidden)field.focus();}
 }
 function appendConversation(role,content){
  const root=$('chat-history');
@@ -183,7 +226,7 @@ async function connectLocalAi(){
   for(const item of catalog){const row=document.createElement('div'),name=document.createElement('span'),value=document.createElement('strong');name.textContent=item.model;value.textContent=item.status+' · '+(item.capabilities.join(' / ')||'capabilities unavailable');row.append(name,value);summary.append(row);}
   if(!catalog.length)summary.textContent='Unavailable · no installed models';
   if(!models.length)appendConversation('system','No supported local completion models available. Inspect AI & Models for installed capabilities.');
-  else appendConversation('system','Connected to local Ollama. Messages are sent only when you press Send.');
+  else appendConversation('system','Connected to local Ollama. Send starts text chat; images require preview and separate Analyze approval.');
  }catch(error){
   aiConnected=false;
   installedModels=[];$('ai-model').replaceChildren();$('ai-fallback').replaceChildren();$('model-catalog').textContent='Ollama offline or metadata unavailable';
@@ -194,6 +237,7 @@ async function sendLocalChat(){
  if(overlay)return;
  const field=$('chat-input'),input=field.value.trim(),model=$('ai-model').value;
  if(!input)return;
+ if(vision.preview){routeStatus='Use Analyze image to approve this preview, or Remove to send text only.';updateAiControls();return;}
  if(input.length>2400){appendConversation('system','Message exceeds 2400 characters.');return;}
  const intent=parseCommandIntent(input),direct=intent.kind==='direct'?intent:null;
  if(chatBusy&&!direct){routeStatus='A reply is already running · cancel or wait';updateAiControls();return;}
@@ -235,21 +279,36 @@ async function sendLocalChat(){
 function bindLocalChat(){
  if(overlay)return;
  $('ai-connect').addEventListener('click',connectLocalAi);
- $('ai-model').addEventListener('change',event=>{conversationGeneration++;state.ai.model=event.target.value;conversation.clear();cue('model-change');routeStatus='Model changed · no inference';save();updateAiControls();});
+ $('image-attach').addEventListener('click',()=>{
+  vision.clear();updateAiControls();$('image-file').value='';$('image-file').click();
+ });
+ $('image-file').addEventListener('change',async event=>{
+  const files=event.target.files;
+  if(!files?.length)return;
+  try{if(files.length!==1)throw Error('Select exactly one PNG/JPEG.');await vision.select(files[0]);}
+  catch(error){appendConversation('system',formatChatError(error));}
+  finally{event.target.value='';updateAiControls();}
+ });
+ $('image-file').addEventListener('cancel',()=>{vision.clear();updateAiControls();$('image-attach').focus();});
+ $('image-remove').addEventListener('click',()=>{if(chatBusy)cancelChat();else vision.clear();updateAiControls();$('image-attach').focus();});
+ $('image-analyze').addEventListener('click',()=>void analyzeLocalImage());
+ $('image-enlarge').addEventListener('click',()=>{if(vision.preview){$('image-full').src=vision.preview.url;$('image-dialog').showModal();}});
+ $('image-dialog').addEventListener('close',()=>$('image-full').removeAttribute('src'));
+ $('ai-model').addEventListener('change',event=>{conversationGeneration++;state.ai.model=event.target.value;conversation.clear();vision.clear();cue('model-change');routeStatus='Model changed · no inference';save();updateAiControls();});
  $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
  $('ai-retention').value=String(state.ai.retentionSeconds);
  $('ai-retention').addEventListener('change',e=>{state.ai.retentionSeconds=sanitizeAiSettings({retentionSeconds:Number(e.target.value)}).retentionSeconds;save();});
  $('chat-send-form').addEventListener('submit',event=>{event.preventDefault();void sendLocalChat();});
  $('chat-input').addEventListener('input',updateAiControls);
  $('ai-stop').addEventListener('click',()=>cancelChat());
- $('ai-fallback').addEventListener('change',e=>{conversationGeneration++;state.ai.fallback=e.target.value;conversation.clear();cue('model-change');routeStatus='Fallback changed · no inference';save();updateAiControls();});
+ $('ai-fallback').addEventListener('change',e=>{conversationGeneration++;state.ai.fallback=e.target.value;conversation.clear();vision.clear();cue('model-change');routeStatus='Fallback changed · no inference';save();updateAiControls();});
  $('chat-history').addEventListener('scroll',updateLatestMessage,{passive:true});
  $('chat-latest').addEventListener('click',()=>{const root=$('chat-history');root.scrollTop=root.scrollHeight;updateLatestMessage();});
  for(const [id,key] of [['ai-effects-enabled','effects'],['sleepy-enabled','sleepy']])$(id).addEventListener('change',e=>{state.ai[key]=e.target.checked;configureReactions();save();wake();});
  $('quiet-threshold').addEventListener('change',e=>{state.ai.quietSeconds=Number(e.target.value);configureReactions();save();});
  $('models-open-chat').addEventListener('click',()=>showPage('conversation'));
  $('ai-clear').addEventListener('click',()=>{
-  conversationGeneration++;conversation.clear();cue('clear');routeStatus='Session cleared';
+  conversationGeneration++;conversation.clear();vision.clear();cue('clear');routeStatus='Session cleared';
   // Keep Send disabled until native cancellation has actually settled.
   chatBusy=!!conversation.pending;
   $('chat-input').disabled=false;
@@ -409,7 +468,7 @@ const PAGES=Object.freeze({
  studio:['CHARACTER / STUDIO','Avatar Studio','Skin identity, proportions and expressions.'],
  behavior:['MOTION / BEHAVIOR','Behavior & Animations','Test local animation poses and transitions.'],
  desktop:['ENVIRONMENT / DESKTOP','Desktop World','Native desktop geometry and interaction capabilities.'],
- conversation:['ASSISTANT / CHAT','Conversation','On-demand text chat with a user-installed local model.'],
+ conversation:['ASSISTANT / CHAT','Conversation','Local chat and explicitly approved image analysis.'],
  models:['ASSISTANT / MODELS','AI & Models','Connect manually to installed local Ollama models.'],
  privacy:['SECURITY / CONSENT','Privacy','Controls and present permission scope.'],
  activity:['HISTORY / ACTIVITY','Activity','Local activity and history availability.'],

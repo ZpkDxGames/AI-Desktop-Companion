@@ -19,14 +19,20 @@ pub(crate) struct RequestState {
     active: HashMap<String, oneshot::Sender<()>>,
     cancelled: VecDeque<String>,
     resident_model: Option<String>,
+    pub(crate) prepared: Option<crate::vision::PreparedImage>,
+    pub(crate) preparing: Option<String>,
+    pub(crate) image_epoch: u64,
+    pub(crate) decoding: bool,
+    pub(crate) active_image: Option<(String,String)>,
 }
 impl RequestState {
-    fn register(&mut self, id: &str, sender: oneshot::Sender<()>) -> Result<(), String> {
+    pub(crate) fn active_is_empty(&self) -> bool { self.active.is_empty() }
+    pub(crate) fn register(&mut self, id: &str, sender: oneshot::Sender<()>) -> Result<(), String> {
         if self.cancelled.iter().any(|s| s == id) { return Err("Local request cancelled".into()); }
         if !self.active.is_empty() { return Err("Another local request is already running".into()); }
         self.active.insert(id.to_owned(), sender); Ok(())
     }
-    fn cancel(&mut self, id: String) -> bool {
+    pub(crate) fn cancel(&mut self, id: String) -> bool {
         if !self.cancelled.contains(&id) {
             if self.cancelled.len() == 16 { self.cancelled.pop_front(); }
             self.cancelled.push_back(id.clone());
@@ -46,14 +52,14 @@ pub(crate) struct ChatMessage {
     content: String,
 }
 
-fn workshop_only(window: &WebviewWindow) -> Result<(), String> {
+pub(crate) fn workshop_only(window: &WebviewWindow) -> Result<(), String> {
     if window.label() != "workshop" {
         return Err("Ollama commands are restricted to the Workspace".into());
     }
     Ok(())
 }
 
-fn valid_model(model: &str) -> bool {
+pub(crate) fn valid_model(model: &str) -> bool {
     let mut chars = model.chars();
     let first = chars.next();
     !model.is_empty() && model.len() <= 80
@@ -62,7 +68,7 @@ fn valid_model(model: &str) -> bool {
         && !model.contains("..") && !model.contains("://") && !model.ends_with(":cloud")
 }
 
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.len() <= 64
         && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
 }
@@ -171,7 +177,7 @@ pub(crate) async fn ollama_model_info(window: WebviewWindow, model: String) -> R
     Ok(json!({"capabilities":capabilities,"local":local_metadata(&data)}))
 }
 
-fn retention_seconds(value: u32) -> Result<u32, String> {
+pub(crate) fn retention_seconds(value: u32) -> Result<u32, String> {
     if [0, 30, 60].contains(&value) { Ok(value) }
     else { Err("Invalid model retention policy".into()) }
 }
@@ -181,7 +187,7 @@ fn duration_ms(value: Option<&Value>) -> Option<f64> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ChatResult {
-    content: String,
+    pub(crate) content: String,
     load_ms: Option<f64>,
     generation_ms: Option<f64>,
 }
@@ -206,6 +212,14 @@ pub(crate) async fn ollama_chat(
     if !valid_model(&model) || !valid_id(&request_id) || !valid_messages(&messages) {
         return Err("Invalid local model, conversation payload, or request identifier".into());
     }
+    run_chat(&pending, model, serde_json::to_value(messages).map_err(|_| "Invalid conversation")?, request_id, retention_seconds, false).await
+}
+
+// Internal validated messages only: never exposed as a flexible native command payload.
+pub(crate) async fn run_chat(
+    pending: &PendingRequests, model: String, messages: Value,
+    request_id: String, retention_seconds: u32, vision: bool,
+) -> Result<ChatResult, String> {
     let keep_alive = self::retention_seconds(retention_seconds)?;
     let (tx, rx) = oneshot::channel();
     {
@@ -214,16 +228,24 @@ pub(crate) async fn ollama_chat(
     }
     let result = tokio::select! {
         _ = rx => Err("Local request cancelled".into()),
+        _ = tokio::time::sleep(Duration::from_secs(120)) => Err("Local Ollama request timed out".into()),
         result = async {
             let http = client(120)?;
             require_local_model(&http, &model).await?;
+            if vision {
+                let data = show_model(&http, &model).await?;
+                if !local_metadata(&data) || !data.get("capabilities").and_then(Value::as_array)
+                    .is_some_and(|a| a.iter().any(|v| v.as_str() == Some("vision"))) {
+                    return Err("Selected local model has no verified vision capability. No image was analyzed.".into());
+                }
+            }
             let previous = pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model.clone();
             if let Some(previous) = previous.filter(|previous| previous != &model) {
                 release_model(&http, &previous).await?;
                 pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model = None;
             }
             // Record before sending: even interrupted inference can leave a bounded resident model.
-            if keep_alive > 0 {
+            if keep_alive > 0 || vision {
                 pending.0.lock().map_err(|_| "Request state unavailable")?.resident_model = Some(model.clone());
             }
             let response = http
@@ -252,7 +274,8 @@ pub(crate) async fn ollama_chat(
             }
             let text = content.pointer("/message/content").and_then(Value::as_str)
                 .ok_or_else(|| "Ollama response missing assistant text".to_owned())?;
-            Ok(ChatResult { content: text.to_owned(), load_ms: duration_ms(content.get("load_duration")),
+            let text = if vision { crate::vision::validated_reply(text)? } else { text.to_owned() };
+            Ok(ChatResult { content: text, load_ms: duration_ms(content.get("load_duration")),
                 generation_ms: duration_ms(content.get("eval_duration")) })
         } => result,
     };
@@ -270,6 +293,18 @@ pub(crate) fn ollama_cancel(
     if !valid_id(&request_id) { return Err("Invalid cancellation identifier".into()); }
     let mut requests = pending.0.lock().map_err(|_| "Request state unavailable")?;
     Ok(requests.cancel(request_id))
+}
+
+// Called by native window lifecycle even when JS is suspended. Request slots stay reserved
+// until their tasks exit, so cleanup can never cancel an unrelated replacement request.
+pub(crate) fn discard_workspace(pending: &PendingRequests) {
+    if let Ok(mut state) = pending.0.lock() {
+        state.image_epoch = state.image_epoch.wrapping_add(1);
+        state.prepared = None;
+        state.preparing = None;
+        let ids: Vec<String> = state.active.keys().cloned().collect();
+        for id in ids { state.cancel(id); }
+    }
 }
 
 #[cfg(test)]

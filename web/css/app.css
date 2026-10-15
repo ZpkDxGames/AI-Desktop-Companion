@@ -258,3 +258,34 @@ html.overlay,body.mode-overlay{width:100%;height:100%;min-height:0;background:tr
   .conversation-option-body .conversation-model select{padding:5px 8px}
   .conversation-option-body .small-note{display:none}
 }
+
+/* V7 preview shows the complete sanitized frame, never a cropped substitute. */
+.image-preview{display:grid;grid-template-columns:76px minmax(0,1fr);gap:8px;padding:8px;border:1px solid var(--border-strong);border-radius:9px;background:var(--raised);flex:none;min-width:0}
+.image-preview[hidden]{display:none}
+.image-preview img{width:76px;height:76px;object-fit:contain;background:repeating-conic-gradient(#293237 0 25%,#20282d 0 50%) 0/12px 12px;border-radius:5px}
+.image-preview-info{min-width:0;display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+.image-preview-info strong{font-size:11px;font-weight:550}
+.image-preview-info span{color:var(--subtext)}
+.image-preview-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.image-preview-actions button{min-height:30px;padding:5px 10px;font-size:11px}
+@media(max-height:700px){
+ .conversation-panel .content-heading p{display:none}
+ .image-preview{grid-template-columns:52px minmax(0,1fr);gap:5px;padding:6px}
+ .image-preview img{width:52px;height:52px}
+ .chat-compose{gap:5px}
+ .chat-compose textarea{height:48px;min-height:36px}
+ .chat-actions{gap:5px}
+ .chat-actions button{font-size:11px;padding:5px 8px}
+ .chat-transcript{min-height:50px}
+}
+
+.has-image .chat-actions{display:none}
+@media(max-height:700px){
+ .has-image .conversation-panel .content-heading,.has-image .chat-transcript{display:none}
+}
+
+.image-enlarge{border:0;padding:0;background:none;align-self:start;border-radius:5px;line-height:0}
+#image-dialog{max-width:92vw;max-height:90dvh;padding:12px;border:1px solid var(--border-strong);border-radius:11px;background:var(--panel);color:var(--text)}
+#image-dialog::backdrop{background:#000b}
+#image-full{display:block;max-width:85vw;max-height:72dvh;object-fit:contain;background:repeating-conic-gradient(#293237 0 25%,#20282d 0 50%) 0/12px 12px}
+#image-dialog form{margin-top:10px}

@@ -74,7 +74,7 @@ jobs:
             "run_attempt=${{ github.run_attempt }}"
             "runner=windows-2022"
             "version=$version"
-            "known_gaps=owner RTX3050/WebView2/skin/model acceptance pending; manual vision deferred"
+            "known_gaps=owner RTX3050/skin/real Qwen vision quality and performance pending; V7.1 capture absent"
             "build=unsigned development alpha (NOT production-certified)"
           ) | Set-Content -Path 'dist/windows-alpha/BUILD_INFO.txt' -Encoding utf8
           Write-Host "Installer: $($installer.Name)"

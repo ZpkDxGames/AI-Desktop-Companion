@@ -35,6 +35,8 @@ jobs:
         run: node scripts/smoke-expressive-gpu.mjs
       - name: Exercise V6.2 conversation and cross-window cues in emitted app
         run: node scripts/smoke-conversation-v62.mjs
+      - name: Exercise V7 opt-in image UI and privacy (explicit fake native)
+        run: node scripts/smoke-vision-v7.mjs
       - name: Preserve browser failure screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -42,3 +44,31 @@ jobs:
           name: production-browser-smoke-${{ github.run_id }}
           path: smoke-artifacts/*
           if-no-files-found: ignore
+
+  native-dependency-audit:
+    name: Native lockfile security and license inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve native lockfile and dependency licenses
+        run: |
+          mkdir -p dependency-audit
+          cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+          cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 --locked > dependency-audit/metadata.json
+          python3 -c 'import json; d=json.load(open("dependency-audit/metadata.json")); json.dump([{"name":p["name"],"version":p["version"],"license":p["license"]} for p in d["packages"]],open("dependency-audit/licenses.json","w"),indent=2)'
+          cp src-tauri/Cargo.lock dependency-audit/Cargo.lock
+      - name: Install pinned RustSec audit tool
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit resolved native dependencies
+        run: cargo audit --file src-tauri/Cargo.lock --json > dependency-audit/audit.json
+      - name: Preserve exact-head audit and lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-dependency-audit-${{ github.run_id }}
+          path: dependency-audit/*
+          if-no-files-found: error

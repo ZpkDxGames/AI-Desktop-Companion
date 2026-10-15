@@ -102,7 +102,7 @@ export class LocalConversation{
  }
  async send(input,{model='qwen3.5:4b',fallback='',installed=null,gestures=false,onStatus=()=>{},images=null,retentionSeconds=0}={}){
   if(this.pending)throw Error('Another local request is already running.');
-  if(images)throw Error('Image analysis is deferred; this milestone accepts text only. No image was sent.');
+  if(images)throw Error('This command accepts text only; use the separately approved image analysis flow. No image was sent.');
   if(!validModelName(model)||fallback&&!validModelName(fallback))throw Error('Select a valid installed local model.');
   if(typeof input!=='string'||!input.trim()||input.length>MAX_PROMPT)throw Error('Message length must be between 1 and 2400 characters.');
   const known=this.catalog?this.catalog.filter(m=>m.local&&m.capabilities.includes('completion')).map(m=>m.model):installed;

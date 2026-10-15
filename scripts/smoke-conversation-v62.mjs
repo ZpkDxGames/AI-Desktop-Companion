@@ -101,11 +101,14 @@ try{
  const reactionMatrix=[];
  const reactionTurn=async(name,reply,reaction,action,expected)=>{
   await page.evaluate(({reply,reaction})=>{window.__scenario='success';window.__reply=reply;window.__reaction=reaction;},{reply,reaction});
+  const cueBegin=await page.evaluate(()=>__cueEvents.length);
   await page.locator('#chat-input').fill('Reaction verification fixture');await page.locator('#ai-send').click();
   await page.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
   const decision=await page.locator('#ai-route-status').evaluate(n=>({...n.dataset}));
   if(decision.reason!==expected||decision.chosenReaction!==reaction)throw Error('Reaction decision mismatch '+JSON.stringify(decision));
-  const events=await page.evaluate(()=>__cueEvents.slice(-2));
+  const events=await page.evaluate(i=>__cueEvents.slice(i),cueBegin);
+  const remote=await overlay.locator('#overlay-canvas').evaluate(n=>({...n.dataset}));
+  if(remote.appliedReaction!==decision.appliedReaction||action&&remote.controllerAction!==action)throw Error('Overlay reaction mismatch '+JSON.stringify({decision,remote,kinds:events.map(e=>e.payload.kind)}));
   for(const e of events)await overlay.evaluate(e=>__listeners['zpkdx:reaction']({payload:e.payload}),e);
   if(action){
    await overlay.waitForFunction(r=>document.querySelector('#overlay-canvas').dataset.appliedReaction===r,reaction);

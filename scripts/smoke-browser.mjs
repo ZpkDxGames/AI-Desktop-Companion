@@ -120,7 +120,7 @@ async function facePixelGate(page,mode,surface){
 let browser,failed=false;
 await mkdir('smoke-artifacts',{recursive:true});
 try {
-  browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+  browser=await chromium.launch({headless:true,executablePath:process.env.COMPANION_CHROMIUM_PATH||undefined,args:['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
   for (const mode of ['workshop','overlay']) {
     const context=await browser.newContext({viewport:{width:mode==='overlay'?252:1120,height:mode==='overlay'?370:780}});
     const page=await context.newPage();

@@ -1,0 +1,1 @@
+PASS V6.2 emitted UI: native-only mock, Qwen/Llama capabilities, fallback, manual priority, clear/cancel, overlay cues, settings/privacy

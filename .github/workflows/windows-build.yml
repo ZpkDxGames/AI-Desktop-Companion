@@ -45,6 +45,9 @@ jobs:
       - name: Run source tests
         run: npm run check
 
+      - name: Test native local-only bridge
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
       - name: Build Tauri Windows NSIS installer
         run: npm run tauri:build -- --bundles nsis
 
@@ -59,8 +62,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path 'dist/windows-alpha' | Out-Null
           $installer = $bundles[0]
           Copy-Item -LiteralPath $installer.FullName -Destination 'dist/windows-alpha/'
+          Copy-Item -LiteralPath 'src-tauri/Cargo.lock' -Destination 'dist/windows-alpha/'
           $sha = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$sha  $($installer.Name)" | Set-Content -Path 'dist/windows-alpha/SHA256SUMS.txt' -Encoding utf8
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           @(
             "repository=${{ github.repository }}"
             "commit=${{ github.event.pull_request.head.sha || github.sha }}"
@@ -68,12 +73,30 @@ jobs:
             "run_id=${{ github.run_id }}"
             "run_attempt=${{ github.run_attempt }}"
             "runner=windows-2022"
+            "version=$version"
+            "known_gaps=owner RTX3050/WebView2/skin/model acceptance pending; manual vision deferred"
             "build=unsigned development alpha (NOT production-certified)"
           ) | Set-Content -Path 'dist/windows-alpha/BUILD_INFO.txt' -Encoding utf8
           Write-Host "Installer: $($installer.Name)"
           Write-Host "SHA256: $sha"
 
+      - name: Install isolated WebView2 smoke driver
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+
+      - name: Install, launch and verify actual Windows WebView2 native bridge
+        shell: pwsh
+        run: ./scripts/smoke-windows-installed.ps1
+
+      - name: Preserve installed-app runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installed-native-runtime-${{ github.run_id }}
+          path: smoke-artifacts/*
+          if-no-files-found: ignore
+
       - name: Upload unsigned Windows alpha installer
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zpkdx-desktop-companion-windows-alpha-${{ github.run_number }}

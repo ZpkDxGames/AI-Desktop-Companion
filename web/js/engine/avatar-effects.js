@@ -1,4 +1,4 @@
-import {BoxGeometry,Group,Mesh,MeshBasicMaterial,InstancedMesh,Object3D,Color,Vector3,SRGBColorSpace} from 'three';
+import {BoxGeometry,Group,Mesh,MeshBasicMaterial,InstancedMesh,Object3D,Color,Vector3,Quaternion,SRGBColorSpace} from 'three';
 /** Bounded voxel fireworks and scene-space pixel thought bubble. No timers or per-tick allocations. */
 export class AvatarEffects{
  constructor(root,{reducedMotion=false}={}){
@@ -22,6 +22,16 @@ export class AvatarEffects{
   // Three small pixel dots instead of remote AI-generated text.
   for(const x of [-1.55,0,1.55])square(x,.06,.48,.48,.25,outline);
   this.bubble.visible=false;
+  this.bubbleWeight=0;this.effectTime=0;this.anchor=new Vector3();this.viewRotation=new Quaternion();this.rootRotation=new Quaternion();
+  this.bulb=new Group();root.add(this.bulb);this.bulb.visible=false;
+  const yellow=new MeshBasicMaterial({color:0xf4cd62,depthTest:true});
+  const filament=new MeshBasicMaterial({color:0xa87432,depthTest:true});this.materials.push(yellow,filament);
+  const voxel=(x,y,w,h,depth,mat)=>{const m=new Mesh(geometry,mat);m.position.set(x,y,depth);m.scale.set(w,h,1);this.bulb.add(m);};
+  voxel(0,1,3.6,3.8,0,outline);voxel(0,1,3.0,3.2,.14,yellow);
+  voxel(0,1,1.1,1.5,.27,ivory);voxel(0,.1,.7,1,.3,filament);
+  voxel(0,-1.4,1.8,.75,0,outline);voxel(0,-2.0,1.2,.5,0,outline);
+  for(const [x,y,w,h] of [[0,4,.4,1],[-3,2,1,.4],[3,2,1,.4]])voxel(x,y,w,h,.05,yellow);
+
   const sparkGeo=new BoxGeometry(.46,.46,.18);this.geometries.push(sparkGeo);
   const sparkMat=new MeshBasicMaterial({color:0xffffff,vertexColors:false,depthTest:true});
   this.materials.push(sparkMat);
@@ -41,16 +51,35 @@ export class AvatarEffects{
   this.crumbs.instanceColor.needsUpdate=true;
  }
  setReducedMotion(enabled){this.reducedMotion=!!enabled;}
- update(action,elapsed,dt,presentation=null,itemPixels=null){
+ update(action,elapsed,dt,presentation=null,itemPixels=null,cues=null,camera=null){
   const t=Number.isFinite(elapsed)?Math.max(0,elapsed):0;
-  const think=action==='think';
+  this.effectTime+=Number.isFinite(dt)?Math.max(0,dt):0;
   this.updateCrumbs(action,t,presentation,itemPixels);
-  this.bubble.visible=think;
-  if(think){
-   const enter=Math.min(1,t/.32),exit=Math.min(1,(3.2-t)/.35);
-   const w=Math.max(.01,Math.min(enter,exit));
-   this.bubble.scale.setScalar((this.reducedMotion?1:.95+.05*Math.sin(t*2.2))*w);
-   this.bubble.position.y=17.8+(this.reducedMotion?0:Math.sin(t*1.9)*.18);
+  const think=cues?.thinking===true||action==='think';
+  const target=think?1:0,step=Math.min(1,Math.max(0,dt||0)/.25);
+  this.bubbleWeight+=Math.max(-step,Math.min(step,target-this.bubbleWeight));
+  this.bubble.visible=this.bubbleWeight>.001;
+  this.bubble.scale.setScalar(this.bubbleWeight*(this.reducedMotion?1:.98+.02*Math.sin(this.effectTime*2)));
+  const age=cues?.bulbAge??Infinity;
+  const enter=Math.min(1,Math.max(0,(age-.2)/.28)),exit=Math.min(1,Math.max(0,(2.1-age)/.35));
+  const w=enter*enter*(3-2*enter)*exit*exit*(3-2*exit);
+  this.bulb.visible=Number.isFinite(age)&&w>.001;
+  this.bulb.scale.setScalar(w*(this.reducedMotion?1:1+.06*Math.sin(Math.min(1,enter)*Math.PI)));
+  // Camera-facing voxel icons above/alongside the actual head, including sitting.
+  // Quaternion/vector scratch objects are reused and occlusion remains depth-tested.
+  if(this.bubble.visible||this.bulb.visible){
+  const head=this.root.skin?.head;
+  if(head){this.anchor.set(0,4,0);head.localToWorld(this.anchor);this.root.worldToLocal(this.anchor);}
+  else this.anchor.set(0,12,0);
+  if(camera){
+   camera.getWorldQuaternion(this.viewRotation);this.root.getWorldQuaternion(this.rootRotation).invert();
+   this.viewRotation.premultiply(this.rootRotation);
+   this.bubble.quaternion.copy(this.viewRotation);this.bulb.quaternion.copy(this.viewRotation);
+  }
+  this.bubble.position.copy(this.anchor);
+  this.bubble.position.y+=6.7+(this.reducedMotion?0:Math.sin(this.effectTime*1.6)*.10);
+  this.bubble.position.x+=6.3;this.bubble.position.z+=2;
+  this.bulb.position.copy(this.anchor);this.bulb.position.y+=7.8+.35*(1-enter);this.bulb.position.z+=2;
   }
   if(action!=='celebrate'||this.reducedMotion){
    this.particles.count=0;this.lastCount=0;return;
@@ -112,7 +141,7 @@ export class AvatarEffects{
   this.crumbs.count=count;if(count)this.crumbs.instanceMatrix.needsUpdate=true;
  }
  dispose(){
-  this.bubble.removeFromParent();this.particles.removeFromParent();this.crumbs.removeFromParent();
+  this.bubble.removeFromParent();this.bulb.removeFromParent();this.particles.removeFromParent();this.crumbs.removeFromParent();
   for(const geometry of this.geometries)geometry.dispose();
   for(const material of this.materials)material.dispose();
   this.geometries.length=0;this.materials.length=0;

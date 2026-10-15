@@ -34,7 +34,7 @@
         <p class="navigation-heading">SYSTEM</p>
         <button class="nav-link" data-nav="diagnostics"><span class="nav-symbol" aria-hidden="true">⌁</span><span class="nav-label">Diagnostics</span></button>
         <button class="nav-link" data-nav="settings"><span class="nav-symbol" aria-hidden="true">⚙</span><span class="nav-label">Settings</span></button>
-        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>Alpha.6 recovery</small></div>
+        <div class="navigation-foot"><span class="live-pip"></span><span>ON-DEVICE PREVIEW</span><small>V6.2.3 development</small></div>
       </nav>
       <main class="workspace" id="workspace">
         <section class="preview-section" aria-label="Shared live 3D character preview">
@@ -110,13 +110,19 @@
               <div class="action-family"><div class="group-heading"><h3>Idle & movement</h3><span>CORE</span></div><div class="action-grid">
                 <button class="action active" data-action="idle">Idle</button><button class="action" data-action="walk">Walk</button><button class="action" data-action="run">Run</button><button class="action" data-action="jump">Jump</button></div></div>
               <div class="action-family"><div class="group-heading"><h3>Gestures & reactions</h3><span>LOCAL</span></div><div class="action-grid">
-                <button class="action" data-action="wave">Wave</button><button class="action" data-action="think">Think</button><button class="action" data-action="celebrate">Celebrate</button><button class="action" data-action="nod">Nod</button><button class="action" data-action="shrug">Shrug</button></div></div>
+                <button class="action" data-action="wave">Wave</button><button class="action" data-action="think">Think</button><button class="action" data-action="celebrate">Celebrate</button><button class="action" data-action="nod">Nod</button><button class="action" data-action="shrug">Shrug</button><button class="action" data-action="shake">Head shake</button></div></div>
               <div class="action-family"><div class="group-heading"><h3>Rest & posture</h3><span>LOCAL</span></div><div class="action-grid">
                 <button class="action" data-action="sit">Sit</button><button class="action" data-action="stretch">Stretch</button><button class="action" data-action="bow">Bow</button></div></div>
               <div class="action-family"><div class="group-heading"><h3>Daily activities</h3><span>PROCEDURAL</span></div><div class="action-grid">
                 <button class="action" data-action="read">Read book</button><button class="action" data-action="eat">Eat</button><button class="action" data-action="drink">Drink</button><button class="action" data-action="look">Look around</button><button class="action" data-action="inspect">Inspect</button></div></div>
             </div>
             <p class="small-note">Window-edge sitting, collision physics and location-aware locomotion are planned. The current animations are not desktop navigation.</p>
+            <div class="settings-group"><div class="group-heading"><h3>Expression studio</h3><span>NO MODEL CALLS</span></div>
+              <div class="button-row"><button class="button-secondary" data-effect="bubble">Thinking bubble</button><button class="button-secondary" data-effect="bulb">Idea bulb</button><button class="button-secondary" data-effect="sleepy">Sleepy → wake</button></div>
+              <div class="setting-line"><label for="motion-preview">Reduce motion preview</label><input id="motion-preview" type="checkbox"/></div>
+              <div class="setting-line"><div><strong>Sleepy idle</strong><small>Companion inactivity only. Idle Off disables this.</small></div><label class="switch"><input id="sleepy-enabled" type="checkbox" aria-label="Sleepy idle"/><span></span></label></div>
+              <div class="setting-line"><label for="quiet-threshold">Quiet after</label><select id="quiet-threshold"><option value="90">90 seconds</option><option value="120" selected>2 minutes</option><option value="180">3 minutes</option></select></div>
+            </div>
           </section>
 
           <section class="app-page" data-page="desktop" aria-label="Desktop World" hidden>
@@ -125,27 +131,40 @@
           </section>
 
           <section class="app-page" data-page="conversation" aria-label="Conversation" hidden>
-            <div class="settings-group first">
-              <div class="group-heading"><h3>Local conversation</h3><span>V6 / MANUAL ONLY</span></div>
-              <p class="small-note">Talk to a model installed on this PC. No service is started or contacted until you select Connect. Text stays in temporary session memory and is never saved to this application's settings.</p>
-              <div class="setting-line"><div><strong>Connection</strong><small id="ai-connection-status" role="status">Disconnected (on-demand only)</small></div><button id="ai-connect" type="button" class="button-secondary">Connect to Ollama</button></div>
-              <div class="setting-line"><label for="ai-model">Installed model</label><select id="ai-model" disabled aria-label="Installed local model"></select></div>
-              <div class="setting-line"><div><strong>Optional answer gestures</strong><small>Only simple existing animations. No tools or OS commands.</small></div><label class="switch"><input id="ai-gesture-enabled" type="checkbox"/><span></span></label></div>
+            <div class="conversation-controls">
+              <div class="conversation-connection"><span id="ai-connection-status" role="status">Disconnected · actions available</span><button id="ai-connect" type="button" class="button-secondary">Connect</button></div>
+              <div class="conversation-model"><label for="ai-model">Model</label><select id="ai-model" disabled aria-label="Installed local model"><option value="">Connect for text chat</option></select></div>
+              <details class="conversation-options">
+                <summary>Reply preferences <span>Local only</span></summary>
+                <div class="conversation-option-body">
+                  <div class="conversation-model"><label for="ai-fallback">Text fallback</label><select id="ai-fallback" disabled aria-label="Installed text fallback"><option value="">Connect to choose</option></select></div>
+                  <div class="conversation-model"><label for="ai-retention">Model retention</label><select id="ai-retention"><option value="0">Off · unload</option><option value="30">Short · 30 s</option><option value="60">Balanced · 60 s</option></select></div>
+                  <label class="conversation-toggle"><input id="ai-gesture-enabled" type="checkbox"/> Optional answer gestures</label>
+                  <label class="conversation-toggle"><input id="ai-effects-enabled" type="checkbox" checked/> Visual request effects</label>
+                  <p class="small-note">Direct avatar commands work offline. Model replies and their optional reactions stay local; text is temporary and never saved. No screen access.</p>
+                </div>
+              </details>
             </div>
-            <div class="chat-history" id="chat-history" aria-live="polite" aria-label="Temporary local conversation">
-              <div class="chat-message from-system"><strong>System</strong><p>Connect to your locally installed Ollama server before sending your first message.</p></div>
+            <p id="ai-route-status" class="chat-route" role="status">No inference until Send</p>
+            <div class="chat-transcript">
+              <div class="chat-history" id="chat-history" role="log" aria-live="polite" aria-relevant="additions" aria-label="Temporary local conversation" tabindex="0">
+                <div class="chat-message from-system"><strong>Companion</strong><p>Try “Can you walk?” or “Show me how you run”. Connect to Ollama for text chat.</p></div>
+              </div>
+              <button id="chat-latest" type="button" class="button-secondary" hidden>Latest messages ↓</button>
             </div>
             <form id="chat-send-form" class="chat-compose">
-              <label for="chat-input">Your message</label>
-              <textarea id="chat-input" maxlength="2400" rows="3" placeholder="Ask your companion something…"></textarea>
-              <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear session</button></div>
+              <label for="chat-input">Message or avatar command <span>Temporary · local only</span></label>
+              <textarea id="chat-input" maxlength="2400" rows="2" placeholder="Ask a question, or say: Can you walk?"></textarea>
+              <div class="chat-actions"><button id="ai-send" type="submit" class="button-primary" disabled>Send</button><button id="ai-stop" type="button" class="button-secondary" disabled>Cancel reply</button><button id="ai-clear" type="button" class="button-secondary">Clear</button></div>
             </form>
           </section>
 
           <section class="app-page" data-page="models" aria-label="AI and Models" hidden>
             <div class="availability"><span class="availability-icon">◇</span><h3>On-demand Ollama connector</h3><p>Install Ollama and a compatible model separately. Then use Conversation → Connect. The app permits only loopback requests and never downloads models, starts services, accesses files or contacts a cloud provider.</p></div>
-            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Only after Send</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>30 seconds after request</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
-            <p class="small-note">On Windows, Ollama may require its CORS origin settings to allow the Tauri WebView origin. Keep Ollama bound to loopback; do not expose it publicly.</p>
+            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Only after Send</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>Unload requested after each reply · context 4096</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
+            <div class="summary-list" id="model-catalog" aria-live="polite">Capabilities are checked only after Connect.</div>
+            <button id="models-open-chat" class="button-secondary">Configure primary and fallback</button>
+            <p class="small-note">Windows uses the native localhost bridge. Actual capabilities are read from the installed models. Cloud aliases are unsupported. Image input is deferred to a separately accepted milestone.</p>
           </section>
 
           <section class="app-page" data-page="privacy" aria-label="Privacy and permissions" hidden>
@@ -162,7 +181,7 @@
               <div class="metric-row"><span>Renderer</span><strong id="graphics-status">Initializing…</strong></div>
               <div class="metric-row"><span>Animation</span><strong id="animation-status">Idle</strong></div>
               <div class="metric-row"><span>Frame cost</span><span id="frame-percentiles">Waiting for first frame</span></div>
-              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.0</strong></div>
+              <div class="metric-row"><span>Build</span><strong>0.1.0-alpha.6.2.3</strong></div>
               <div class="button-row"><button id="diagnostics-copy" class="button-secondary" type="button">Copy diagnostic report</button><button class="button-secondary" type="button" data-quick="reset-view">Reset camera</button></div>
             </div>
             <p class="small-note">Frame cost measures a browser CPU render call, not GPU frametime. Real Windows 11/RTX 3050 FPS and memory measurements are still required.</p>
@@ -170,7 +189,7 @@
 
           <section class="app-page" data-page="settings" aria-label="Settings" hidden>
             <div class="settings-group first"><div class="group-heading"><h3>Application</h3><span>LOCAL-FIRST</span></div>
-              <div class="summary-list"><div><span>Version</span><strong>Alpha.6 recovery</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
+              <div class="summary-list"><div><span>Version</span><strong>V6.2.3 development</strong></div><div><span>Renderer</span><strong>Three.js + skinview3d</strong></div><div><span>Cloud services</span><strong>Not configured</strong></div></div>
               <div class="button-row"><button class="button-secondary" type="button" data-quick="studio">Open Avatar Studio</button><button class="button-secondary" type="button" data-quick="reset-scale">Reset character scale</button></div>
             </div>
             <p class="small-note">Autostart, on-demand models and privacy grants will be presented here only after their native implementations exist.</p>

@@ -1,0 +1,20 @@
+{
+  "environment": "Linux container / Node v24.19.0 / x64; CPU microbenchmark, no GPU",
+  "unit": "milliseconds",
+  "samples": 5000,
+  "coordinator": {
+    "p50": 0.0005009999999998627,
+    "p95": 0.0013520000000113441,
+    "p99": 0.0019929999999988013
+  },
+  "effectUpdate": {
+    "p50": 0.001522000000008461,
+    "p95": 0.002724000000000615,
+    "p99": 0.00382600000000366
+  },
+  "pool": {
+    "geometries": 3,
+    "materials": 6
+  },
+  "nativeWindows": "NOT RUN"
+}

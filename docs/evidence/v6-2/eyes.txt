@@ -1,0 +1,1 @@
+PASS GPU fixed-head eye pixel motion: H=464, V=393, blink=754, neutral-diff=0, disabled-diff=0

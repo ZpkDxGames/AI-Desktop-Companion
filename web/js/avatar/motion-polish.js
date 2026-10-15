@@ -42,7 +42,7 @@ export const arcPulse=(time,start,end)=>{
  * little so the body never freezes like a statue; locomotion/jumps keep almost none. */
 export const LIFE_WEIGHT=Object.freeze({
  idle:1,sit:.65,think:.5,wave:.45,look:.3,read:.45,eat:.4,drink:.4,inspect:.3,
- nod:.5,shrug:.4,stretch:.2,bow:.25,walk:.12,run:.06,jump:0,celebrate:0
+ nod:.5,shake:.35,shrug:.4,stretch:.2,bow:.25,walk:.12,run:.06,jump:0,celebrate:0
 });
 
 /** Writes the resting pose plus continuous micro-motion into every channel.

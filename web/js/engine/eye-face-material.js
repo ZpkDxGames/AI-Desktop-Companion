@@ -18,6 +18,7 @@ export class EyeFaceMaterial{
    faceEnabled:uniform(0),
    faceGaze:uniform(new Vector2()),
    faceBlink:uniform(0),
+   faceDrowsiness:uniform(0),
    eyeLeftCell:uniform(new Vector2()),
    eyeRightCell:uniform(new Vector2()),
    eyeTopLeft:uniform(new Vector3()),
@@ -64,10 +65,11 @@ export class EyeFaceMaterial{
   this.setEnabled(this.enabled);
   return composition;
  }
- update(gazeX,gazeY,blink){
+ update(gazeX,gazeY,blink,drowsiness=0){
   if(!this.enabled||!this.supported)return;
   this.uniforms.faceGaze.value.set(Number.isFinite(gazeX)?gazeX:0,Number.isFinite(gazeY)?gazeY:0);
   this.uniforms.faceBlink.value=Number.isFinite(blink)?blink:0;
+  this.uniforms.faceDrowsiness.value=Number.isFinite(drowsiness)?Math.max(0,Math.min(.8,drowsiness)):0;
  }
  dispose(){
   this.mesh.material=this.original;

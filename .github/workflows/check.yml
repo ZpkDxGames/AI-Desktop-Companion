@@ -19,6 +19,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Validate avatar and workshop source
         run: npm run check
+      - name: Measure bounded retention with deterministic fixture (not real inference)
+        run: node scripts/benchmark-local-models.mjs --fixture
       - name: Install isolated browser smoke dependency
         run: npm install --no-save --no-package-lock playwright@1.56.1
       - name: Install Chromium runtime
@@ -29,6 +31,10 @@ jobs:
         run: node scripts/smoke-eye-gpu.mjs
       - name: Verify activity props in fixed-pose WebGL pixels
         run: node scripts/smoke-activity-gpu.mjs
+      - name: Verify V6.2 expressive effects and pooled resources in WebGL
+        run: node scripts/smoke-expressive-gpu.mjs
+      - name: Exercise V6.2 conversation and cross-window cues in emitted app
+        run: node scripts/smoke-conversation-v62.mjs
       - name: Preserve browser failure screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -137,6 +137,7 @@ try {
           window.__v6LocalCalls.push({url:target,method:options.method});
           const body=target.endsWith('/api/tags')
             ?JSON.stringify({models:[{name:'llama3.2:3b'}]})
+            :target.endsWith('/api/show')?JSON.stringify({capabilities:['completion']})
             :JSON.stringify({message:{role:'assistant',content:JSON.stringify({reply:'<b>Safe local conversation</b>',gesture:'nod'})}});
           return Promise.resolve(new Response(body,{status:200,headers:{'Content-Type':'application/json'}}));
         };
@@ -213,23 +214,42 @@ try {
         checkpoint='V6 opt-in local conversation';
         await page.locator('[data-nav="conversation"]').click();
         if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('V6 must not contact local model before Connect');
+        // Commands are local user instructions, independent of AI provider availability.
+        await page.locator('#chat-input').fill('Can you shake your head?');
+        if(await page.locator('#ai-send').isDisabled())throw new Error('Offline manual avatar command was incorrectly disabled');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>Array.from(document.querySelectorAll('.chat-message.from-model')).some(n=>n.textContent?.includes('Okay — shaking my head.')),null,{timeout:9000});
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==0)throw new Error('Offline direct command contacted Ollama');
+        await page.locator('#ai-clear').click();
         await page.locator('#ai-connect').click();
         await page.waitForFunction(()=>document.querySelector('#ai-model')?.value==='llama3.2:3b',null,{timeout:9000});
-        if(await page.locator('#ai-send').isDisabled())throw new Error('V6 Send disabled after manual Connect');
+        if(await page.locator('#ai-model').isDisabled())throw new Error('V6 model disabled after manual Connect');
         await page.locator('#chat-input').fill('Hello from a local-only test');
         await page.locator('#ai-send').click();
         await page.waitForFunction(()=>document.querySelector('.chat-message.from-model')?.textContent?.includes('Safe local conversation'),null,{timeout:9000});
         if(await page.locator('.chat-message.from-model b').count()!==0)
           throw new Error('HTML from local model was interpreted as markup');
-        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==2)throw new Error('V6 expected exactly one model list and one chat request');
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==3)throw new Error('V6 expected exactly one model list, one capability request and one chat request');
         await page.screenshot({path:'smoke-artifacts/v6-local-conversation.png'});
+        checkpoint='V6.2.1 native-free direct command in production bundle';
+        // The explicit action runs without inference even when model-suggested gestures are off.
+        await page.locator('.conversation-options summary').click();await page.locator('#ai-gesture-enabled').uncheck();await page.locator('.conversation-options summary').click();
+        await page.locator('#chat-input').fill('Can you shake your head?');
+        await page.locator('#ai-send').click();
+        await page.waitForFunction(()=>Array.from(document.querySelectorAll('.chat-message.from-model')).some(n=>n.textContent?.includes('Okay — shaking my head.')),null,{timeout:9000});
+        if(await page.evaluate(()=>window.__v6LocalCalls.length)!==3)
+          throw new Error('Explicit head-shake command unexpectedly contacted Ollama');
+        if(!(await page.locator('#ai-route-status').innerText()).includes('no inference'))
+          throw new Error('Direct animation route did not identify the local-only action');
+        await page.screenshot({path:'smoke-artifacts/v621-direct-head-shake.png'});
+        console.log('PASS V6.2.1 direct avatar command without model inference');
         await page.locator('#ai-clear').click();
         if(await page.locator('.chat-message.from-model').count()!==0)
           throw new Error('Local chat clear did not remove conversation');
         await page.reload({waitUntil:'load'});
         await page.waitForFunction(()=>document.querySelector('#avatar-canvas')?.dataset.renderReady==='true',null,{timeout:12000});
         await page.locator('[data-nav="conversation"]').click();
-        if(await page.locator('#ai-connection-status').innerText()!=='Disconnected (on-demand only)')
+        if(!(await page.locator('#ai-connection-status').innerText()).startsWith('Disconnected'))
           throw new Error('V6 must not reconnect or infer in background after reload');
         if(await page.locator('.chat-message.from-model').count()!==0)
           throw new Error('V6 should not persist personal conversation history');

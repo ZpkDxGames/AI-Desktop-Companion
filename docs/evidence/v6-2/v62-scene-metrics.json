@@ -1,0 +1,264 @@
+{
+  "captures": [
+    {
+      "path": "smoke-artifacts/v62-workspace-neutral-front.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-agree-front.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-uncertain-front.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-deny-front.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-deny-quarter.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-deny-side.png",
+      "memory": {
+        "geometries": 15,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-thinking-30s-front.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-thinking-120s-front.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-insight-front.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": true
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-insight-quarter.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": true
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-insight-side.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": true
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-sleepy-front.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-sleepy-quarter.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-sleepy-side.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-wake-front.png",
+      "memory": {
+        "geometries": 16,
+        "textures": 4
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-reading-bubble-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-reading-bubble-quarter.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-workspace-reading-bubble-side.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-neutral-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-agree-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-uncertain-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-deny-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-thinking-30s-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-thinking-120s-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-insight-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": true
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-sleepy-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-wake-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": false,
+      "bulb": false
+    },
+    {
+      "path": "smoke-artifacts/v62-overlay-reading-bubble-front.png",
+      "memory": {
+        "geometries": 21,
+        "textures": 7
+      },
+      "bubble": true,
+      "bulb": false
+    }
+  ],
+  "lifecycle": {
+    "geo": 3,
+    "mat": 6,
+    "finalGeo": 3,
+    "finalMat": 6,
+    "bubble": false,
+    "bulb": false
+  }
+}

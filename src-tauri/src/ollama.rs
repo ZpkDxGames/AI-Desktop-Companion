@@ -23,6 +23,7 @@ pub(crate) struct RequestState {
     pub(crate) preparing: Option<String>,
     pub(crate) image_epoch: u64,
     pub(crate) decoding: bool,
+    pub(crate) active_image: Option<(String,String)>,
 }
 impl RequestState {
     pub(crate) fn active_is_empty(&self) -> bool { self.active.is_empty() }
@@ -31,7 +32,7 @@ impl RequestState {
         if !self.active.is_empty() { return Err("Another local request is already running".into()); }
         self.active.insert(id.to_owned(), sender); Ok(())
     }
-    fn cancel(&mut self, id: String) -> bool {
+    pub(crate) fn cancel(&mut self, id: String) -> bool {
         if !self.cancelled.contains(&id) {
             if self.cancelled.len() == 16 { self.cancelled.pop_front(); }
             self.cancelled.push_back(id.clone());

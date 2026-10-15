@@ -24,7 +24,7 @@ try{
    }
    if(cmd==='vision_analyze'){
     const i=args.input;if(i.token!==token||!token)throw 'Expired preview';token=null;
-    if(f.mode==='no-vision')throw 'Selected model has no vision';f.count++;f.active=true;
+    if(['no-vision','remote'].includes(f.mode))throw 'Selected model has no verified local vision';f.count++;if(f.mode==='vision-error')throw 'Ollama HTTP 503';f.active=true;
     if(f.mode==='delay')return new Promise((resolve,reject)=>{f.reject=reject;});
     f.active=false;return {content:JSON.stringify({reply:'A synthetic image with green and dark shapes.',reaction:'insight'})};
    }
@@ -41,6 +41,12 @@ try{
   waitImage:()=>page.waitForFunction(()=>__visionFixture.active),
   assertTextClean:async()=>{if(!await page.evaluate(()=>!JSON.stringify(__visionFixture.lastText).includes('synthetic')&&!__visionFixture.lastText.some(m=>m.images)))throw Error('Visual content leaked to text');}
  });
+ for(const dpr of [1.25,1.5,2]){
+  const dpiContext=await browser.newContext({viewport:{width:840,height:650},deviceScaleFactor:dpr});
+  const dpiPage=await dpiContext.newPage();await dpiPage.goto(url);await dpiPage.locator('[data-nav="conversation"]').click();
+  const r=await dpiPage.locator('#ai-clear').boundingBox();if(!r||r.y+r.height>650)throw Error('DPI composer clipped '+dpr);
+  await dpiPage.screenshot({path:'smoke-artifacts/v7-dpr-'+dpr+'.png'});await dpiContext.close();
+ }
  if(errors.length)throw Error(errors.join('\n'));console.log('PASS production V7 consent, preview, layouts, 25 cleanup cycles, routing and cancel (fake native)');
 }catch(error){for(const p of (browser?.contexts().flatMap(c=>c.pages())||[]).filter(p=>!p.url().includes('overlay')))await p.screenshot({path:'smoke-artifacts/v7-browser-failure.png'}).catch(()=>{});throw error;}
 finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));}

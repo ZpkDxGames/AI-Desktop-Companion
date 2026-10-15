@@ -66,15 +66,16 @@ export class LocalVision{
   const generation=this.generation,own=new AbortController(),requestId='v7-'+crypto.randomUUID();
   const input={token:this.preview.token,model,question:question.trim()||'Describe this image.',requestId,retentionSeconds:retentionPolicy(retentionSeconds)};
   this.requestId=requestId;this.conversation.pending=own;this.conversation.pendingId=requestId;
-  this.setState('authorized');this.setState('analyzing');onStart();const started=performance.now();
-  const timer=setTimeout(()=>this.clear(),120000);
+  const started=performance.now();let timedOut=false;
+  const timer=setTimeout(()=>{timedOut=true;this.clear();},120000);
   try{
+   this.setState('authorized');this.setState('analyzing');onStart();
    const result=await this.conversation.nativeInvoke('vision_analyze',{input});
    if(own.signal.aborted||generation!==this.generation)throw abort();
    const parsed=parseReply(result?.content);
    this.setState('completed');
    return {...parsed,model,metrics:{loadMs:result.loadMs??null,generationMs:result.generationMs??null,completeResponseMs:performance.now()-started}};
-  }catch(error){if(own.signal.aborted||generation!==this.generation)throw abort();this.setState('error');throw error;}
+  }catch(error){if(timedOut)throw new DOMException('Image analysis timed out','TimeoutError');if(own.signal.aborted||generation!==this.generation)throw abort();this.setState('error');throw error;}
   finally{
    clearTimeout(timer);
    if(this.requestId===requestId)this.requestId=null;

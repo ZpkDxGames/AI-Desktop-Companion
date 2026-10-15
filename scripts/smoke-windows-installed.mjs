@@ -12,6 +12,7 @@ const server=createServer(async(req,res)=>{
  const data=text?JSON.parse(text):{};requests.push({path:req.url,model:data.model||null,keepAlive:data.keep_alive??null});
  const json=(value,status=200)=>res.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));
  if(req.url==='/api/tags')return json({models:[{name:'qwen3.5:4b'},{name:'llama3.2:3b'}]});
+ if(req.url==='/api/show'&&scenario==='remote')return json({capabilities:['completion','vision'],remote_model:'cloud',remote_host:'https://ollama.com'});
  if(req.url==='/api/show')return json({capabilities:data.model==='qwen3.5:4b'?(scenario==='no-vision'?['completion']:['completion','vision','thinking']):['completion']});
  if(req.url==='/api/generate'){
   if(data.keep_alive!==0||data.prompt||data.messages) return json({},400);
@@ -22,6 +23,7 @@ const server=createServer(async(req,res)=>{
   if(visual){if(data.model!=='qwen3.5:4b'||data.messages.filter(m=>m.images).length!==1||data.messages.at(-1).images.length!==1)return json({},400);imageCount++;}
   else lastTextMessages=data.messages;
   if(data.stream!==false||![0,30,60].includes(data.keep_alive)||data.options?.num_ctx!==4096||data.tools)return json({},400);
+  if(scenario==='vision-error'&&visual)return json({},503);
   if(scenario==='fallback'&&data.model==='qwen3.5:4b')return json({},503);
   if(scenario==='delay'){
    active++;maxActive=Math.max(maxActive,active);let ended=false;
@@ -141,7 +143,7 @@ try{
  if(maxActive!==1)throw Error('Overlapping native inference');
  await workspace.locator('#ai-clear').click();if(await workspace.locator('.from-model').count())throw Error('Native Clear retained reply');
  await visionProbes(workspace,avatar,{
-  environment:'Windows-2022 installed NSIS / real Rust / WebView2 software GPU / deterministic local Ollama fixture, NOT real owner model',
+  installed:true,environment:'Windows-2022 installed NSIS / real Rust / WebView2 software GPU / deterministic local Ollama fixture, NOT real owner model',
   countImages:async()=>imageCount,mode:async mode=>{scenario=mode;},
   waitImage:async()=>{const end=Date.now()+10000;while(!active&&Date.now()<end)await new Promise(r=>setTimeout(r,50));if(!active)throw Error('Vision request missing');},
   assertTextClean:async()=>{if(JSON.stringify(lastTextMessages).includes('synthetic')||lastTextMessages.some(m=>m.images))throw Error('Image content leaked to text history');}

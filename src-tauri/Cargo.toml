@@ -20,6 +20,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tokio = { version = "1", features = ["sync", "macros", "time"] }
 
 # V7 in-memory image admission; no filesystem/capture plugins or extra codecs.
-image = { version = "=0.25.8", default-features = false, features = ["png", "jpeg"] }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 base64 = "0.22"
 rand = "0.8"

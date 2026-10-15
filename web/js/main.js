@@ -149,8 +149,11 @@ function updateVisionControls(){
  $('workshop').classList.toggle('has-image',!!preview);
  if(preview){
   if($('image-thumbnail').getAttribute('src')!==preview.url)$('image-thumbnail').src=preview.url;
-  $('image-summary').textContent=`PNG · ${preview.width} × ${preview.height} · ${(preview.bytes/1024).toFixed(0)} KiB · ${$('ai-model').value||'select a model'}`;
- }else $('image-thumbnail').removeAttribute('src');
+  $('image-summary').textContent=`PNG · ${preview.width} × ${preview.height} · ${Math.max(1,Math.ceil(preview.bytes/1024))} KiB · ${$('ai-model').value||'select a model'}`;
+ }else {
+  $('image-thumbnail').removeAttribute('src');$('image-full').removeAttribute('src');
+  if($('image-dialog').open)$('image-dialog').close();
+ }
  const supported=conversation.catalog?.some(m=>m.model===$('ai-model').value&&m.local&&m.capabilities.includes('vision'));
  $('image-analyze').disabled=!preview||chatBusy||!aiConnected||!supported;
  $('image-attach').disabled=chatBusy||vision.state==='selecting'||!native;
@@ -289,6 +292,8 @@ function bindLocalChat(){
  $('image-file').addEventListener('cancel',()=>{vision.clear();updateAiControls();$('image-attach').focus();});
  $('image-remove').addEventListener('click',()=>{if(chatBusy)cancelChat();else vision.clear();updateAiControls();$('image-attach').focus();});
  $('image-analyze').addEventListener('click',()=>void analyzeLocalImage());
+ $('image-enlarge').addEventListener('click',()=>{if(vision.preview){$('image-full').src=vision.preview.url;$('image-dialog').showModal();}});
+ $('image-dialog').addEventListener('close',()=>$('image-full').removeAttribute('src'));
  $('ai-model').addEventListener('change',event=>{conversationGeneration++;state.ai.model=event.target.value;conversation.clear();vision.clear();cue('model-change');routeStatus='Model changed · no inference';save();updateAiControls();});
  $('ai-gesture-enabled').addEventListener('change',event=>{state.ai.gestures=event.target.checked;configureReactions();save();});
  $('ai-retention').value=String(state.ai.retentionSeconds);

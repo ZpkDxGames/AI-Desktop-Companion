@@ -279,7 +279,13 @@ html.overlay,body.mode-overlay{width:100%;height:100%;min-height:0;background:tr
  .chat-transcript{min-height:50px}
 }
 
-.has-image #ai-send,.has-image #image-attach{display:none}
+.has-image .chat-actions{display:none}
 @media(max-height:700px){
  .has-image .conversation-panel .content-heading,.has-image .chat-transcript{display:none}
 }
+
+.image-enlarge{border:0;padding:0;background:none;align-self:start;border-radius:5px;line-height:0}
+#image-dialog{max-width:92vw;max-height:90dvh;padding:12px;border:1px solid var(--border-strong);border-radius:11px;background:var(--panel);color:var(--text)}
+#image-dialog::backdrop{background:#000b}
+#image-full{display:block;max-width:85vw;max-height:72dvh;object-fit:contain;background:repeating-conic-gradient(#293237 0 25%,#20282d 0 50%) 0/12px 12px}
+#image-dialog form{margin-top:10px}

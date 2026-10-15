@@ -152,10 +152,11 @@
               </div>
               <button id="chat-latest" type="button" class="button-secondary" hidden>Latest messages ↓</button>
             </div>
+            <dialog id="image-dialog"><img id="image-full" alt="Full image that will be sent only after Analyze"/><form method="dialog"><button class="button-secondary">Close preview</button></form></dialog>
             <form id="chat-send-form" class="chat-compose">
               <input id="image-file" type="file" accept="image/png,image/jpeg" hidden aria-label="Choose one PNG or JPEG"/>
               <div id="image-preview" class="image-preview" hidden>
-                <img id="image-thumbnail" alt="Full sanitized image proposed for local analysis"/>
+                <button id="image-enlarge" type="button" class="image-enlarge" aria-label="Open full sanitized image preview"><img id="image-thumbnail" alt="Full sanitized image proposed for local analysis"/></button>
                 <div class="image-preview-info"><strong id="image-summary"></strong><span id="image-consent" role="status">Not yet analyzed</span><span>Local device only · 127.0.0.1:11434</span></div>
                 <div class="image-preview-actions"><button id="image-analyze" type="button" class="button-primary" disabled>Analyze image</button><button id="image-remove" type="button" class="button-secondary">Remove / cancel</button></div>
               </div>
@@ -167,10 +168,10 @@
 
           <section class="app-page" data-page="models" aria-label="AI and Models" hidden>
             <div class="availability"><span class="availability-icon">◇</span><h3>On-demand Ollama connector</h3><p>Install Ollama and a compatible model separately. Then use Conversation → Connect. The app permits only loopback requests and never downloads models, starts services, accesses files or contacts a cloud provider.</p></div>
-            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Only after Send</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>Unload requested after each reply · context 4096</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
+            <div class="summary-list"><div><span>Local endpoint</span><strong id="ai-endpoint">http://127.0.0.1:11434</strong></div><div><span>AI inference</span><strong>Send text or separately approve Analyze image</strong></div><div><span>Session text</span><strong>Memory only · Clear anytime</strong></div><div><span>Model keep-alive</span><strong>Unload requested after each reply · context 4096</strong></div><div><span>External tools</span><strong>Not enabled</strong></div></div>
             <div class="summary-list" id="model-catalog" aria-live="polite">Capabilities are checked only after Connect.</div>
             <button id="models-open-chat" class="button-secondary">Configure primary and fallback</button>
-            <p class="small-note">Windows uses the native localhost bridge. Actual capabilities are read from the installed models. Cloud aliases are unsupported. Image input is deferred to a separately accepted milestone.</p>
+            <p class="small-note">Windows uses the native localhost bridge. Actual capabilities are read from the installed models. Cloud aliases are unsupported. PNG/JPEG import requires preview and separate Analyze approval; desktop capture is unavailable.</p>
           </section>
 
           <section class="app-page" data-page="privacy" aria-label="Privacy and permissions" hidden>

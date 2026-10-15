@@ -107,9 +107,9 @@ try{
   const decision=await page.locator('#ai-route-status').evaluate(n=>({...n.dataset}));
   if(decision.reason!==expected||decision.chosenReaction!==reaction)throw Error('Reaction decision mismatch '+JSON.stringify(decision));
   const events=await page.evaluate(i=>__cueEvents.slice(i),cueBegin);
+  for(const e of events)await overlay.evaluate(e=>__listeners['zpkdx:reaction']({payload:e.payload}),e);
   const remote=await overlay.locator('#overlay-canvas').evaluate(n=>({...n.dataset}));
   if(remote.appliedReaction!==decision.appliedReaction||action&&remote.controllerAction!==action)throw Error('Overlay reaction mismatch '+JSON.stringify({decision,remote,kinds:events.map(e=>e.payload.kind)}));
-  for(const e of events)await overlay.evaluate(e=>__listeners['zpkdx:reaction']({payload:e.payload}),e);
   if(action){
    await overlay.waitForFunction(r=>document.querySelector('#overlay-canvas').dataset.appliedReaction===r,reaction);
    await page.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());

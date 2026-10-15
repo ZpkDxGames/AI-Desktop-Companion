@@ -47,7 +47,7 @@ Ollama API documentation: https://github.com/ollama/ollama/blob/main/docs/api.md
 | Hidden/closed window | no late action; lifecycle invalidated |
 | Qwen failure → Llama | at most one final answer reaction; previous retained model released first |
 
-Canonical WebGL smoke now sends real emitted-app conversation events, asserts controller dispatch, records three moving nod/shake/shrug frames and matching overlay semantics, repeats nod after cooldown, and verifies the disabled case. Existing fixed-pose pixel, original skin, eye, prop, expressive resource, reduced motion, layout, 125% text, DPI and motion tests remain. Installed Windows smoke uses the actual NSIS-installed WebView2 and Rust transport, validates finite retention rejection and switch release, repeated nod/shake/shrug/disabled delivery, one active inference and cancellation.
+Canonical WebGL smoke now sends real emitted-app conversation events, asserts controller dispatch, records three moving nod/shake/shrug frames from a bounded test-only observer of the existing production frame marker, and matching overlay semantics, repeats nod after cooldown, and verifies the disabled case. Existing fixed-pose pixel, original skin, eye, prop, expressive resource, reduced motion, layout, 125% text, DPI and motion tests remain. Installed Windows smoke uses the actual NSIS-installed WebView2 and Rust transport, validates finite retention rejection and switch release, repeated nod/shake/shrug/disabled delivery, one active inference and cancellation.
 
 ## Measurement and certification boundaries
 

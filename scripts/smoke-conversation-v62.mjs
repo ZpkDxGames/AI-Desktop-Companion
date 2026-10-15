@@ -1,6 +1,7 @@
 /** Emitted app/native-boundary mock: real WebGL, UI and allowlisted event delivery. */
 import {chromium} from 'playwright';import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';import {resolve,extname,sep} from 'node:path';import {once} from 'node:events';
+import {armReactionFrames,readReactionFrames} from './reaction-frame-evidence.mjs';
 const root=resolve('dist'),mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png'};
 const server=createServer(async(req,res)=>{try{let path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!path.startsWith(root+sep))throw Error();res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'}).end(await readFile(path));}catch{res.writeHead(404).end();}});
 server.listen(0,'127.0.0.1');await once(server,'listening');await mkdir('smoke-artifacts',{recursive:true});let browser;
@@ -35,8 +36,9 @@ try{
  const baselineLayout=await page.locator('#ai-send').boundingBox();
  if(!baselineLayout||baselineLayout.y+baselineLayout.height>600)throw Error('Conversation composer below viewport');
  const direct=async(text,action)=>{
+  await armReactionFrames(page,{action,count:1,pixels:false});
   await page.locator('#chat-input').fill(text);await page.locator('#ai-send').click();
-  await page.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
+  await readReactionFrames(page,1);
   if(!await page.locator('#ai-route-status').textContent().then(s=>s.includes('Local avatar action · no inference')))throw Error('Direct route mislabeled');
  };
  await direct('Can you walk?','walk');await direct('Show me how you run','run');await direct('Stop walking','idle');
@@ -48,9 +50,12 @@ try{
  if(!await page.locator('#ai-route-status').textContent().then(s=>s.includes('Text chat unavailable')))throw Error('Offline text did not explain connection');
  if(await page.locator('#animation-status').textContent()!=='IDLE')throw Error('Capability task triggered an action');
  // Rejection must produce no success wording or overlay action cue.
- await direct('Can you wave?','wave');
- const beforeRejected=await page.evaluate(()=>__cueEvents.filter(c=>c.payload.kind==='direct-action').length);
- await page.locator('#chat-input').fill('Start walking');await page.locator('#ai-send').click();
+ const beforeRejected=await page.evaluate(()=>{
+  const field=document.querySelector('#chat-input'),form=document.querySelector('#chat-send-form');
+  field.value='Can you wave?';form.requestSubmit();
+  const count=__cueEvents.filter(c=>c.payload.kind==='direct-action').length;
+  field.value='Start walking';form.requestSubmit();return count;
+ });
  if(!await page.locator('.from-model').last().textContent().then(s=>s.includes('could not start')))throw Error('Rejected action claimed success');
  if(await page.evaluate(()=>__cueEvents.filter(c=>c.payload.kind==='direct-action').length)!==beforeRejected)throw Error('Rejected action emitted cue');
  await direct('Stand still','idle');
@@ -104,6 +109,10 @@ try{
  const reactionTurn=async(name,reply,reaction,action,expected)=>{
   await page.evaluate(({reply,reaction})=>{window.__scenario='success';window.__reply=reply;window.__reaction=reaction;},{reply,reaction});
   const cueBegin=await page.evaluate(()=>__cueEvents.length);
+  if(action){
+   await armReactionFrames(page,{action});
+   await armReactionFrames(overlay,{canvasId:'overlay-canvas',statusId:null,action});
+  }
   await page.locator('#chat-input').fill('Reaction verification fixture');await page.locator('#ai-send').click();
   await page.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
   const decision=await page.locator('#ai-route-status').evaluate(n=>({...n.dataset}));
@@ -113,15 +122,12 @@ try{
   const remote=await overlay.locator('#overlay-canvas').evaluate(n=>({...n.dataset}));
   if(remote.appliedReaction!==decision.appliedReaction||action&&remote.controllerAction!==action)throw Error('Overlay reaction mismatch '+JSON.stringify({decision,remote,kinds:events.map(e=>e.payload.kind)}));
   if(action){
-   await overlay.waitForFunction(r=>document.querySelector('#overlay-canvas').dataset.appliedReaction===r,reaction);
-   await page.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
-   const frames=[];
+   const [frames,remoteFrames]=await Promise.all([readReactionFrames(page),readReactionFrames(overlay)]);
    for(let i=0;i<3;i++){
-    await page.waitForTimeout(160);
-    frames.push(await page.locator('#avatar-canvas').screenshot({path:`smoke-artifacts/v623-${name}-${i}.png`}));
-    await overlay.locator('#overlay-canvas').screenshot({path:`smoke-artifacts/v623-overlay-${name}-${i}.png`});
+    await writeFile(`smoke-artifacts/v623-${name}-${i}.png`,Buffer.from(frames[i].png.split(',')[1],'base64'));
+    await writeFile(`smoke-artifacts/v623-overlay-${name}-${i}.png`,Buffer.from(remoteFrames[i].png.split(',')[1],'base64'));
    }
-   if(frames[0].equals(frames[2]))throw Error('Rendered gesture canvas did not change');
+   if(frames[0].png===frames[2].png||remoteFrames[0].png===remoteFrames[2].png)throw Error('Rendered gesture canvas did not change');
   }else {await page.waitForTimeout(220);await page.screenshot({path:`smoke-artifacts/v623-${name}.png`});await overlay.locator('#overlay-canvas').screenshot({path:`smoke-artifacts/v623-overlay-${name}.png`});}
   reactionMatrix.push({name,...decision,overlayIntent:events.at(-1)?.payload.reaction});
   await page.waitForTimeout(3000);

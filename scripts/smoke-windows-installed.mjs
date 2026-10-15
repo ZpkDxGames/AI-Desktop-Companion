@@ -3,6 +3,7 @@
  */
 import {chromium} from 'playwright';import {createServer} from 'node:http';import {once} from 'node:events';
 import {mkdir,writeFile} from 'node:fs/promises';
+import {armReactionFrames,readReactionFrames} from './reaction-frame-evidence.mjs';
 const requests=[];let scenario='success',active=0,maxActive=0,cancelled=0,reply='I have an idea that might help.',reaction='insight',resident=null;
 const latencySamples=[];
 const server=createServer(async(req,res)=>{
@@ -65,8 +66,9 @@ try{
  await workspace.locator('[data-nav="behavior"]').click();await workspace.locator('#idle-mode').selectOption('off');
  await workspace.locator('[data-nav="conversation"]').click();
  for(const [text,action] of [['Can you walk?','walk'],['Show me how you run','run'],['Stop walking','idle'],['Can you shake your head?','shake'],['Stand still','idle']]){
+  await armReactionFrames(workspace,{action,count:1,pixels:false});
   await workspace.locator('#chat-input').fill(text);await workspace.locator('#ai-send').click();
-  await workspace.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
+  await readReactionFrames(workspace,1);
   await avatar.waitForFunction(a=>window.__testCues.at(-1)?.action===a,action);
   received.push(action);
  }
@@ -84,12 +86,20 @@ try{
  const reactionMatrix=[];
  const turn=async(name,text,intent,action,reason)=>{
   scenario='success';reply=text;reaction=intent;
+  if(action){await armReactionFrames(workspace,{action});await armReactionFrames(avatar,{canvasId:'overlay-canvas',statusId:null,action});}
   await workspace.locator('#chat-input').fill('Installed reaction fixture');await workspace.locator('#ai-send').click();
   await workspace.waitForFunction(()=>document.querySelector('#ai-stop').disabled);
   const d=await workspace.locator('#ai-route-status').evaluate(n=>({...n.dataset}));
   if(d.reason!==reason||d.appliedReaction!==(action||reason==='effect_only'?intent:'neutral'))throw Error('Native reaction decision '+JSON.stringify(d));
   if(action)await avatar.waitForFunction(r=>document.querySelector('#overlay-canvas').dataset.appliedReaction===r,intent);
-  if(action)await workspace.waitForFunction(a=>document.querySelector('#animation-status').textContent===a,action.toUpperCase());
+  if(action){
+   const [frames,remote]=await Promise.all([readReactionFrames(workspace),readReactionFrames(avatar)]);
+   if(frames[0].png===frames[2].png||remote[0].png===remote[2].png)throw Error('Installed rendered gesture did not move');
+   for(let i=0;i<3;i++){
+    await writeFile(`smoke-artifacts/v623-installed-${name}-${i}.png`,Buffer.from(frames[i].png.split(',')[1],'base64'));
+    await writeFile(`smoke-artifacts/v623-installed-overlay-${name}-${i}.png`,Buffer.from(remote[i].png.split(',')[1],'base64'));
+   }
+  }
   await workspace.waitForTimeout(220);
   await workspace.locator('#avatar-canvas').screenshot({path:'smoke-artifacts/v623-installed-'+name+'.png'});
   await avatar.locator('#overlay-canvas').screenshot({path:'smoke-artifacts/v623-installed-overlay-'+name+'.png'});

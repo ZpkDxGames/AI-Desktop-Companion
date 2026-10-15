@@ -21,7 +21,9 @@ export const REACTION_CORPUS=[
  ['Great news! We did it.','celebrate'],["Don't worry, it will be okay.",'reassure'],['Wow, that is surprising!','surprised'],
  ['**Yes**, that is correct.','agree'],['Your assessment is accurate.','agree'],['That sounds sensible.','agree'],
  ['I agree with nothing you said.','disagree'],["That's not right.",'disagree'],['Yes, I am not sure.','uncertain'],
- ['I agree is a phrase.','neutral'],['Yes, I can inspect your desktop.','neutral']
+ ['I agree is a phrase.','neutral'],['Yes, I can inspect your desktop.','neutral'],
+ ["That's correct.",'agree'],['I concur.','agree'],["I'm unsure.",'uncertain'],["I don't think that's right.",'disagree'],
+ ['I concur is a phrase.','neutral']
 ];
 test('V6.2.3 grounded corpus works for structured Qwen/Llama and missing labels',()=>{
  for(const [reply,expected] of REACTION_CORPUS){

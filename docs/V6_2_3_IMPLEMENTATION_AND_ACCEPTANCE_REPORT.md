@@ -24,7 +24,7 @@ Ollama API documentation: https://github.com/ollama/ollama/blob/main/docs/api.md
 
 ## Fixed labeled corpus comparison
 
-39 manually labeled English examples: 23 non-neutral targets and 16 neutral hard negatives. Micro counts exclude neutral from positive-label precision/recall; a wrong non-neutral label counts as both FP and FN for its respective labels. Baseline: TP 10, FP 5, FN 13, TN 14, precision 66.7%, recall 43.5%. Candidate: TP 23, FP 0, FN 0, TN 16, precision/recall 100% **on this fixed test corpus only**. Tests cover structured and neutral/missing hints, formatting, legacy metadata, contradictory labels and one additional structured-insight phrase. This is not evidence of 100% real Qwen/Llama language accuracy. False negatives on unrecognized language remain preferable to incidental gestures.
+44 manually labeled English examples: 27 non-neutral targets and 17 neutral hard negatives. Micro counts exclude neutral from positive-label precision/recall; a wrong non-neutral label counts as both FP and FN for its respective labels. Baseline: TP 10, FP 5, FN 17, TN 15, precision 66.7%, recall 37.0%. Candidate: TP 27, FP 0, FN 0, TN 17, precision/recall 100% **on this fixed test corpus only**. Tests cover structured and neutral/missing hints, formatting, legacy metadata, contradictory labels and one additional structured-insight phrase. This is not evidence of 100% real Qwen/Llama language accuracy. False negatives on unrecognized language remain preferable to incidental gestures.
 
 ## Reaction verification matrix
 

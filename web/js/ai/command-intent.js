@@ -60,12 +60,13 @@ export function chooseAnswerReaction(reply,modelReaction='neutral'){
  for(let s of clauses){
   if(!s||/^[>]/.test(s)||/\b(?:if|unless|assuming|provided|suppose|hypothetically|would agree|might agree|could agree)\b/i.test(s))continue;
   if(/^(?:the (?:word|phrase|example)|say|you (?:could|can|should) say|yes is|no is)\b/i.test(s))continue;
-  if(/^(?:i agree|yes|no)\b.{0,40}\b(?:means|is a (?:word|phrase|statement|particle))\b/i.test(s))continue;
+  if(/^(?:i agree|i concur|yes|no)\b.{0,40}\b(?:means|is a (?:word|phrase|statement|particle))\b/i.test(s))continue;
   if(/^(?:yes[,.! ]+)?i (?:can|could|will|would|am|have) (?:walk|run|wave|nod|shake|move|see|inspect|capture|access)\b/i.test(s))continue;
   if(/^(?:yes[,.! ]+)?i(?:'m| am) not sure\b/i.test(s)){chosen='uncertain';continue;}
-  if(/^(?:i (?:don't|do not) know\b|i(?:'m| am) (?:not sure|uncertain)\b|not sure\b|it(?:'s| is) unclear\b|i can't (?:tell|determine|be sure)\b|i have no idea\b)/i.test(s))chosen='uncertain';
+  if(/^(?:i (?:don't|do not) know\b|i(?:'m| am) (?:not sure|uncertain|unsure)\b|not sure\b|it(?:'s| is) unclear\b|i can't (?:tell|determine|be sure)\b|i have no idea\b)/i.test(s))chosen='uncertain';
+  else if(/^i (?:don't|do not) think (?:that(?:'s| is)|you(?:'re| are)) (?:right|correct)\b/i.test(s))chosen='disagree';
   else if(/^(?:no(?:[!.,]|$)|not quite\b|that(?:'s| is) (?:incorrect|not correct|not right)\b|i (?:disagree|do not agree|don't agree|agree with nothing)\b|actually,\s*no\b)/i.test(s)&&!/^no (?:problem|worries|need)\b/i.test(s))chosen='disagree';
-  else if(/^(?:(?:yes|absolutely|exactly|correct)(?:[!.,]|$)|you(?:'re| are) (?:right|(?:absolutely |completely )?correct)\b|that(?:'s| is) right\b|that sounds (?:right|sensible|correct)\b|(?:your|that) assessment is (?:accurate|correct)\b|that makes sense(?:[,.]\s*yes)?(?:[.!]|$)|i agree\b)/i.test(s)){
+  else if(/^(?:(?:yes|absolutely|exactly|correct)(?:[!.,]|$)|you(?:'re| are) (?:right|(?:absolutely |completely )?correct)\b|that(?:'s| is) (?:right|(?:absolutely )?correct)\b|that sounds (?:right|sensible|correct)\b|(?:your|that) assessment is (?:accurate|correct)\b|that makes sense(?:[,.]\s*yes)?(?:[.!]|$)|i (?:agree|concur)\b)/i.test(s)){
    // A nominal yes followed by an explicit negative correction is disagreement.
    chosen=/\bbut\b.{0,80}\b(?:incorrect|wrong|not correct|disagree)\b/i.test(s)?'disagree':'agree';
   }

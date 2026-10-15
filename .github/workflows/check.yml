@@ -35,6 +35,8 @@ jobs:
         run: node scripts/smoke-expressive-gpu.mjs
       - name: Exercise V6.2 conversation and cross-window cues in emitted app
         run: node scripts/smoke-conversation-v62.mjs
+      - name: Exercise V7 opt-in image UI and privacy (explicit fake native)
+        run: node scripts/smoke-vision-v7.mjs
       - name: Preserve browser failure screenshots
         if: always()
         uses: actions/upload-artifact@v4

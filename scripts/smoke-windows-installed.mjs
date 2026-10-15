@@ -3,21 +3,25 @@
  */
 import {chromium} from 'playwright';import {createServer} from 'node:http';import {once} from 'node:events';
 import {mkdir,writeFile} from 'node:fs/promises';
+import {visionProbes} from './vision-probes.mjs';
 import {armReactionFrames,readReactionFrames} from './reaction-frame-evidence.mjs';
 const requests=[];let scenario='success',active=0,maxActive=0,cancelled=0,reply='I have an idea that might help.',reaction='insight',resident=null;
-const latencySamples=[];
+const latencySamples=[];let imageCount=0,lastTextMessages=null;
 const server=createServer(async(req,res)=>{
- let text='';for await(const chunk of req){text+=chunk;if(text.length>128*1024){res.writeHead(413).end();return;}}
+ let text='';for await(const chunk of req){text+=chunk;if(text.length>8*1024*1024){res.writeHead(413).end();return;}}
  const data=text?JSON.parse(text):{};requests.push({path:req.url,model:data.model||null,keepAlive:data.keep_alive??null});
  const json=(value,status=200)=>res.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));
  if(req.url==='/api/tags')return json({models:[{name:'qwen3.5:4b'},{name:'llama3.2:3b'}]});
- if(req.url==='/api/show')return json({capabilities:data.model==='qwen3.5:4b'?['completion','vision','thinking']:['completion']});
+ if(req.url==='/api/show')return json({capabilities:data.model==='qwen3.5:4b'?(scenario==='no-vision'?['completion']:['completion','vision','thinking']):['completion']});
  if(req.url==='/api/generate'){
   if(data.keep_alive!==0||data.prompt||data.messages) return json({},400);
   resident=null;return json({done:true,done_reason:'unload'});
  }
  if(req.url==='/api/chat'){
-  if(data.stream!==false||![0,30,60].includes(data.keep_alive)||data.options?.num_ctx!==4096||data.tools||data.messages?.some(m=>m.images))return json({},400);
+  const visual=data.messages?.some(m=>m.images);
+  if(visual){if(data.model!=='qwen3.5:4b'||data.messages.filter(m=>m.images).length!==1||data.messages.at(-1).images.length!==1)return json({},400);imageCount++;}
+  else lastTextMessages=data.messages;
+  if(data.stream!==false||![0,30,60].includes(data.keep_alive)||data.options?.num_ctx!==4096||data.tools)return json({},400);
   if(scenario==='fallback'&&data.model==='qwen3.5:4b')return json({},503);
   if(scenario==='delay'){
    active++;maxActive=Math.max(maxActive,active);let ended=false;
@@ -27,7 +31,7 @@ const server=createServer(async(req,res)=>{
   if(resident&&resident!==data.model)return json({error:'Previous retained model not released'},409);
   const cold=resident!==data.model,loadMs=cold?180:5;
   await new Promise(r=>setTimeout(r,loadMs+20));resident=data.keep_alive?data.model:null;
-  return json({load_duration:loadMs*1e6,eval_duration:20e6,message:{content:JSON.stringify({reply,reaction})}});
+  return json({load_duration:loadMs*1e6,eval_duration:20e6,message:{content:JSON.stringify({reply:visual?'A synthetic image with green and dark shapes.':reply,reaction})}});
  }
  return json({},404);
 });
@@ -136,6 +140,13 @@ try{
  if(active||!cancelled)throw Error('Native cancellation did not close the loopback request');
  if(maxActive!==1)throw Error('Overlapping native inference');
  await workspace.locator('#ai-clear').click();if(await workspace.locator('.from-model').count())throw Error('Native Clear retained reply');
+ await visionProbes(workspace,avatar,{
+  environment:'Windows-2022 installed NSIS / real Rust / WebView2 software GPU / deterministic local Ollama fixture, NOT real owner model',
+  countImages:async()=>imageCount,mode:async mode=>{scenario=mode;},
+  waitImage:async()=>{const end=Date.now()+10000;while(!active&&Date.now()<end)await new Promise(r=>setTimeout(r,50));if(!active)throw Error('Vision request missing');},
+  assertTextClean:async()=>{if(JSON.stringify(lastTextMessages).includes('synthetic')||lastTextMessages.some(m=>m.images))throw Error('Image content leaked to text history');}
+ });
+
  await workspace.locator('[data-nav="behavior"]').click();await workspace.locator('[data-action="shake"]').click();
  await workspace.waitForFunction(()=>document.querySelector('#animation-status').textContent==='SHAKE');
  await workspace.screenshot({path:'smoke-artifacts/v62-installed-native-shake.png'});

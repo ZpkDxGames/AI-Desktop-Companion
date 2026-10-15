@@ -1,6 +1,6 @@
 [package]
 name = "zpkdx-desktop-agent"
-version = "0.1.0-alpha.6.2.3"
+version = "0.1.0-alpha.7.0.0"
 description = "ZpkDxGames 3D Minecraft desktop companion"
 authors = ["ZpkDxGames"]
 edition = "2021"
@@ -17,4 +17,9 @@ tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["sync", "macros"] }
+tokio = { version = "1", features = ["sync", "macros", "time"] }
+
+# V7 in-memory image admission; no filesystem/capture plugins or extra codecs.
+image = { version = "=0.25.8", default-features = false, features = ["png", "jpeg"] }
+base64 = "0.22"
+rand = "0.8"

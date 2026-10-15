@@ -46,7 +46,7 @@ test('source budget, MIME/signature and header dimensions checked before native 
  assert.equal(validateSource(png,'image/png').width,1);
  for(const type of ['image/jpeg','image/gif','image/webp','image/svg+xml','text/html','application/pdf'])assert.throws(()=>validateSource(png,type));
  for(const bytes of [new Uint8Array(4),new Uint8Array(5*1024*1024+1)])assert.throws(()=>validateSource(bytes,'image/png'));
- const huge=png.slice();new DataView(huge.buffer).setUint32(16,999999);assert.throws(()=>validateSource(huge,'image/png'),/pixel|dimension/i);
+ const huge=png.slice();new DataView(huge.buffer).setUint32(16,4999999);assert.throws(()=>validateSource(huge,'image/png'),/pixel|dimension/i);
  const f=fixture();await assert.rejects(f.vision.select(file(png,'text/html')));assert.equal(f.calls.some(c=>c.cmd==='vision_prepare'),false);
 });
 test('native-only image transport and text fallback remain separate',async()=>{

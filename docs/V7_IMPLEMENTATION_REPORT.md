@@ -15,3 +15,11 @@ Plan: add a narrow native prepare/clear/analyze lifecycle. Preparation accepts o
 Dependencies planned: image (PNG/JPEG only, no default codecs), base64 (strict standard encoding), rand for unguessable preparation tokens. No Tauri plugins, filesystem permission, network origin or capture API. Native close/minimize clears prepared state and cancels active inference even if WebView JavaScript is suspended. No changes to avatar geometry, renderer, animation controllers or frame pacing.
 
 Tests first: local-vision-v7.test.mjs exercises consent, actual command payload shape, one-shot lifecycle, text overlap, replacement and cancellation, no browser image transport or history. Initial RED run is recorded before implementation.
+
+## Implementation checkpoint
+
+Implemented a volatile LocalVision owner sharing LocalConversation's active slot and native cancellation IDs. Added native PNG/JPEG decode/re-encode, exact canonical preview, single-use 256-bit token, strict dedicated request structs, bounded response schema, model locality/vision revalidation and native hidden/minimized cleanup. Browser image transport is disabled; deterministic browser fixtures explicitly fake native commands. UI integrates into the existing Conversation composer and existing reaction coordinator with content-free overlay cues. Text fallback, direct animation parsing and geometry/timing code stay unchanged.
+
+180 JavaScript tests pass at this working checkpoint (174 baseline plus six V7 contract tests). Native tests include supported encodings, dimension/byte budgets, malformed/multi-image/unsupported sources, narrow schemas and presentational output validation. Native execution is still pending Windows CI. Browser layout tests exposed short-window control clipping; fixes and retest are in progress. This checkpoint is not the delivered exact-head candidate.
+
+No new Tauri permissions, CSP origins, shell/filesystem/capture plugins, cloud endpoints or renderer loops. image 0.25.8 uses only PNG/JPEG; base64 0.22 and rand 0.8. License/advisory review and exact resolved lock pending CI.

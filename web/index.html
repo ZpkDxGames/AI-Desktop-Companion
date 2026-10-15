@@ -138,9 +138,9 @@
                 <summary>Reply preferences <span>Local only</span></summary>
                 <div class="conversation-option-body">
                   <div class="conversation-model"><label for="ai-fallback">Text fallback</label><select id="ai-fallback" disabled aria-label="Installed text fallback"><option value="">Connect to choose</option></select></div>
+                  <div class="conversation-model"><label for="ai-retention">Model retention</label><select id="ai-retention"><option value="0">Off · unload</option><option value="30">Short · 30 s</option><option value="60">Balanced · 60 s</option></select></div>
                   <label class="conversation-toggle"><input id="ai-gesture-enabled" type="checkbox"/> Optional answer gestures</label>
                   <label class="conversation-toggle"><input id="ai-effects-enabled" type="checkbox" checked/> Visual request effects</label>
-                  <div class="conversation-model"><label for="ai-retention">Model retention</label><select id="ai-retention"><option value="0">Off · unload after reply</option><option value="30">Short · 30 seconds</option><option value="60">Balanced · 60 seconds</option></select></div>
                   <p class="small-note">Direct avatar commands work offline. Model replies and their optional reactions stay local; text is temporary and never saved. No screen access.</p>
                 </div>
               </details>

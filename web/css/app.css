@@ -221,7 +221,9 @@ html.overlay,body.mode-overlay{width:100%;height:100%;min-height:0;background:tr
 .conversation-options summary{cursor:pointer;padding:7px 10px;font-size:11px;color:var(--subtext)}
 .conversation-options summary span{float:right;color:var(--muted);font-size:10px}
 .conversation-option-body{padding:4px 10px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.conversation-option-body .conversation-model,.conversation-option-body .small-note{grid-column:1 / -1}
+.conversation-option-body .conversation-model{flex-direction:column;align-items:stretch;gap:3px}
+.conversation-option-body .conversation-model select{width:100%}
+.conversation-option-body .small-note{grid-column:1 / -1}
 .conversation-toggle{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--subtext)}
 .conversation-toggle input{margin:0;accent-color:var(--mint)}
 .conversation-option-body .small-note{font-size:10px;line-height:1.4}
